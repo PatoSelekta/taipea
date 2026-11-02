@@ -17,12 +17,16 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 # Start Hammerspoon if needed (give it time to load Taipea), then open the window.
-osacompile -o "$tmp/Taipea.app" \
+# (osacompile prints a harmless "replacing existing signature" note; show its output only on failure)
+if ! osa_out="$(osacompile -o "$tmp/Taipea.app" \
   -e 'if application id "org.hammerspoon.Hammerspoon" is not running then' \
   -e '  do shell script "open -g -a Hammerspoon"' \
   -e '  delay 3' \
   -e 'end if' \
-  -e 'do shell script "open -g hammerspoon://taipea"'
+  -e 'do shell script "open -g hammerspoon://taipea"' 2>&1)"; then
+  echo "$osa_out" >&2
+  exit 1
+fi
 
 app="$tmp/Taipea.app"
 plist="$app/Contents/Info.plist"

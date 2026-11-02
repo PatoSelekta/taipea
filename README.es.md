@@ -124,6 +124,8 @@ ejecutar sin problema (se salta lo que ya está hecho). El instalador:
 | `--llm=qwen2.5:7b` | Usa otro modelo de corrección. |
 | `--no-cleanup` | No instala Ollama. Taipea pega la transcripción sin corregir. |
 | `--yes` | No hace preguntas; usa los valores por defecto. |
+| `--skip-brew` | No instala ni inicia nada con Homebrew (las herramientas ya deben estar). |
+| `--no-start` | No reinicia Hammerspoon, no inicia Ollama ni abre Ajustes del Sistema. |
 
 ¿Prefieres revisar antes? Descarga el código, lee `install.sh` y luego ejecuta
 `bash install.sh`.

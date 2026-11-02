@@ -119,6 +119,8 @@ safely (it skips what is already done). It:
 | `--llm=qwen2.5:7b` | Use a different cleanup model. |
 | `--no-cleanup` | Don't install Ollama. Taipea pastes the raw transcription. |
 | `--yes` | Don't ask any questions; use the defaults. |
+| `--skip-brew` | Don't install or start anything with Homebrew (the tools must already be there). |
+| `--no-start` | Don't restart Hammerspoon, start Ollama or open System Settings. |
 
 Prefer to look first? Download the code, read `install.sh`, then run `bash install.sh`.
 

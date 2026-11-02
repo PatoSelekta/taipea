@@ -35,6 +35,12 @@ First public release.
 - Vision section in both READMEs.
 - `install.sh` (idempotent; Homebrew, Hammerspoon, whisper.cpp, SoX, Ollama, models,
   Taipea.app) and `uninstall.sh`.
+- Installer options `--skip-brew` and `--no-start` (also `TAIPEA_SKIP_BREW=1`, `TAIPEA_NO_START=1`).
 - English and Spanish README.
+
+### Fixed (found while testing on a real Mac)
+- A speech model that is a symlink was downloaded again; the installer now follows symlinks.
+- The installer no longer starts or restarts Ollama when it is already running.
+- `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
 [0.1.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.1.0
