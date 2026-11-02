@@ -4,7 +4,9 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-11-02
+
+First public release (includes everything listed under 0.1.0 below, which was never published).
 
 ### Added
 - Voice start / stop (off by default): say "Taipea escribe" / "Taipea write" to start and
@@ -12,9 +14,14 @@ All notable changes to Taipea are listed here. The format follows
   Phrases are editable in Settings. A low-CPU SoX listener keeps short bursts (up to 4 s),
   only those are transcribed by Whisper on the Mac and then deleted; it accepts common
   mishearings of "Taipea", pauses while the screen is locked, and shows 👂 in the menu bar.
-- Floating 🎙 button (on by default): round, 96 px, always on top, draggable with the
-  position remembered; click to start, click again to stop and paste into the app that was
-  in front. Different looks for idle, listening, recording and working.
+- Floating mic button (on by default): round, 96 px, always on top, draggable with the
+  position remembered; click to start; while recording it turns green (click = stop and paste)
+  with two satellite buttons (blue = stop and copy only, red = cancel), 64 px and semi-transparent
+  at rest, growing to 84 px with a label on hover, placed on whichever side has room. They
+  appear for any start (button, shortcut or voice). Settings › Recording controls has the
+  On/Off toggle and "Show the recording card too" (off by default: the card is hidden while
+  the floating button is on). The card's buttons use the same colours and icons (green paste,
+  blue copy, red ×). Different looks for idle (mic), listening, recording and working (spinner).
 - Custom words (Settings › Custom words): "heard → replace with" rows with large Add and
   Delete buttons; whole-word, case- and accent-insensitive; applied after Whisper and again
   after cleanup; the words are passed to Whisper as `--prompt` hints and the cleanup model
@@ -34,7 +41,7 @@ All notable changes to Taipea are listed here. The format follows
 
 ## [0.1.0] - 2026-11-02
 
-First public release.
+Internal baseline (not published as a GitHub release).
 
 ### Added
 - Hands-free dictation into any app: Ctrl+Option+Space to start and stop, text is pasted
@@ -71,4 +78,4 @@ First public release.
 - The installer no longer starts or restarts Ollama when it is already running.
 - `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
-[0.1.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.1.0
+[0.2.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.0

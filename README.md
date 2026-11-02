@@ -67,9 +67,11 @@ Taipea is for you if:
 - **Voice start / stop (optional, off by default).** Say "Taipea escribe" or "Taipea write"
   to start, and "listo", "done" or "Taipea listo" to stop and paste. The phrases are
   editable. See [Voice start / stop](#voice-start--stop) for how it works and its limits.
-- **Floating 🎙 button (on by default).** A round 96 px button that stays on top: click to
-  start, click again to stop and paste into the app you were using. Drag it anywhere; it
-  remembers where you left it. It looks different when idle, recording and working.
+- **Floating mic button (on by default).** A round 96 px button that stays on top: click to
+  start. While you dictate it turns green—click it to stop and paste into the app you were
+  using. Two smaller buttons appear beside it (blue = stop and copy only, red = cancel). Drag
+  it anywhere; it remembers where you left it. You can also show the full recording card in
+  Settings. It looks different when idle, recording and working.
 - **Custom words.** Tell Taipea that "select dev" should be written "selektdev". Matching
   ignores capitals and accents and only replaces whole words. The words are also given to
   Whisper as hints and the cleanup model is told never to change them.
@@ -114,6 +116,8 @@ Open the **Terminal** app, paste this line, and press Return:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
+
+The one-line installer installs from `main`. To install exactly v0.2.0, download the release source zip, unzip it, and run `./install.sh` from that folder.
 
 The installer explains each step, asks before anything big, and can be run again
 safely (it skips what is already done). It:
@@ -179,9 +183,11 @@ config file.
 
 No keyboard? Everything also works with clicks:
 
-- The round **🎙 floating button** starts dictation; click it again to stop and paste.
-- While you talk, a floating panel shows three big buttons: **Stop & Paste**,
-  **Stop & Copy only**, and **Cancel**.
+- The round **floating mic button** starts dictation. While you talk it turns green: click it
+  to stop and paste. Two smaller buttons appear next to it: blue **Stop & Copy only** and red
+  **Cancel** (they grow and show a label when the pointer is over them).
+- With the floating button off (or "Show the recording card too" on), a floating card shows
+  three big buttons in the same colours: **Stop & Paste**, **Stop & Copy only**, and **Cancel**.
 - Open **Taipea.app** (in `~/Applications`, add it to your Dock) to open the window.
   It has a big **🎙 Dictate** button.
 - The 🎙 icon in the menu bar has the same actions.
@@ -256,7 +262,8 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Window size | Normal | Normal / Compact |
 | Text size | Normal | Normal / Large / Extra large |
 | High contrast | Auto (follows macOS Increase Contrast) | Auto / On / Off |
-| Floating 🎙 button | On | On / Off |
+| Floating mic button | On | On / Off |
+| Recording card with floating button | Off | On / Off (`cardWithFab` in config.lua) |
 | Voice start / stop | Off | On / Off; start phrases "Taipea escribe", "Taipea write"; stop phrases "listo", "done", "Taipea listo" |
 | Custom words | none | any "heard → replace with" pairs |
 | Open at login | On | On / Off |
@@ -335,7 +342,7 @@ in config.lua, or change the start phrases. To see what it hears, set `voiceDebu
 in config.lua (this writes the short bursts' text to the log).
 
 **The floating button is in the way or off screen.**
-Drag it somewhere else, or Settings › Floating button › Reset button position, or turn it
+Drag it somewhere else, or Settings › Recording controls › Reset button position, or turn it
 off there.
 
 **Where are the logs?**

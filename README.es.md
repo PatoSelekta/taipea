@@ -74,10 +74,11 @@ Taipea es para ti si:
   "Taipea write" para empezar, y "listo", "done" o "Taipea listo" para parar y pegar. Las
   frases se pueden cambiar. Mira [Empezar / parar con la voz](#empezar--parar-con-la-voz)
   para saber cómo funciona y sus límites.
-- **Botón flotante 🎙 (activado por defecto).** Un botón redondo de 96 px que queda encima
-  de todo: haz clic para empezar y otra vez para parar y pegar en la app que estabas
-  usando. Arrástralo donde quieras; recuerda dónde lo dejaste. Se ve distinto en reposo,
-  grabando y trabajando.
+- **Botón flotante con micrófono (activado por defecto).** Un botón redondo de 96 px que queda encima
+  de todo: haz clic para empezar. Mientras dictas se pone verde—haz clic para parar y pegar en la app que estabas
+  usando. Al lado aparecen dos botones más pequeños (azul = parar y solo copiar, rojo = cancelar). Arrástralo
+  donde quieras; recuerda dónde lo dejaste. También puedes mostrar la tarjeta de grabación completa en Ajustes.
+  Se ve distinto en reposo, grabando y trabajando.
 - **Palabras propias.** Dile a Taipea que "select dev" se escribe "selektdev". No importan
   mayúsculas ni tildes, y solo reemplaza palabras completas. Las palabras también se le dan
   a Whisper como pista, y al modelo de corrección se le pide no cambiarlas nunca.
@@ -125,6 +126,8 @@ Abre la app **Terminal**, pega esta línea y presiona Enter:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
+
+El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.0, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
 
 El instalador explica cada paso, pregunta antes de algo grande y se puede volver a
 ejecutar sin problema (se salta lo que ya está hecho). El instalador:
@@ -192,8 +195,11 @@ de configuración.
 
 ¿Sin teclado? Todo funciona también con clics:
 
-- El **botón flotante 🎙** redondo empieza el dictado; haz clic otra vez para parar y pegar.
-- Mientras hablas, un panel flotante muestra tres botones grandes: **Parar y pegar**,
+- El **botón flotante con micrófono** empieza el dictado. Mientras hablas se pone verde: haz clic
+  para parar y pegar. Al lado aparecen dos botones más pequeños: azul **Parar y solo copiar** y
+  rojo **Cancelar** (crecen y muestran su nombre cuando pasas el puntero por encima).
+- Con el botón flotante apagado (o con «Mostrar también la tarjeta de grabación»), una tarjeta
+  flotante muestra tres botones grandes con los mismos colores: **Parar y pegar**,
   **Parar y solo copiar** y **Cancelar**.
 - Abre **Taipea.app** (en `~/Applications`, agrégala a tu Dock) para abrir la ventana.
   Tiene un botón grande **🎙 Dictar**.
@@ -273,7 +279,8 @@ están en `config.example.lua`).
 | Tamaño de la ventana | Normal | Normal / Compacto |
 | Tamaño del texto | Normal | Normal / Grande / Muy grande |
 | Alto contraste | Automático (sigue Aumentar contraste de macOS) | Automático / Sí / No |
-| Botón flotante 🎙 | Sí | Sí / No |
+| Botón flotante con micrófono | Sí | Sí / No |
+| Tarjeta de grabación con el botón flotante | No | Sí / No (`cardWithFab` en config.lua) |
 | Empezar / parar con la voz | No | Sí / No; frases de inicio "Taipea escribe", "Taipea write"; de parada "listo", "done", "Taipea listo" |
 | Palabras propias | ninguna | pares "se oye → reemplazar por" |
 | Abrir al iniciar sesión | Sí | Sí / No |
@@ -355,7 +362,7 @@ en config.lua, o cambia las frases de inicio. Para ver qué oye, pon `voiceDebug
 config.lua (esto escribe en el registro el texto de los fragmentos cortos).
 
 **El botón flotante estorba o quedó fuera de la pantalla.**
-Arrástralo a otro lugar, o usa Ajustes › Botón flotante › Restablecer la posición del
+Arrástralo a otro lugar, o usa Ajustes › Controles de grabación › Restablecer la posición del
 botón, o apágalo ahí.
 
 **¿Dónde están los registros (logs)?**

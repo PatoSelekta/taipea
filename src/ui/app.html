@@ -3,9 +3,9 @@
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important;overflow:hidden}body{font:17px -apple-system;color:#eee}
 #panel{width:100%;height:100%;background:#1c1c20;border:2px solid #3a3a40;border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
 #scroll{flex:1;min-height:0;overflow-y:auto}
-#bar{flex:none;height:64px;display:flex;align-items:center;gap:10px;padding:0 10px 0 18px;background:#2a2a30;border-bottom:1px solid #444;cursor:grab;-webkit-user-select:none;z-index:3}
-#bar .t{flex:1;font:700 20px -apple-system}#bar .t small{font:400 14px -apple-system;color:#999;margin-left:10px}
-#bar button{height:52px;min-width:72px;font-size:22px}
+#bar{flex:none;height:68px;display:flex;align-items:center;gap:10px;padding:0 12px 0 18px;background:#2a2a30;border-bottom:1px solid #444;cursor:grab;-webkit-user-select:none;z-index:3}
+#bar .t{flex:1;font:700 20px -apple-system;padding:4px 0}#bar .t small{font:400 14px -apple-system;color:#999;margin-left:10px}
+#bar button{height:60px;min-width:72px;padding:0 14px;font-size:22px}
 #tabs{display:flex;gap:8px;padding:12px;background:#111;position:sticky;top:0;z-index:2}
 .tab{flex:1;height:64px;border:0;border-radius:12px;background:#333;color:#fff;font:700 20px -apple-system;cursor:pointer}
 .tab.on{background:#0a84ff}
@@ -20,12 +20,12 @@ input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .card{background:#2c2c32;border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
 .opt{flex:1;min-width:130px}.opt.on{background:#0a84ff;outline:3px solid #fff}
-.m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#24242a;border-radius:10px;padding:10px 12px;margin:8px 0}
+.m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#24242a;border-radius:10px;padding:12px 16px;margin:8px 0}
 .m small{color:#aaa;display:block;font-size:14px}.prog{color:#ffcc00;font-weight:700}
 /* Size: compact scales the whole UI via one variable; the Size card stays full size */
 body{--z:1}#bar,#inner{zoom:var(--z)}
 body.compact #sizecard,body.compact #langcard{zoom:calc(1/var(--z))}
-.big{font:700 22px -apple-system;margin:4px 0}.kd{background:#24242a;border-radius:10px;padding:12px;margin:8px 0}
+.big{font:700 22px -apple-system;margin:4px 0}.kd{background:#24242a;border-radius:10px;padding:14px 16px;margin:8px 0}
 .wr{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:8px 0;align-items:center}.wr input{width:100%}.wh span{color:#999;font-size:14px}
 button:disabled{opacity:.45;pointer-events:none}
 body.hc #panel{background:#000;border:3px solid #fff}body.hc{color:#fff}
@@ -77,7 +77,8 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  voiceNow:'👂 Listening now (speech model: %s). The menu bar shows 👂 while it listens.',voicePaused:'Paused (screen locked or busy).',
  startP:'Start phrases',stopP:'Stop phrases',phrasesFmt:'Separate phrases with commas. Say a stop phrase alone, after a short pause.',
  voicePrivacy:'Privacy: everything stays on this Mac. A small recorder waits for sound; only short bursts (up to 4 seconds) are transcribed by Whisper here, and each burst is deleted right after it is checked. Nothing is saved or sent. macOS shows the orange microphone dot while this is on.',
- fab:'Floating button',fabHint:'A round 🎙 button that stays on top of other windows. Click it to start, click again to stop and paste into the app you were using. Drag it to move it.',resetFab:'Reset button position',
+ recCtl:'Recording controls',fab:'Floating button',fabHint:'A round mic button that stays on top of other windows. Click it to start. While you dictate it turns green: click it to stop and paste into the app you were using. Two smaller buttons appear next to it: blue = stop and copy only, red = cancel. Drag it to move it.',resetFab:'Reset button position',
+ cardToo:'Show the recording card too',cardTooHint:'Off: while you dictate, only the floating button and its two small buttons show. On: the recording card shows as well.',cardFabOff:'With the floating button off, the recording card with its three buttons is used while you dictate.',resetCard:'Reset card position',
  words:'Custom words',wordsHint:'Fixes words Whisper gets wrong, after transcription and again after cleanup. Whole words only; capitals and accents don\'t matter. The cleanup model is told never to change the "Replace with" words. Changes save when you leave a box.',
  heard:'Heard',replace:'Replace with',add:'Add',wordsNone:'No custom words yet.',
  pasteLast:'📋 Paste last dictation again',kPaste:'Paste last dictation again',
@@ -107,7 +108,8 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  voiceNow:'👂 Escuchando (modelo de voz: %s). La barra de menús muestra 👂 mientras escucha.',voicePaused:'En pausa (pantalla bloqueada u ocupado).',
  startP:'Frases de inicio',stopP:'Frases de parada',phrasesFmt:'Separa las frases con comas. Di la frase de parada sola, después de una pausa corta.',
  voicePrivacy:'Privacidad: todo se queda en este Mac. Una grabadora pequeña espera sonido; solo los fragmentos cortos (hasta 4 segundos) los transcribe Whisper aquí, y cada fragmento se borra apenas se revisa. No se guarda ni se envía nada. macOS muestra el punto naranja del micrófono mientras esto está activo.',
- fab:'Botón flotante',fabHint:'Un botón redondo 🎙 que queda encima de las demás ventanas. Haz clic para empezar y otra vez para parar y pegar en la app que estabas usando. Arrástralo para moverlo.',resetFab:'Restablecer la posición del botón',
+ recCtl:'Controles de grabación',fab:'Botón flotante',fabHint:'Un botón redondo con micrófono que queda encima de las demás ventanas. Haz clic para empezar. Mientras dictas se pone verde: haz clic para parar y pegar en la app que estabas usando. Al lado aparecen dos botones más pequeños: azul = parar y solo copiar, rojo = cancelar. Arrástralo para moverlo.',resetFab:'Restablecer la posición del botón',
+ cardToo:'Mostrar también la tarjeta de grabación',cardTooHint:'No: mientras dictas solo se ven el botón flotante y sus dos botones pequeños. Sí: también se muestra la tarjeta de grabación.',cardFabOff:'Con el botón flotante apagado, mientras dictas se usa la tarjeta de grabación con sus tres botones.',resetCard:'Restablecer la posición de la tarjeta',
  words:'Palabras propias',wordsHint:'Corrige palabras que Whisper entiende mal, después de transcribir y otra vez después de la corrección. Solo palabras completas; no importan mayúsculas ni tildes. Al modelo de corrección se le pide no cambiar nunca las palabras de «Reemplazar por». Los cambios se guardan al salir de cada casilla.',
  heard:'Se oye',replace:'Reemplazar por',add:'Añadir',wordsNone:'Aún no hay palabras propias.',
  pasteLast:'📋 Pegar otra vez el último dictado',kPaste:'Pegar otra vez el último dictado',
@@ -137,8 +139,11 @@ function voiceCard(){var c=S.cfg,v=S.voice||{};
  return '<div class=card id=voicecard><h3>'+t('voice')+'</h3><p class=h>'+t('voiceHint')+'</p>'+opts('voiceControl',[[true,t('on')],[false,t('off')]])+
  (c.voiceControl?'<p class=big style="font-size:18px">'+esc(v.active?t('voiceNow',v.model):t('voicePaused'))+'</p>':'')+
  row('startPhrases','sp_start','startP')+row('stopPhrases','sp_stop','stopP')+'<p class=h>'+t('phrasesFmt')+'</p><p class=h>'+t('voicePrivacy')+'</p></div>'}
-function fabCard(){return '<div class=card><h3>'+t('fab')+'</h3><p class=h>'+t('fabHint')+'</p>'+opts('floatButton',[[true,t('on')],[false,t('off')]])+
- '<div class=row style="margin-top:10px"><button class=y onclick="send({cmd:\'resetFab\'})">'+t('resetFab')+'</button></div></div>'}
+function recCard(){var c=S.cfg,h='<div class=card id=reccard><h3>'+t('recCtl')+'</h3><h3 style="margin-top:6px">'+t('fab')+'</h3><p class=h>'+t('fabHint')+'</p>'+opts('floatButton',[[true,t('on')],[false,t('off')]]);
+ if(c.floatButton)h+='<h3 style="margin-top:14px">'+t('cardToo')+'</h3><p class=h>'+t('cardTooHint')+'</p>'+opts('cardWithFab',[[true,t('on')],[false,t('off')]]);
+ else if(c.showOverlay!==undefined)h+='<h3 style="margin-top:14px">'+t('overlay')+'</h3><p class=h>'+t('overlayHint')+'</p>'+opts('showOverlay',[[true,t('on')],[false,t('off')]]);
+ else h+='<p class=h style="margin-top:14px">'+t('cardFabOff')+'</p>';
+ return h+'<div class=row style="margin-top:10px"><button class=y onclick="send({cmd:\'resetFab\'})">'+t('resetFab')+'</button><button class=y onclick="send({cmd:\'resetOverlay\'})">'+t('resetCard')+'</button></div></div>'}
 function wset(i){var h=document.getElementById('w_h_'+i),r=document.getElementById('w_r_'+i);delete h.dataset.dirty;delete r.dataset.dirty;send({cmd:'setWord',i:i+1,heard:h.value,replace:r.value})}
 function wadd(){var h=document.getElementById('w_new_h'),r=document.getElementById('w_new_r');if(!h.value.trim()||!r.value.trim()){send({cmd:'wordsBad'});return}
  send({cmd:'addWord',heard:h.value,replace:r.value});h.value='';r.value='';delete h.dataset.dirty;delete r.dataset.dirty}
@@ -183,7 +188,7 @@ function set(k,v){send({cmd:'set',key:k,value:v})}
 function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
- h+=lookCard()+autoCard()+voiceCard()+fabCard()+wordsCard();
+ h+=lookCard()+autoCard()+voiceCard()+recCard()+wordsCard();
  h+='<div class=card><h3>'+t('keys')+'</h3>'+
  [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
   (S.keyLabels[k[0]]!=S.defaultKeys[k[0]]?'<p class=h>'+esc(t('def',S.defaultKeys[k[0]]))+'</p>':'')+
@@ -192,7 +197,6 @@ function renderSet(){var c=S.cfg,h='';
  h+='<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:14px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>';
  h+='<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card><h3>'+t('after')+'</h3>'+opts('defaultAction',[['paste',t('pasteCur')],['copy',t('copyOnly')]])+'</div>';
- h+='<div class=card><h3>'+t('overlay')+'</h3><p class=h>'+t('overlayHint')+'</p>'+opts('showOverlay',[[true,t('on')],[false,t('off')]])+'<div class=row style="margin-top:10px"><button class=y onclick="send({cmd:\'resetOverlay\'})">'+t('resetOv')+'</button></div></div>';
  h+='<div class=card><h3>'+t('login')+'</h3>'+opts('openAtLogin',[[true,t('on')],[false,t('off')]])+
  (c.openAtLogin?'<p class=h>'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=h style="color:#ff9f0a">'+t('loginWarn')+'</p>')+
  '<h3 style="margin-top:14px">'+t('showLogin')+'</h3>'+opts('showAtLogin',[[true,t('on')],[false,t('off')]])+'</div>';

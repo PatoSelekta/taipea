@@ -109,7 +109,7 @@ local b = table.concat(fake.binds or {}, ",")
 check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v")
 check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey)
 check("default paste-last key", table.concat(D.pasteLastKey.mods, "+") .. "+" .. D.pasteLastKey.key == "ctrl+alt+v")
-check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.textSize == "normal" and D.contrast == "auto"
+check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.cardWithFab == false and D.textSize == "normal" and D.contrast == "auto"
   and D.silenceSeconds == 3 and #D.customWords == 0 and D.startPhrases[1] == "Taipea escribe" and D.stopPhrases[1] == "listo")
 check("default values", D.style == "light" and D.cleanup == true and D.ollamaModel == "gemma4:e4b" and D.language == "auto"
   and D.uiLanguage == "auto" and D.showOverlay == true and D.uiSize == "normal" and D.defaultAction == "paste"
@@ -188,6 +188,32 @@ check("start phrase while idle", M.voiceHeard("Taipea escribe.") == "start")
 -- no speech model on this fake Mac, so start() must stop at the friendly preflight message
 check("voice start uses the normal start (preflight)", #fake.tasks == n0 and (fake.lastAlert or ""):find("modelo", 1, true) ~= nil)
 check("look scale", M.look.scale == 1 and M.look.hc == false)
+
+-- ---------- v0.2: floating button satellites and the recording card ----------
+local SR = { x = 0, y = 25, w = 1440, h = 875 }
+local function noOverlap(a, b) return a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y end
+local function onScreen(f) return f.x >= SR.x and f.y >= SR.y and f.x + f.w <= SR.x + SR.w and f.y + f.h <= SR.y + SR.h end
+for _, c in ipairs({ { { x = 1306, y = 520, w = 104, h = 104 }, "left" }, { { x = 10, y = 400, w = 104, h = 104 }, "right" },
+  { { x = 10, y = 30, w = 104, h = 104 }, "right" }, { { x = 700, y = 790, w = 104, h = 104 }, "up" } }) do
+  local side, fr = M.satLayout(c[1], 92, SR)
+  check("satellites go " .. c[2], side == c[2])
+  check("satellites on screen (" .. c[2] .. ")", onScreen(fr[1]) and onScreen(fr[2]))
+  check("satellites clear of the button (" .. c[2] .. ")", noOverlap(fr[1], c[1]) and noOverlap(fr[2], c[1]) and noOverlap(fr[1], fr[2]))
+end
+local tight = { x = 0, y = 25, w = 300, h = 120 }
+local sideT, frT = M.satLayout({ x = 98, y = 25, w = 104, h = 104 }, 92, tight)
+check("tight screen: satellites still on screen", frT[1].x >= 0 and frT[2].x + frT[2].w <= 300 and frT[1].y >= 25)
+check("defaults: card hidden with the button", D.floatButton == true and D.cardWithFab == false)
+M.cfg.floatButton, M.cfg.cardWithFab = true, false
+check("button on: no card", M.cardWanted() == false)
+M.cfg.cardWithFab = true
+check("button on + card too: card", M.cardWanted() == true)
+M.cfg.floatButton, M.cfg.cardWithFab = false, false
+check("button off: card", M.cardWanted() == true)
+M.cfg.floatButton = true
+check("satellite labels es", M.T("sat_copy") == "Parar y solo copiar" and M.T("sat_cancel") == "Cancelar" and M.T("fab_rec") == "Parar y pegar")
+check("satellite labels en", M.STR.en.sat_copy == "Stop & Copy only" and M.STR.en.fab_rec == "Stop & Paste")
+check("icons", M.ICON.paste:find("<svg", 1, true) and M.ICON.copy:find("<svg", 1, true) and M.ICON.x:find("<svg", 1, true) and M.ICON.mic:find("<svg", 1, true))
 
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

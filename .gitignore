@@ -20,6 +20,7 @@ models/
 *.bak
 *.taipea-backup-*
 *.taipea-uninstall-backup-*
+.impeccable/
 build/
 dist/
 *.zip

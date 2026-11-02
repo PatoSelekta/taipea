@@ -49,7 +49,9 @@ local DEFAULTS = {
   pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },  -- paste the last dictation again
   textSize = "normal",                       -- normal | large | xlarge (window, recording panel, floating button)
   contrast = "auto",                         -- high contrast: auto (follows macOS Increase Contrast) | on | off
-  floatButton = true,                        -- round always-on-top 🎙 button: click to start, click again to stop and paste
+  floatButton = true,                        -- round always-on-top mic button: click to start; while recording it turns green (click = stop and paste)
+                                             -- and shows two small buttons: blue = stop and copy only, red = cancel
+  cardWithFab = false,                       -- also show the recording card while the floating button is on
   customWords = {},                          -- { {heard="select dev", replace="selektdev"}, ... } (edit in Settings)
   voiceControl = false,                      -- voice start/stop (listens for the phrases below; all on this Mac)
   startPhrases = { "Taipea escribe", "Taipea write" },
@@ -151,8 +153,8 @@ local NEWSTR = {
   ov_say_stop="Say “%s” or press a button to finish",
   voice_on="Voice start/stop: ON. Say “%s” to start", voice_off="Voice start/stop: OFF", voice_paused="Voice start/stop is paused while the screen is locked",
   voice_need_phrase="Type at least one phrase", phrases_saved="Phrases saved",
-  fab_idle="Start dictation", fab_rec="Stop and paste", fab_busy="Working…", fab_listening="Listening for “%s”", fab_reset="Floating button position reset",
-  fab_on="Floating button: ON", fab_off="Floating button: OFF",
+  fab_idle="Start dictation", fab_rec="Stop & Paste", sat_copy="Stop & Copy only", sat_cancel="Cancel", fab_busy="Working…", fab_listening="Listening for “%s”", fab_reset="Floating button position reset",
+  fab_on="Floating button: ON", card_on="Recording card: shown with the floating button", card_off="Recording card: hidden while the floating button is on", fab_off="Floating button: OFF",
   words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
   look_set="Display updated",
  },
@@ -165,8 +167,8 @@ local NEWSTR = {
   ov_say_stop="Di «%s» o presiona un botón para terminar",
   voice_on="Empezar/parar con la voz: SÍ. Di «%s» para empezar", voice_off="Empezar/parar con la voz: NO", voice_paused="La voz está en pausa mientras la pantalla está bloqueada",
   voice_need_phrase="Escribe al menos una frase", phrases_saved="Frases guardadas",
-  fab_idle="Empezar a dictar", fab_rec="Parar y pegar", fab_busy="Trabajando…", fab_listening="Escuchando «%s»", fab_reset="Posición del botón flotante restablecida",
-  fab_on="Botón flotante: SÍ", fab_off="Botón flotante: NO",
+  fab_idle="Empezar a dictar", fab_rec="Parar y pegar", sat_copy="Parar y solo copiar", sat_cancel="Cancelar", fab_busy="Trabajando…", fab_listening="Escuchando «%s»", fab_reset="Posición del botón flotante restablecida",
+  fab_on="Botón flotante: SÍ", card_on="Tarjeta de grabación: se muestra con el botón flotante", card_off="Tarjeta de grabación: oculta mientras el botón flotante está activo", fab_off="Botón flotante: NO",
   words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
   look_set="Pantalla actualizada",
  },
@@ -404,11 +406,24 @@ local function shq(s) return "'"..tostring(s):gsub("'", "'\\''").."'" end
 -- "Taipea escribe, Taipea write" -> { "Taipea escribe", "Taipea write" }
 local function splitPhrases(s)
   local t = {}
-  for p in (s or ""):gmatch("[^,;\n]+") do p = p:gsub("^%s+",""):gsub("%s+$",""); if p ~= "" then t[#t+1] = p end end
+  for piece in (s or ""):gmatch("[^,;\n]+") do
+    local p = piece:gsub("^%s+", ""):gsub("%s+$", "")
+    if p ~= "" then t[#t + 1] = p end
+  end
   return t
 end
 M.fold, M.tokens, M.applyWords, M.hintWords, M.isPromptEcho, M.normPhrase, M.classifyBurst = fold, tokens, applyWords, hintWords, isPromptEcho, normPhrase, classifyBurst
 M.stripStop, M.stripStart, M.wavSeconds, M.fixWavHeader, M.splitPhrases = stripStop, stripStart, wavSeconds, fixWavHeader, splitPhrases
+-- icons shared by the recording card and the floating buttons (one visual language:
+-- green = stop & paste, blue = stop & copy only, red = cancel)
+local function svg(body, w) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'..(w or 2.4)..'" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'..body..'</svg>' end
+local ICON = {
+  mic = svg('<rect x="9" y="2.5" width="6" height="11.5" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21.5"/><path d="M8.5 21.5h7"/>'),
+  paste = svg('<rect x="5" y="4" width="14" height="17.5" rx="2.2"/><path d="M9 4V2.8h6V4"/><path d="M8.6 13.2l2.4 2.4 4.6-4.9"/>'),
+  copy = svg('<rect x="8.5" y="8.5" width="12" height="13" rx="2"/><path d="M15.5 8.5V5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/>'),
+  x = svg('<path d="M6 6l12 12M18 6L6 18"/>', 3.2),
+}
+M.ICON = ICON
 local recTask, state, cancelled, mode = nil, "idle", false, "paste"
 local targetApp, recStart, tick = nil, 0, nil
 local wav = DATA.."/tmp/rec.wav"
@@ -539,7 +554,8 @@ body{font:600 22px -apple-system;color:#fff;overflow:hidden;-webkit-user-select:
 #sub{padding:0 22px;font:400 16px -apple-system;color:#aaa;height:22px}
 #b{display:flex;gap:10px;padding:16px;width:100%}
 button{flex:1;min-width:0;height:110px;border:0;border-radius:14px;font:700 21px -apple-system;color:#fff;cursor:pointer}
-#stop{background:#34c759;flex:1.4}#copy{background:#0a84ff}#cancel{background:#ff453a}
+#stop{background:#1e8e3e;flex:1.4}#copy{background:#0a6cd6}#cancel{background:#d42c22}
+button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.15}.ic{display:flex}.ic svg{width:32px;height:32px}
 button:hover{filter:brightness(1.2)} .busy button{opacity:.35;pointer-events:none}
 .busy #cancel{opacity:1;pointer-events:auto}
 html.hc #panel{background:#000;border:4px solid #fff}html.hc button{border:4px solid #fff}
@@ -549,7 +565,7 @@ html.rm *{animation:none!important;transition:none!important}
 </style></head><body><div id=panel>
 <div id=top><div id=dot></div><div id=st>]]..T("ov_listening")..[[</div><div id=t>0:00</div></div>
 <div id=sub></div>
-<div id=b><button id=stop onclick="s('stop')">]]..T("ov_stop")..[[</button><button id=copy onclick="s('copy')">]]..T("ov_copy")..[[</button><button id=cancel onclick="s('cancel')">]]..T("ov_cancel")..[[</button></div></div>
+<div id=b><button id=stop onclick="s('stop')"><span class=ic>]]..ICON.paste..[[</span><span>]]..T("ov_stop")..[[</span></button><button id=copy onclick="s('copy')"><span class=ic>]]..ICON.copy..[[</span><span>]]..T("ov_copy")..[[</span></button><button id=cancel onclick="s('cancel')"><span class=ic>]]..ICON.x..[[</span><span>]]..T("ov_cancel")..[[</span></button></div></div>
 <script>document.documentElement.style.zoom=window.__tpZoom||1;function s(a){webkit.messageHandlers.taipea.postMessage(a)}
 document.getElementById('panel').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();s({cmd:'dragOverlay'})}});
 function upd(st,t,sub,busy){document.getElementById('st').textContent=st;document.getElementById('t').textContent=t;
@@ -586,6 +602,7 @@ local function onMsg(m)
   elseif type(a)=="table" and a.cmd=="dragOverlay" then M.startOverlayDrag()
   elseif type(a)=="table" and a.cmd=="fabDown" then M.startFabDrag()
   elseif type(a)=="table" and a.cmd=="fabReady" then M.fabUpdate()
+  elseif type(a)=="table" and a.cmd=="satDown" then M.satPress(a.which)
   elseif type(a)=="table" then M.handle(a) end
 end
 -- window drag: poll mouse until left button released (works with head mice that send no drag events)
@@ -621,7 +638,8 @@ function M.overlayRef() return overlay end
 local uc = hs.webview.usercontent.new("taipea"):setCallback(onMsg)
 
 local function showOverlay()
-  if cfg.showOverlay == false then return end
+  -- floating button on: its satellites replace the card (unless "Show the recording card too" is on)
+  if cfg.floatButton then if not M.cardWanted() then return end elseif cfg.showOverlay == false then return end
   if not overlay then
     overlay = hs.webview.new(overlayFrame(), {}, uc)
       :windowStyle({"borderless","nonactivating"}):level(hs.drawing.windowLevels.floating)
@@ -806,44 +824,173 @@ end
 M.whisperHint, M.wordsRule = whisperHint, wordsRule
 
 -- ---------- floating button ----------
-local fab
+-- Idle: mic on the brand colour. Recording: green "stop & paste" (pulses gently) with two satellites,
+-- blue "stop & copy only" and red "cancel", on whichever side has room. Working: spinner.
+local fab, sats, satLabel, satTimer = nil, {}, nil, nil
 local function fabSize() return math.floor(96 * (look.scale or 1) + 0.5) + 8 end
+local function satSizes() local s = look.scale or 1; return math.max(60, math.floor(64 * s + 0.5)), math.max(80, math.floor(84 * s + 0.5)) end
+local function satWin() local _, big = satSizes(); return big + 8 end
 local function fabFrame()
   local s = fabSize(); local p = settings.get(KP.."fabPos"); local sf = hs.screen.mainScreen():frame()
   if type(p) == "table" and p.x then return clampFrame({ x = p.x, y = p.y, w = s, h = s }) end
   return { x = sf.x + sf.w - s - 30, y = sf.y + math.floor(sf.h * 0.55), w = s, h = s }
 end
+-- where the two satellites go: around the button on the first side that fits on the screen
+-- (left, right, above, below, then the diagonals for corners)
+local function satLayout(mf, sw, sr)
+  local cx, cy = mf.x + mf.w / 2, mf.y + mf.h / 2
+  local d, o = mf.w / 2 + sw / 2 + 2, sw / 2 + 6
+  local R, spread = math.sqrt(d * d + o * o), math.atan(o, d)
+  local dirs = { { 180, spread }, { 0, spread }, { 270, spread }, { 90, spread },
+    { 225, 0.63 }, { 135, 0.63 }, { 315, 0.63 }, { 45, 0.63 } }
+  local function frames(deg, sp)
+    local t = math.rad(deg); local fr = {}
+    for i, a in ipairs({ t - sp, t + sp }) do
+      fr[i] = { x = math.floor(cx + R * math.cos(a) - sw / 2 + 0.5), y = math.floor(cy + R * math.sin(a) - sw / 2 + 0.5), w = sw, h = sw }
+    end
+    if deg == 180 or deg == 0 then if fr[1].y > fr[2].y then fr[1], fr[2] = fr[2], fr[1] end
+    elseif fr[1].x > fr[2].x then fr[1], fr[2] = fr[2], fr[1] end
+    return fr
+  end
+  local function sideOf(deg) local c, s = math.cos(math.rad(deg)), math.sin(math.rad(deg))
+    if c < -0.1 then return "left" elseif c > 0.1 then return "right" elseif s < 0 then return "up" else return "down" end end
+  local function fits(f) return f.x >= sr.x and f.y >= sr.y and f.x + f.w <= sr.x + sr.w and f.y + f.h <= sr.y + sr.h end
+  for _, dd in ipairs(dirs) do local fr = frames(dd[1], dd[2]); if fits(fr[1]) and fits(fr[2]) then return sideOf(dd[1]), fr end end
+  local deg = (cx - sr.x > sr.x + sr.w - cx) and 180 or 0
+  local fr = frames(deg, spread)
+  for _, f in ipairs(fr) do
+    f.x = math.max(sr.x, math.min(f.x, sr.x + sr.w - f.w)); f.y = math.max(sr.y, math.min(f.y, sr.y + sr.h - f.h))
+  end
+  return sideOf(deg), fr
+end
+M.satLayout = satLayout
 local fabHTML = [[
 <html><head><meta charset="utf-8"><style>
 html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:pointer}
-#b{position:absolute;inset:4px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:#1f6feb;color:#fff;display:flex;align-items:center;justify-content:center;
- font:700 calc(100vw * .42) -apple-system;box-shadow:0 3px 10px rgba(0,0,0,.5)}
-#b.rec{background:#e0282e;animation:pulse 1.2s infinite}#b.busy{background:#c98500}
-#b.busy #i{animation:spin 1.5s linear infinite}
+#b{position:absolute;inset:4px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:#1f6feb;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#i{width:50%;height:50%;display:flex}#i svg{width:100%;height:100%}
+#b.rec{background:#1e8e3e;animation:pulse 2.4s ease-in-out infinite}
+#b.busy{background:#3a3f47}#b.busy #i{display:none}
+#spin{display:none;width:50%;height:50%;box-sizing:border-box;border-radius:50%;border:7px solid rgba(255,255,255,.28);border-top-color:#fff;animation:spin 1s linear infinite}
+#b.busy #spin{display:block}
 #b.armed{border-color:#30d158;border-width:6px}#ear{display:none;position:absolute;right:-2px;bottom:-2px;font-size:calc(100vw*.22);background:#30d158;border-radius:50%;padding:2px 4px}
 #b.armed #ear{display:block}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,.75)}50%{box-shadow:0 0 0 8px rgba(255,59,48,0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,.65),0 3px 10px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 7px rgba(48,209,88,0),0 3px 10px rgba(0,0,0,.5)}}
 @keyframes spin{to{transform:rotate(360deg)}}
-html.hc #b{background:#000;border:5px solid #fff;box-shadow:none}html.hc #b.rec{background:#b00000}html.hc #b.busy{background:#ffd60a;color:#000}
-html.hc #b.armed{border-color:#30d158}
-html.rm #b,html.rm #i{animation:none!important}
-@media (prefers-reduced-motion: reduce){#b,#i{animation:none!important}}
-</style></head><body><div id=b role=button aria-label="" title=""><span id=i>🎙</span><span id=ear>👂</span></div>
-<script>function s(a){webkit.messageHandlers.__MSG__.postMessage(a)}
+html.hc #b{background:#000;border:5px solid #fff;box-shadow:none}html.hc #b.rec{background:#006b1f}html.hc #b.busy{background:#000}
+html.hc #spin{border-color:#555;border-top-color:#ffd60a}html.hc #b.armed{border-color:#30d158}
+html.rm #b,html.rm #spin{animation:none!important}html.rm #spin{border-style:dotted;border-color:#fff}
+@media (prefers-reduced-motion: reduce){#b,#spin{animation:none!important}#spin{border-style:dotted;border-color:#fff}}
+</style></head><body><div id=b role=button aria-label=""><span id=i></span><div id=spin></div><span id=ear>👂</span></div>
+<script>var IC={mic:']]..ICON.mic..[[',rec:']]..ICON.paste..[['};
+function s(a){webkit.messageHandlers.__MSG__.postMessage(a)}
 document.getElementById('b').addEventListener('mousedown',function(e){if(e.button===0){e.preventDefault();s({cmd:'fabDown'})}});
-function setSt(st,armed,label,hc,rm){var b=document.getElementById('b');b.className=st+(armed?' armed':'');
- document.getElementById('i').textContent=st=='rec'?'⏹':(st=='busy'?'⏳':'🎙');b.title=label;b.setAttribute('aria-label',label);
+var cur='';function setSt(st,armed,label,hc,rm){var b=document.getElementById('b');b.className=st+(armed?' armed':'');
+ var ic=st=='rec'?'rec':'mic';if(ic!=cur){document.getElementById('i').innerHTML=IC[ic];cur=ic}
+ b.setAttribute('aria-label',label);
  document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
 s({cmd:'fabReady'});</script></body></html>]]
-function M.fabUpdate()
+local satHTML = [[
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:pointer}
+#c{position:absolute;left:50%;top:50%;width:__R__px;height:__R__px;transform:translate(-50%,-50%);box-sizing:border-box;border-radius:50%;border:3px solid rgba(255,255,255,.9);
+ color:#fff;display:flex;align-items:center;justify-content:center;opacity:.55;box-shadow:0 2px 8px rgba(0,0,0,.45);transition:width .18s ease,height .18s ease,opacity .18s ease}
+#c.copy{background:#0a6cd6}#c.cancel{background:#d42c22}
+#c.hov{width:__H__px;height:__H__px;opacity:1}
+#c svg{width:46%;height:46%}
+html.hc #c{opacity:.85;border:4px solid #fff;box-shadow:none}html.hc #c.hov{opacity:1}html.hc #c.copy{background:#003f8a}html.hc #c.cancel{background:#a00000}
+html.rm #c{transition:none!important}
+@media (prefers-reduced-motion: reduce){#c{transition:none!important}}
+</style></head><body><div id=c class="__KIND__" role=button aria-label="__LABEL__">__ICON__</div>
+<script>function s(a){webkit.messageHandlers.__MSG__.postMessage(a)}
+document.getElementById('c').addEventListener('mousedown',function(e){if(e.button===0){e.preventDefault();s({cmd:'satDown',which:'__KIND__'})}});
+function hov(on){document.getElementById('c').classList.toggle('hov',!!on)}
+function setLook(hc,rm){document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
+setLook(__HC__,__RM__);</script></body></html>]]
+local SAT_KINDS = { "copy", "cancel" }
+local function satText(k) return k == "copy" and T("sat_copy") or (k == "cancel" and T("sat_cancel") or T("fab_rec")) end
+-- the hover label: a canvas, so it never takes clicks or focus
+local function showLabel(kind, f, side)
+  local txt = satText(kind)
+  local fs = math.floor(20 * (look.scale or 1) + 0.5)
+  local w, h = math.floor(utf8.len(txt) * fs * 0.58 + 36), fs + 24
+  local x, y
+  if kind == "main" then side = ({ left = "right", right = "left", up = "down", down = "up" })[side] or "up" end
+  if side == "left" then x, y = f.x - w - 4, f.y + (f.h - h) / 2
+  elseif side == "right" then x, y = f.x + f.w + 4, f.y + (f.h - h) / 2
+  elseif side == "up" then x, y = f.x + (f.w - w) / 2, f.y - h - 4
+  else x, y = f.x + (f.w - w) / 2, f.y + f.h + 4 end
+  local fr = clampFrame({ x = x, y = y, w = w, h = h })
+  if satLabel then satLabel:delete() end
+  satLabel = hs.canvas.new(fr):level(hs.canvas.windowLevels.floating + 1)
+  satLabel:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces + hs.drawing.windowBehaviors.stationary)
+  satLabel[1] = { type = "rectangle", action = look.hc and "strokeAndFill" or "fill", roundedRectRadii = { xRadius = 10, yRadius = 10 },
+    fillColor = look.hc and { white = 0, alpha = 1 } or { red = .08, green = .08, blue = .1, alpha = .92 },
+    strokeColor = { white = 1, alpha = 1 }, strokeWidth = 3 }
+  satLabel[2] = { type = "text", text = txt, frame = { x = 0, y = (h - fs * 1.25) / 2, w = w, h = fs * 1.4 },
+    textSize = fs, textColor = { white = 1, alpha = 1 }, textAlignment = "center", textFont = ".AppleSystemUIFontBold" }
+  satLabel:show()
+end
+local function hideLabel() if satLabel then satLabel:delete(); satLabel = nil end end
+local function inside(p, f) return p.x >= f.x and p.x < f.x + f.w and p.y >= f.y and p.y < f.y + f.h end
+local function placeSats()
   if not fab then return end
+  local mf = fab:frame(); local sw = satWin()
+  local side, fr = satLayout(mf, sw, screenFor(mf):frame())
+  M._satSide, M._satMF = side, { x = mf.x, y = mf.y }
+  for i, k in ipairs(SAT_KINDS) do if sats[k] then sats[k]:frame(fr[i]) end end
+end
+-- mouse-over check every 0.08 s while the satellites are up (webviews that are not focused don't get hover events)
+local function satTick()
+  if not fab or not next(sats) then return end
+  local mf = fab:frame()
+  if not M._satMF or M._satMF.x ~= mf.x or M._satMF.y ~= mf.y then placeSats() end
+  local p = hs.mouse.absolutePosition(); local hit, hf
+  for _, k in ipairs(SAT_KINDS) do local w = sats[k]
+    if w then local f = w:frame(); local on = inside(p, f)
+      if on ~= (M._satHov[k] or false) then M._satHov[k] = on; w:evaluateJavaScript("hov("..tostring(on)..")") end
+      if on then hit, hf = k, f end end
+  end
+  if not hit and inside(p, mf) then hit, hf = "main", mf end
+  if hit ~= M._satLbl then M._satLbl = hit; if hit then showLabel(hit, hf, M._satSide) else hideLabel() end end
+end
+M.satTick = satTick
+local function hideSats()
+  if satTimer then satTimer:stop(); satTimer = nil end
+  for k, w in pairs(sats) do w:delete(); sats[k] = nil end
+  hideLabel(); M._satHov, M._satLbl, M._satMF = {}, nil, nil
+end
+local function showSats()
+  if not fab then return end
+  if next(sats) then return end
+  local rest, big = satSizes()
+  M._satHov = {}
+  for _, k in ipairs(SAT_KINDS) do
+    local html = satHTML:gsub("__MSG__", MSG):gsub("__R__", tostring(rest)):gsub("__H__", tostring(big)):gsub("__KIND__", k)
+      :gsub("__LABEL__", (satText(k):gsub("%%", "%%%%"))):gsub("__ICON__", (k == "copy" and ICON.copy or ICON.x))
+      :gsub("__HC__", tostring(look.hc and true or false)):gsub("__RM__", tostring(look.rm and true or false))
+    sats[k] = hs.webview.new({ x = 0, y = 0, w = satWin(), h = satWin() }, {}, uc)
+      :windowStyle({ "borderless", "nonactivating" }):level(hs.drawing.windowLevels.floating)
+      :allowTextEntry(false):transparent(true):shadow(false)
+      :behavior(hs.drawing.windowBehaviors.canJoinAllSpaces + hs.drawing.windowBehaviors.stationary)
+      :html(html)
+  end
+  placeSats()
+  for _, k in ipairs(SAT_KINDS) do sats[k]:show() end
+  satTimer = hs.timer.doEvery(0.08, satTick)
+end
+M.showSats, M.hideSats = showSats, hideSats
+function M.satRefs() return sats end
+function M.fabUpdate()
+  if not fab then hideSats(); return end
   local st = state == "rec" and "rec" or (state == "busy" and "busy" or "idle")
   local armed = M.voiceActive() and st ~= "busy"
   local label = st == "rec" and T("fab_rec") or (st == "busy" and T("fab_busy") or (armed and T("fab_listening", (cfg.startPhrases or {})[1] or "") or T("fab_idle")))
   fab:evaluateJavaScript(string.format("setSt(%q,%s,%q,%s,%s)", st, armed and "true" or "false", label, look.hc and "true" or "false", look.rm and "true" or "false"))
+  if st == "rec" then showSats() else hideSats() end
 end
 local function showFab()
-  if not cfg.floatButton then if fab then fab:delete(); fab = nil end; return end
+  if not cfg.floatButton then hideSats(); if fab then fab:delete(); fab = nil end; return end
   if not fab then
     fab = hs.webview.new(fabFrame(), {}, uc)
       :windowStyle({ "borderless", "nonactivating" }):level(hs.drawing.windowLevels.floating)
@@ -851,16 +998,40 @@ local function showFab()
       :behavior(hs.drawing.windowBehaviors.canJoinAllSpaces + hs.drawing.windowBehaviors.stationary)
       :html((fabHTML:gsub("__MSG__", MSG)))
   else fab:frame(fabFrame()) end
+  hideSats()   -- rebuilt at the new size / look by fabUpdate
   fab:show(); M.fabUpdate()
 end
 M.showFab = showFab
 function M.fabRef() return fab end
+-- the recording card is used when there is no floating button, or when "Show the recording card too" is on
+function M.cardWanted() return (not cfg.floatButton) or cfg.cardWithFab == true end
+-- the main button while recording means Stop & Paste
+local function fabClick()
+  if state == "rec" then M.stop("paste") else M.toggle() end
+end
 -- press on the button: drag it, or (if it barely moved) treat it as a click
 function M.startFabDrag()
   if not fab then return end
   startDrag(fab, KP.."fabPos", function(moved, f0)
-    if moved < 8 then fab:frame(f0); settings.set(KP.."fabPos", { x = f0.x, y = f0.y }); M.toggle() end
+    if moved < 8 then fab:frame(f0); settings.set(KP.."fabPos", { x = f0.x, y = f0.y }); fabClick() else placeSats() end
   end)
+end
+-- press on a satellite: it acts when the mouse is released less than 8 px from where it went down
+function M.satPress(which)
+  local p0 = hs.mouse.absolutePosition(); local done = false
+  local P = {}; M._press = P
+  local function fin()
+    if done then return end; done = true
+    if P.tap then P.tap:stop() end; if P.tm then P.tm:stop() end
+    local p = hs.mouse.absolutePosition()
+    if math.sqrt((p.x - p0.x)^2 + (p.y - p0.y)^2) >= 8 or state ~= "rec" then return end
+    if which == "copy" then M.stop("copy") elseif which == "cancel" then M.cancel() end
+  end
+  P.tap = hs.eventtap.new({ hs.eventtap.event.types.leftMouseUp }, function() hs.timer.doAfter(0, fin); return false end)
+  P.tap:start()
+  local n = 0
+  P.tm = hs.timer.doEvery(0.03, function() n = n + 1
+    if (n > 3 and not hs.eventtap.checkMouseButtons()[1]) or n > 600 then fin() end end)
 end
 
 local function clip(s,n) s=(s or ""):gsub("\n"," "); if #s>n then return s:sub(1,n).."…" end; return s end
@@ -1017,7 +1188,8 @@ end
 -- normalise list markers to "- " and drop blank lines so chunks join into one list
 local function normBullets(t)
   local lines = {}
-  for l in (t.."\n"):gmatch("(.-)\n") do
+  for line in (t.."\n"):gmatch("(.-)\n") do
+    local l = line
     for _,m in ipairs({"%*", "•", "·", "–", "—", "%d+[%.%)]"}) do l = l:gsub("^%s*"..m.."%s+", "- ") end
     l = l:gsub("^%s+%- ", "- ")
     if not l:match("^%s*$") then table.insert(lines, l) end
@@ -1317,7 +1489,7 @@ pushState = function()
   for i,e in ipairs(history) do if M.converting[e] then conv[tostring(i)] = M.converting[e] end end
   local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
      autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay,
-     voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords },
+     voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords },
      look=look, recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
      voice={ active=M.voiceActive(), model=(vlModel():match("[^/]+$") or ""):gsub("^ggml%-",""):gsub("%.bin$","") },
      keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey) },
@@ -1377,7 +1549,9 @@ function M.handle(a)
       hs.alert.show(v and T("login_on") or T("login_off"))
     elseif k=="voiceControl" then setOpt(k, v and true or false); vlSync(); refresh()
       hs.alert.show(cfg.voiceControl and T("voice_on", (cfg.startPhrases or {})[1] or "") or T("voice_off"))
-    elseif k=="floatButton" then setOpt(k, v and true or false); showFab(); hs.alert.show(cfg.floatButton and T("fab_on") or T("fab_off"))
+    elseif k=="floatButton" or k=="cardWithFab" then setOpt(k, v and true or false); showFab()
+      if state == "rec" then if M.cardWanted() then showOverlay() else hideOverlay() end end
+      if k=="floatButton" then hs.alert.show(cfg.floatButton and T("fab_on") or T("fab_off")) else hs.alert.show(cfg.cardWithFab and T("card_on") or T("card_off")) end
     elseif k=="startPhrases" or k=="stopPhrases" then
       local list = type(v)=="table" and v or splitPhrases(v)
       if #list==0 then hs.alert.show(T("voice_need_phrase")); pushState(); return end
@@ -1446,6 +1620,6 @@ if cfg.cleanup then M.warmModel() end
 if M.checkRecovery() then hs.timer.doAfter(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
 showFab()
 log("Taipea loaded · whisper="..tostring(cfg.whisper).." rec="..tostring(cfg.rec).." ollama="..tostring(cfg.ollama).." model="..cfg.modelName..
-  " · voice="..tostring(cfg.voiceControl).." floatButton="..tostring(cfg.floatButton).." customWords="..#(cfg.customWords or {}))
+  " · voice="..tostring(cfg.voiceControl).." floatButton="..tostring(cfg.floatButton).." card="..tostring(M.cardWanted()).." customWords="..#(cfg.customWords or {}))
 refresh()
 return M

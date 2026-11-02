@@ -36,7 +36,8 @@ return {
   -- uiSize      = "normal",             -- "normal" or "compact"
   -- textSize    = "normal",             -- "normal", "large" or "xlarge" (window, panel and floating button)
   -- contrast    = "auto",               -- high contrast: "auto" (follows macOS Increase Contrast), "on" or "off"
-  -- floatButton = true,                 -- round always-on-top 🎙 button: click to start, again to stop and paste
+  -- floatButton = true,                 -- round always-on-top mic button: click to start; green while recording = stop and paste
+  -- cardWithFab = false,                -- with floatButton on: also show the full recording card (three big buttons)
 
   -- Custom words: fixed after transcription and after cleanup (whole words, any case/accents).
   -- Easier to edit in Settings › Custom words.
