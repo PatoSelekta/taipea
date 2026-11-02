@@ -63,7 +63,22 @@ Taipea is for you if:
   works with head mice that don't send normal drag events.
 - **English or Spanish interface** (follows your Mac, or pick one in Settings).
 - **Normal or Compact size**, overlay you can place anywhere, opens at login.
-- **Optional auto-stop** after a few seconds of silence.
+- **Optional auto-stop** after 2, 3, 5 or 8 seconds of silence (a big On/Off in Settings).
+- **Voice start / stop (optional, off by default).** Say "Taipea escribe" or "Taipea write"
+  to start, and "listo", "done" or "Taipea listo" to stop and paste. The phrases are
+  editable. See [Voice start / stop](#voice-start--stop) for how it works and its limits.
+- **Floating 🎙 button (on by default).** A round 96 px button that stays on top: click to
+  start, click again to stop and paste into the app you were using. Drag it anywhere; it
+  remembers where you left it. It looks different when idle, recording and working.
+- **Custom words.** Tell Taipea that "select dev" should be written "selektdev". Matching
+  ignores capitals and accents and only replaces whole words. The words are also given to
+  Whisper as hints and the cleanup model is told never to change them.
+- **Larger text and high contrast.** Text size Normal / Large / Extra large, and a High
+  contrast theme for the window, recording panel and floating button. It follows macOS
+  Increase Contrast (Auto) and Reduce Motion.
+- **Recovery.** Each recording is kept until its text is pasted. If Hammerspoon crashes or
+  reloads in the middle, Taipea offers **Recover last recording** and transcribes it.
+- **Paste last dictation again** with Ctrl + Option + V, the menu, or a button in History.
 
 ## Privacy: 100% local
 
@@ -75,6 +90,9 @@ Taipea is for you if:
 - Your history is a file on your Mac:
   `~/Library/Application Support/Taipea/history.json`. Delete it any time, or use
   "Clear all" in the History tab.
+- The audio of the dictation in progress stays in `…/Taipea/tmp/` until it is pasted, so
+  it can be recovered after a crash. Recovered or discarded audio is deleted.
+- Voice start / stop (off by default) also runs only on your Mac. See below.
 
 ## Requirements
 
@@ -157,9 +175,11 @@ config file.
 | **Ctrl + Option + Space** | Start dictating. Press the same shortcut again to stop: Taipea transcribes, cleans up and pastes at your cursor. |
 | **Ctrl + Option + C** | Turn cleanup on or off (raw text). |
 | **Ctrl + Option + H** | Open the Taipea window: History, Settings, Models. |
+| **Ctrl + Option + V** | Paste the last dictation again. |
 
 No keyboard? Everything also works with clicks:
 
+- The round **🎙 floating button** starts dictation; click it again to stop and paste.
 - While you talk, a floating panel shows three big buttons: **Stop & Paste**,
   **Stop & Copy only**, and **Cancel**.
 - Open **Taipea.app** (in `~/Applications`, add it to your Dock) to open the window.
@@ -168,6 +188,50 @@ No keyboard? Everything also works with clicks:
 
 You can see and change the shortcuts in Settings › Shortcuts (type one like
 `ctrl+alt+space` and press Save). "Reset shortcuts to defaults" brings these back.
+
+### Voice start / stop
+
+Turn it on in Settings › Voice start / stop (or 🎙 menu). Then:
+
+1. Say **"Taipea escribe"** or **"Taipea write"**, then pause. Recording starts.
+2. Dictate as usual.
+3. Pause, say **"listo"**, **"done"** or **"Taipea listo"** on its own, and pause again.
+   Taipea stops, removes the phrase from the text and pastes.
+
+How it works: a tiny recorder (SoX) waits for sound, which uses almost no CPU (about
+0.1 % on an M2). When you speak, it keeps one short burst of up to 4 seconds, and Whisper
+transcribes only that burst, on your Mac (about 1.5 s per burst with large-v3-turbo; put
+`ggml-small.bin` in the models folder to make it lighter). Longer bursts, like normal
+talking, are skipped without transcribing. Each burst is deleted right after it is checked.
+The menu bar shows 👂 and the floating button gets a green ring while it listens. It pauses
+while the screen is locked or the Mac sleeps.
+
+Trade-offs:
+
+- macOS shows the orange microphone dot the whole time it is on.
+- There is a short delay: the stop phrase is noticed about 2 seconds after you say it.
+- A stop phrase is only recognized when you say it alone, after a pause, so "the job is
+  done" in the middle of a sentence does not stop you. In return, "done." said alone does.
+- "Taipea" is a new word for Whisper, so Taipea also accepts how Whisper tends to hear it
+  ("Tapia, right", "Taipei ha listo"). In a noisy room or with music, use the shortcut or
+  the floating button instead, or raise `voiceThreshold` in config.lua.
+- It is not a wake-word engine like "Hey Siri": it is the best reliable version that runs
+  with the tools Taipea already uses, with nothing extra to install.
+
+### Custom words
+
+Settings › Custom words has one big row per word: **Heard** (what Whisper writes) and
+**Replace with** (what you want). Add a row with the green **Add** button, delete one with
+**Delete**; edits save when you leave a box. Replacements run after transcription and
+again after cleanup, match whole words only, and ignore capitals and accents
+("Select Dev", "select-dev" and "sélect dev" all become "selektdev").
+
+### Recovery
+
+If a dictation is interrupted (crash, Hammerspoon reload, power loss), Taipea shows a
+message and a **♻️ Recover last recording** item in the 🎙 menu and at the top of
+History. Recovering transcribes the saved audio (and cleans it if cleanup is on), copies
+the text to the clipboard and adds it to History. **Discard** deletes it.
 
 ## Default settings
 
@@ -179,6 +243,7 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Start / stop dictation | **Ctrl + Option + Space** (stop also pastes) | any shortcut |
 | Cleanup on / off | **Ctrl + Option + C** | any shortcut |
 | Open the Taipea window | **Ctrl + Option + H** | any shortcut |
+| Paste last dictation again | **Ctrl + Option + V** | any shortcut |
 | Cleanup (grammar fix) | On | On / Off (raw text) |
 | Cleanup model | `gemma4:e4b`, falls back to `qwen2.5:7b`, then `gemma4:e2b` | any Ollama model |
 | Style | Light | Light / Paragraph / Bullets / Formal |
@@ -189,9 +254,14 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Restore clipboard after pasting | On | On / Off |
 | Recording panel (overlay) | On | On / Off |
 | Window size | Normal | Normal / Compact |
+| Text size | Normal | Normal / Large / Extra large |
+| High contrast | Auto (follows macOS Increase Contrast) | Auto / On / Off |
+| Floating 🎙 button | On | On / Off |
+| Voice start / stop | Off | On / Off; start phrases "Taipea escribe", "Taipea write"; stop phrases "listo", "done", "Taipea listo" |
+| Custom words | none | any "heard → replace with" pairs |
 | Open at login | On | On / Off |
 | Show window at login | Off | On / Off |
-| Auto-stop on silence | Off (2.5 s pause, 1.5 % threshold when on) | On / Off, 1–∞ s, 0.5–5 % |
+| Auto-stop on silence | Off (3 s pause, 1.5 % threshold when on) | On / Off; 2, 3, 5 or 8 s; 0.5–5 % |
 | Longest dictation | 30 minutes | `maxSeconds` in config.lua |
 | History | last 500 dictations | `historyMax` in config.lua |
 | Keep cleanup model loaded | 12 hours | `ollamaKeepAlive` in config.lua |
@@ -257,6 +327,16 @@ Models, or turn cleanup off with Ctrl+Option+C.
 **The window or overlay is off screen.**
 Settings › Recording panel › Reset panel position. Windows are always kept inside the screen
 when you move them.
+
+**Voice start / stop doesn't react, or starts by itself.**
+Say the phrase alone, with a short pause before and after. Check that 👂 is in the menu
+bar. If it starts by itself in a noisy place, raise `voiceThreshold` (for example `"4%"`)
+in config.lua, or change the start phrases. To see what it hears, set `voiceDebug = true`
+in config.lua (this writes the short bursts' text to the log).
+
+**The floating button is in the way or off screen.**
+Drag it somewhere else, or Settings › Floating button › Reset button position, or turn it
+off there.
 
 **Where are the logs?**
 `~/Library/Application Support/Taipea/logs/taipea.log`, or menu bar 🎙 › Open log.

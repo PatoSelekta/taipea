@@ -14,11 +14,22 @@ hs.timer = setmetatable({ secondsSinceEpoch = function() fake.now = fake.now + 3
 hs.json = { encode = function() return "{}" end, decode = function(s) return { response = s } end }
 hs.http = { asyncPost = function(_, _, _, cb) cb(fake.post and 200 or 0, fake.post and fake.post() or nil) end }
 hs.alert = { show = function(m) fake.lastAlert = m end }
-hs.keycodes = { map = { space = 49, c = 8, h = 4 } }
+hs.keycodes = { map = { space = 49, c = 8, h = 4, v = 9 } }
 hs.settings = { get = function() return true end, set = function() end }
 hs.host = { locale = { preferredLanguages = function() return { fake.lang or "en-US" } end, current = function() return "en_US" end } }
 hs.hotkey = { bind = function(mods, key) fake.binds = fake.binds or {}; table.insert(fake.binds, table.concat(mods, "+") .. "+" .. key); return { delete = function() end } end }
 fake.lang = "es-CO"
+local scr = { frame = function() return { x = 0, y = 0, w = 1440, h = 900 } end, name = function() return "Test" end }
+hs.screen = { mainScreen = function() return scr end, allScreens = function() return { scr } end }
+hs.drawing = { windowBehaviors = { canJoinAllSpaces = 1, stationary = 16 }, windowLevels = { floating = 3, normal = 0 } }
+fake.tasks = {}
+hs.task = { new = function(cmd, cb, args) local t = { cmd = cmd, cb = cb, args = args }
+  function t:start() fake.tasks[#fake.tasks + 1] = t; return t end; function t:terminate() end; function t:interrupt() end; return t end }
+local front = { bundleID = function() return "com.apple.TextEdit" end, activate = function() end }
+hs.application = setmetatable({ frontmostApplication = function() return front end,
+  watcher = { new = function() return { start = function() end } end, activated = 1 } }, { __index = function() return proxy() end })
+hs.caffeinate = { watcher = { new = function() return { start = function() end } end }, sessionProperties = function() return {} end }
+hs.webview = setmetatable({}, { __index = function() return proxy() end })
 
 package.preload["hs.ipc"] = function() return true end
 local HOME = "/nonexistent-home"
@@ -95,8 +106,11 @@ check("default toggle key", table.concat(D.toggleKey.mods, "+") .. "+" .. D.togg
 check("default mode key", table.concat(D.modeKey.mods, "+") .. "+" .. D.modeKey.key == "ctrl+alt+c")
 check("default history key", table.concat(D.historyKey.mods, "+") .. "+" .. D.historyKey.key == "ctrl+alt+h")
 local b = table.concat(fake.binds or {}, ",")
-check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h")
-check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey)
+check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v")
+check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey)
+check("default paste-last key", table.concat(D.pasteLastKey.mods, "+") .. "+" .. D.pasteLastKey.key == "ctrl+alt+v")
+check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.textSize == "normal" and D.contrast == "auto"
+  and D.silenceSeconds == 3 and #D.customWords == 0 and D.startPhrases[1] == "Taipea escribe" and D.stopPhrases[1] == "listo")
 check("default values", D.style == "light" and D.cleanup == true and D.ollamaModel == "gemma4:e4b" and D.language == "auto"
   and D.uiLanguage == "auto" and D.showOverlay == true and D.uiSize == "normal" and D.defaultAction == "paste"
   and D.openAtLogin == true and D.historyMax == 500 and D.maxSeconds == 1800 and D.autoStop == false)
@@ -118,6 +132,62 @@ for k, v in pairs(M.STR.en) do
   if M.STR.es[k] then check("placeholders " .. k, ph(v) == ph(M.STR.es[k])) end
 end
 for k in pairs(M.STR.es) do check("en has " .. k, M.STR.en[k] ~= nil) end
+
+-- ---------- v0.2: custom words ----------
+local R = { { heard = "select dev", replace = "selektdev" }, { heard = "tai pea", replace = "Taipea" }, { heard = "taipei", replace = "Taipea" } }
+check("words whole + case", (M.applyWords("Visit Select Dev today, and select-dev.", R)) == "Visit selektdev today, and selektdev.")
+check("words accents", (M.applyWords("Taipéi es genial; tai pea también.", R)) == "Taipea es genial; Taipea también.")
+check("words not inside words", (M.applyWords("selecting devs and Taipeian food", R)) == "selecting devs and Taipeian food")
+check("words count", select(2, M.applyWords("select dev, select dev", R)) == 2)
+check("hint words", table.concat(M.hintWords(R), ",") == "Taipea,selektdev")
+check("prompt echo", M.isPromptEcho(" Taipea, selektdev.", R) and not M.isPromptEcho("Taipea is great", R))
+M.cfg.customWords = R
+check("whisper hint", M.whisperHint() == "Taipea, selektdev.")
+check("cleanup prompt protects words", M.buildPrompt("hola", "light"):find("respell them: Taipea, selektdev", 1, true) ~= nil
+  and M.buildPrompt("hola", "bullets"):find("respell them: Taipea, selektdev", 1, true) ~= nil)
+check("polish applies words", M.polishRaw("Check select dev.") == "Check selektdev.")
+check("polish drops prompt echo", M.polishRaw(" Taipea, selektdev.") == "")
+M.cfg.customWords = {}
+check("no words -> no hint", M.whisperHint() == nil and M.wordsRule() == "")
+
+-- ---------- v0.2: voice commands (inputs are real Whisper outputs for these phrases) ----------
+local SP, ST = D.startPhrases, D.stopPhrases
+for _, x in ipairs({ { "Tapirite.", "start" }, { "Taipéa escribe.", "start" }, { "Taipea, escribe.", "start" }, { "Tapia, right.", "start" },
+  { "Taipei, write!", "start" }, { "Listo.", "stop" }, { "done", "stop" }, { "Taipei ha listo.", "stop" } }) do
+  check("command " .. x[1], M.classifyBurst(x[1], SP, ST, {}) == x[2])
+end
+for _, x in ipairs({ "Thank you.", "Okay.", "The weather is nice today.", "Ya terminé, está listo el informe.", "Type it right.", "Alright.",
+  "Copyright.", "Describe it.", "Está listo.", "I'm done.", "Escribe.", "you", "" }) do
+  check("not a command: " .. x, M.classifyBurst(x, SP, ST, {}) == nil)
+end
+check("text after start phrase", select(2, M.classifyBurst("Taipea escribe, hola mundo.", SP, ST, {})) == "hola mundo.")
+check("strip stop", M.stripStop("Send the report to Ana. Listo.", ST, {}) == "Send the report to Ana.")
+check("strip misheard stop", M.stripStop("Send it, Taipei ha listo.", ST, {}) == "Send it")
+check("strip stop + stray words", M.stripStop("Revisa el budget. Done. Thank you.", ST, {}) == "Revisa el budget.")
+check("keep early words", M.stripStop("I am done with it and more words here now", ST, {}) == "I am done with it and more words here now")
+check("strip start", M.stripStart("Taipea escribe. Hola.", SP, {}) == "Hola.")
+check("split phrases", table.concat(M.splitPhrases(" listo, done ,, Taipea listo "), "|") == "listo|done|Taipea listo")
+
+-- ---------- v0.2: recovery ----------
+local wp = os.tmpname()
+local wf = io.open(wp, "wb")
+wf:write("RIFF" .. string.pack("<I4", 0) .. "WAVEfmt " .. string.pack("<I4", 16) .. string.rep("\0", 16) .. "data" .. string.pack("<I4", 0) .. string.rep("\1", 32000)); wf:close()
+local okw, dl = M.fixWavHeader(wp)
+wf = io.open(wp, "rb"); local hdr = wf:read(44); wf:close()
+check("wav header fixed", okw and dl == 32000 and string.unpack("<I4", hdr, 5) == 32036 and string.unpack("<I4", hdr, 41) == 32000)
+check("wav seconds", M.wavSeconds(wp) == 1.0)
+check("not a wav", M.fixWavHeader("/nonexistent") == false)
+os.remove(wp)
+
+-- ---------- v0.2: voice start goes through the normal recorder ----------
+fake.files["/opt/homebrew/bin/rec"] = "file"
+M.cfg.rec = "/opt/homebrew/bin/rec"
+local n0 = #fake.tasks
+check("voice off by default", M.voiceActive() == false)
+check("start phrase while idle", M.voiceHeard("Taipea escribe.") == "start")
+-- no speech model on this fake Mac, so start() must stop at the friendly preflight message
+check("voice start uses the normal start (preflight)", #fake.tasks == n0 and (fake.lastAlert or ""):find("modelo", 1, true) ~= nil)
+check("look scale", M.look.scale == 1 and M.look.hc == false)
 
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

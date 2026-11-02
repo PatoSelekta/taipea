@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.0
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -36,7 +36,7 @@ local DEFAULTS = {
   maxSeconds  = 1800,                        -- 30-minute cap per dictation
   restoreClipboard = true,
   autoStop    = false,
-  silenceSeconds = 2.5,
+  silenceSeconds = 3,                        -- 2, 3, 5 or 8 in Settings
   silenceThreshold = "1.5%",
   historyMax  = 500,
   openAtLogin = true, showAtLogin = false,
@@ -46,6 +46,18 @@ local DEFAULTS = {
   uiLanguage = "auto",                       -- interface language: auto (macOS language) | en | es
   defaultAction = "paste",                   -- after stopping: paste | copy
   uiSize = "normal",                         -- normal | compact
+  pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },  -- paste the last dictation again
+  textSize = "normal",                       -- normal | large | xlarge (window, recording panel, floating button)
+  contrast = "auto",                         -- high contrast: auto (follows macOS Increase Contrast) | on | off
+  floatButton = true,                        -- round always-on-top 🎙 button: click to start, click again to stop and paste
+  customWords = {},                          -- { {heard="select dev", replace="selektdev"}, ... } (edit in Settings)
+  voiceControl = false,                      -- voice start/stop (listens for the phrases below; all on this Mac)
+  startPhrases = { "Taipea escribe", "Taipea write" },
+  stopPhrases = { "listo", "done", "Taipea listo" },
+  voiceModel = nil,                          -- nil = ggml-small*.bin if present, else the main speech model
+  voiceThreshold = "2%",                     -- how loud a sound must be to be checked for a phrase
+  voiceMaxBurst = 4,                         -- seconds; longer bursts (normal talking) are skipped
+  voiceDebug = false,                        -- true = write what the listener heard to the log
 }
 
 local cfg = {}
@@ -128,6 +140,38 @@ local STR = {
   k_ctrl="Ctrl", k_alt="Opción", k_cmd="Cmd", k_shift="Mayús", k_space="Espacio",
  },
 }
+-- ---------- v0.2 interface strings (English / Español) ----------
+local NEWSTR = {
+ en = {
+  menu_voice="Voice start/stop (say “%s”)", menu_fab="Floating button", menu_paste_last="Paste last dictation again",
+  menu_recover="Recover last recording (%s)", menu_discard="Discard interrupted recording",
+  nothing_paste="Nothing to paste yet", recover_offer="A recording was interrupted. Choose 🎙 › Recover last recording",
+  recovering="Recovering…", recovered="Recovered dictation copied to the clipboard (also in History)", recover_none="Nothing to recover",
+  recover_discarded="Interrupted recording discarded",
+  ov_say_stop="Say “%s” or press a button to finish",
+  voice_on="Voice start/stop: ON. Say “%s” to start", voice_off="Voice start/stop: OFF", voice_paused="Voice start/stop is paused while the screen is locked",
+  voice_need_phrase="Type at least one phrase", phrases_saved="Phrases saved",
+  fab_idle="Start dictation", fab_rec="Stop and paste", fab_busy="Working…", fab_listening="Listening for “%s”", fab_reset="Floating button position reset",
+  fab_on="Floating button: ON", fab_off="Floating button: OFF",
+  words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
+  look_set="Display updated",
+ },
+ es = {
+  menu_voice="Empezar/parar con la voz (di «%s»)", menu_fab="Botón flotante", menu_paste_last="Pegar otra vez el último dictado",
+  menu_recover="Recuperar la última grabación (%s)", menu_discard="Descartar la grabación interrumpida",
+  nothing_paste="Todavía no hay nada para pegar", recover_offer="Se interrumpió una grabación. Elige 🎙 › Recuperar la última grabación",
+  recovering="Recuperando…", recovered="Dictado recuperado y copiado al portapapeles (también está en el Historial)", recover_none="No hay nada que recuperar",
+  recover_discarded="Grabación interrumpida descartada",
+  ov_say_stop="Di «%s» o presiona un botón para terminar",
+  voice_on="Empezar/parar con la voz: SÍ. Di «%s» para empezar", voice_off="Empezar/parar con la voz: NO", voice_paused="La voz está en pausa mientras la pantalla está bloqueada",
+  voice_need_phrase="Escribe al menos una frase", phrases_saved="Frases guardadas",
+  fab_idle="Empezar a dictar", fab_rec="Parar y pegar", fab_busy="Trabajando…", fab_listening="Escuchando «%s»", fab_reset="Posición del botón flotante restablecida",
+  fab_on="Botón flotante: SÍ", fab_off="Botón flotante: NO",
+  words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
+  look_set="Pantalla actualizada",
+ },
+}
+for l, t in pairs(NEWSTR) do for k, v in pairs(t) do STR[l][k] = v end end
 -- macOS language (first preferred language), "es" or "en"
 local function systemLang()
   local ok, langs = pcall(function() return hs.host.locale.preferredLanguages() end)
@@ -148,6 +192,223 @@ if cfgError then hs.alert.show(T("cfg_error")) end
 local M = {}
 M.STR, M.T, M.uiLang, M.systemLang = STR, T, uiLang, systemLang
 M.cfg, M.DEFAULTS = cfg, DEFAULTS
+local DATA_DIR, KP, MSG = DATA, "taipea.", "taipea"
+local keyText
+-- ---------- text helpers: custom words, voice commands, recovery ----------
+-- fold: lower-case and drop accents (á→a, ñ→n) so matching ignores capitals and accents
+local FOLD = {}
+do
+  local groups = { a="àáâäãåÀÁÂÄÃÅ", e="èéêëÈÉÊË", i="ìíîïÌÍÎÏ", o="òóôöõÒÓÔÖÕ", u="ùúûüÙÚÛÜ", n="ñÑ", c="çÇ", y="ýÿÝ" }
+  for base, list in pairs(groups) do for ch in list:gmatch("[\195][\128-\191]") do FOLD[ch] = base end end
+end
+local function fold(s) return ((s or ""):gsub("[\195][\128-\191]", function(ch) return FOLD[ch] or ch end):lower()) end
+-- byte length of a word character at position k (ASCII letter/digit or a Latin letter like é, ñ), else 0
+local function wlen(s, k)
+  local b = s:byte(k); if not b then return 0 end
+  if (b>=48 and b<=57) or (b>=65 and b<=90) or (b>=97 and b<=122) then return 1 end
+  if b==195 then local c = s:byte(k+1); if c and c>=128 and c<=191 and c~=151 and c~=183 then return 2 end end
+  return 0
+end
+-- split text into word and non-word tokens: { {t="Hola", w=true, pos=1}, {t=", ", w=false, pos=5}, ... }
+local function tokens(s)
+  local out, i, n = {}, 1, #s
+  while i <= n do
+    local isw, j = wlen(s, i) > 0, i
+    while j <= n do
+      local l = wlen(s, j)
+      if isw then
+        if l == 0 and s:byte(j) == 39 and j > i and wlen(s, j+1) > 0 then l = 1 end   -- don't, l'agua
+        if l == 0 then break end
+      else
+        if l > 0 then break end
+        l = 1
+      end
+      j = j + l
+    end
+    out[#out+1] = { t = s:sub(i, j-1), w = isw, pos = i }
+    i = j
+  end
+  return out
+end
+local function wordsOf(s) local w = {}; for _,tk in ipairs(tokens(s or "")) do if tk.w then w[#w+1] = fold(tk.t) end end; return w end
+-- custom word rules {heard=, replace=} -> sorted matchers (longest first)
+local function prepRules(rules)
+  local R = {}
+  for _,r in ipairs(rules or {}) do
+    if type(r)=="table" and type(r.heard)=="string" and type(r.replace)=="string" and r.replace:match("%S") then
+      local hw = wordsOf(r.heard)
+      if #hw > 0 then R[#R+1] = { w = hw, rep = (r.replace:gsub("^%s+",""):gsub("%s+$","")) } end
+    end
+  end
+  table.sort(R, function(a,b) return #a.w > #b.w end)
+  return R
+end
+-- replace whole words/phrases, ignoring case and accents; words of a phrase may be split by spaces or hyphens
+-- returns new text and the number of replacements
+local function applyWords(text, rules)
+  if type(text) ~= "string" or text == "" then return text, 0 end
+  local R = prepRules(rules); if #R == 0 then return text, 0 end
+  local tk = tokens(text)
+  local out, i, count = {}, 1, 0
+  while i <= #tk do
+    local last, rep
+    if tk[i].w then
+      for _,r in ipairs(R) do
+        local j, ok = i, true
+        for k = 1, #r.w do
+          if not (tk[j] and tk[j].w and fold(tk[j].t) == r.w[k]) then ok = false; break end
+          if k < #r.w then
+            local sep = tk[j+1]
+            if not (sep and not sep.w and sep.t:match("^[%s%-]+$")) then ok = false; break end
+            j = j + 2
+          end
+        end
+        if ok then last, rep = j, r.rep; break end
+      end
+    end
+    if last then out[#out+1] = rep; count = count + 1; i = last + 1
+    else out[#out+1] = tk[i].t; i = i + 1 end
+  end
+  return table.concat(out), count
+end
+-- the "replace with" words, once each: used as hints for Whisper and the cleanup model
+local function hintWords(rules)
+  local seen, list = {}, {}
+  for _,r in ipairs(prepRules(rules)) do if not seen[r.rep] then seen[r.rep] = true; list[#list+1] = r.rep end end
+  table.sort(list)
+  return list
+end
+-- true when Whisper only gave back the hint words (it does that on silence when it gets a prompt)
+local function isPromptEcho(text, rules)
+  local w = wordsOf(text); if #w == 0 then return false end
+  local H = {}; for _,h in ipairs(hintWords(rules)) do for _,x in ipairs(wordsOf(h)) do H[x] = true end end
+  if next(H) == nil then return false end
+  for _,x in ipairs(w) do if not H[x] then return false end end
+  return true
+end
+-- how Whisper tends to hear "Taipea"; used only to recognise voice commands
+local WAKE_ALIASES = {
+  { heard="taipei", replace="taipea" }, { heard="tai pei", replace="taipea" }, { heard="tai pea", replace="taipea" },
+  { heard="taipe a", replace="taipea" }, { heard="typea", replace="taipea" }, { heard="type a", replace="taipea" },
+  { heard="taypea", replace="taipea" }, { heard="taipeia", replace="taipea" }, { heard="tipea", replace="taipea" },
+  { heard="taipá", replace="taipea" }, { heard="tai pa", replace="taipea" },
+}
+local function cmdRules(rules) local r = {}; for _,x in ipairs(rules or {}) do r[#r+1] = x end; for _,x in ipairs(WAKE_ALIASES) do r[#r+1] = x end; return r end
+local function phraseWords(s, rules) return wordsOf((applyWords(s or "", cmdRules(rules)))) end
+local function normPhrase(s, rules) return table.concat(phraseWords(s, rules), " ") end
+-- edit distance (for "Taipea" heard as "Tapia", "Taipei ha", "Tapi-")
+local function lev(a, b)
+  local la, lb = #a, #b; if la == 0 then return lb end; if lb == 0 then return la end
+  local prev = {}; for j = 0, lb do prev[j] = j end
+  for i = 1, la do
+    local cur = { [0] = i }
+    for j = 1, lb do cur[j] = math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + ((a:byte(i) == b:byte(j)) and 0 or 1)) end
+    prev = cur
+  end
+  return prev[lb]
+end
+-- how Whisper writes the command words after "Taipea" (e.g. "Taipea write" -> "Tapia, right")
+local CMD_ALIASES = { write = { "write", "right", "rite", "wright", "writes" }, escribe = { "escribe", "escribes", "escriba", "escribi" },
+  listo = { "listo", "lista", "listos" } }
+-- do the burst's words w match a phrase's words pw? tol = how far "Taipea" may be misheard
+local function matchWords(w, pw, tol)
+  if #w == 0 or #pw == 0 then return false end
+  if table.concat(w, " ") == table.concat(pw, " ") then return true end
+  if pw[1] ~= "taipea" or #pw < 2 or #w > #pw + 2 then return false end
+  local s, cmd = table.concat(w), table.concat(pw, "", 2)
+  for _,a in ipairs(CMD_ALIASES[cmd] or { cmd }) do
+    if #s > #a and s:sub(-#a) == a then
+      local pre = s:sub(1, #s - #a)
+      if #pre >= 3 and lev(pre, "taipea") <= (#pre >= 4 and tol or 2) then return true end
+    end
+  end
+  return false
+end
+local function slice(t, a, b) local o = {}; for i = a, b do o[#o+1] = t[i] end; return o end
+-- a short burst of speech -> "start", textAfterThePhrase | "stop" | nil
+-- stop phrases must be the whole burst ("listo."), start phrases must begin it ("Taipea escribe, hola")
+local function classifyBurst(text, startP, stopP, rules)
+  local w = phraseWords(text, rules)
+  if #w == 0 then return nil end
+  for _,p in ipairs(stopP or {}) do if matchWords(w, phraseWords(p, rules), 2) then return "stop" end end
+  local tk = tokens((applyWords(text or "", cmdRules(rules))))
+  for _,p in ipairs(startP or {}) do
+    local pw = phraseWords(p, rules)
+    for k = math.min(#w, #pw + 2), 1, -1 do
+      if matchWords(slice(w, 1, k), pw, 3) then
+        local seen, rest = 0, ""
+        for _,t in ipairs(tk) do
+          if t.w then seen = seen + 1 end
+          if seen == k and t.w then rest = (applyWords(text, cmdRules(rules))):sub(t.pos + #t.t); break end
+        end
+        return "start", (rest:gsub("^[%s%p]+", ""):gsub("%s+$", ""))
+      end
+    end
+  end
+  return nil
+end
+-- remove a spoken stop phrase from the end of a dictation ("... the report. Listo." -> "... the report.")
+local function stripStop(text, stopP, rules)
+  if type(text) ~= "string" then return text end
+  local W = {}; for _,t in ipairs(tokens(text)) do if t.w then W[#W+1] = { f = phraseWords(t.t, rules)[1] or fold(t.t), pos = t.pos } end end
+  local list = {}; for _,p in ipairs(stopP or {}) do local pw = phraseWords(p, rules); if #pw > 0 then list[#list+1] = pw end end
+  local fw = {}; for i, x in ipairs(W) do fw[i] = x.f end
+  for d = 0, 2 do                       -- allow up to 2 stray words after the phrase ("Done. Thank you.")
+    local e = #W - d
+    for k = math.min(e, 5), 1, -1 do
+      local tail = slice(fw, e - k + 1, e)
+      for _,pw in ipairs(list) do
+        if matchWords(tail, pw, 2) then
+          local cut = text:sub(1, W[e - k + 1].pos - 1)
+          repeat local before = cut; cut = cut:gsub("[%s,;:%-]+$", ""):gsub("\226\128[\147\148]$", "") until cut == before
+          return cut
+        end
+      end
+    end
+  end
+  return text
+end
+-- remove a start phrase the recording may have caught at the very beginning
+local function stripStart(text, startP, rules)
+  if type(text) ~= "string" then return text end
+  local kind, rest = classifyBurst(text, startP, {}, rules)
+  if kind == "start" then return rest end
+  return text
+end
+-- length in seconds of a 16 kHz mono 16-bit WAV (from its size)
+local function wavSeconds(p)
+  local f = io.open(p or "", "rb"); if not f then return 0 end
+  local size = f:seek("end"); f:close()
+  return math.max(0, (size - 44) / 32000)
+end
+-- after a crash the recorder may not have written the final sizes: fix the RIFF and data sizes in place
+local function fixWavHeader(p)
+  local f = io.open(p or "", "r+b"); if not f then return false end
+  local size = f:seek("end"); f:seek("set", 0)
+  local h = f:read(math.min(size, 4096)) or ""
+  if #h < 44 or h:sub(1,4) ~= "RIFF" or h:sub(9,12) ~= "WAVE" then f:close(); return false end
+  local pos = 13
+  while pos + 7 <= #h do
+    local id, len = h:sub(pos, pos+3), string.unpack("<I4", h, pos+4)
+    if id == "data" then
+      local dlen = size - (pos + 7); dlen = dlen - dlen % 2
+      f:seek("set", 4); f:write(string.pack("<I4", size - 8))
+      f:seek("set", pos + 3); f:write(string.pack("<I4", dlen))
+      f:close(); return true, dlen
+    end
+    pos = pos + 8 + len + (len % 2)
+  end
+  f:close(); return false
+end
+local function shq(s) return "'"..tostring(s):gsub("'", "'\\''").."'" end
+-- "Taipea escribe, Taipea write" -> { "Taipea escribe", "Taipea write" }
+local function splitPhrases(s)
+  local t = {}
+  for p in (s or ""):gmatch("[^,;\n]+") do p = p:gsub("^%s+",""):gsub("%s+$",""); if p ~= "" then t[#t+1] = p end end
+  return t
+end
+M.fold, M.tokens, M.applyWords, M.hintWords, M.isPromptEcho, M.normPhrase, M.classifyBurst = fold, tokens, applyWords, hintWords, isPromptEcho, normPhrase, classifyBurst
+M.stripStop, M.stripStart, M.wavSeconds, M.fixWavHeader, M.splitPhrases = stripStop, stripStart, wavSeconds, fixWavHeader, splitPhrases
 local recTask, state, cancelled, mode = nil, "idle", false, "paste"
 local targetApp, recStart, tick = nil, 0, nil
 local wav = DATA.."/tmp/rec.wav"
@@ -258,7 +519,7 @@ local OW, OH = 460, 250
 local function overlayFrame()
   local p = settings.get("taipea.overlayPos")
   local sf = hs.screen.mainScreen():frame()
-  local k = cfg.uiSize=="compact" and 0.75 or 1
+  local k = (cfg.uiSize=="compact" and 0.75 or 1) * ((M.look and M.look.scale) or 1)
   local w, h = OW*k, OH*k
   if p then return clampFrame({ x=p.x, y=p.y, w=w, h=h }) end
   return { x=sf.x+(sf.w-w)/2, y=sf.y+60, w=w, h=h }
@@ -281,6 +542,10 @@ button{flex:1;min-width:0;height:110px;border:0;border-radius:14px;font:700 21px
 #stop{background:#34c759;flex:1.4}#copy{background:#0a84ff}#cancel{background:#ff453a}
 button:hover{filter:brightness(1.2)} .busy button{opacity:.35;pointer-events:none}
 .busy #cancel{opacity:1;pointer-events:auto}
+html.hc #panel{background:#000;border:4px solid #fff}html.hc button{border:4px solid #fff}
+html.hc #stop{background:#006b1f}html.hc #copy{background:#003f8a}html.hc #cancel{background:#a00000}html.hc #sub,html.hc #t{color:#fff}
+html.rm *{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
 </style></head><body><div id=panel>
 <div id=top><div id=dot></div><div id=st>]]..T("ov_listening")..[[</div><div id=t>0:00</div></div>
 <div id=sub></div>
@@ -288,7 +553,8 @@ button:hover{filter:brightness(1.2)} .busy button{opacity:.35;pointer-events:non
 <script>document.documentElement.style.zoom=window.__tpZoom||1;function s(a){webkit.messageHandlers.taipea.postMessage(a)}
 document.getElementById('panel').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();s({cmd:'dragOverlay'})}});
 function upd(st,t,sub,busy){document.getElementById('st').textContent=st;document.getElementById('t').textContent=t;
-document.getElementById('sub').textContent=sub;document.body.className=busy?'busy':''}</script></body></html>]] end
+document.getElementById('sub').textContent=sub;document.body.classList.toggle('busy',!!busy)}
+function setLook(hc,rm){document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}</script></body></html>]] end
 
 -- ---------- hotkeys ----------
 local hk = {}
@@ -318,10 +584,12 @@ local function onMsg(m)
   if a=="stop" then M.stop(cfg.defaultAction=="copy" and "copy" or "paste") elseif a=="copy" then M.stop("copy") elseif a=="cancel" then M.cancel()
   elseif type(a)=="table" and a.cmd=="dragStart" then M.startAppDrag()
   elseif type(a)=="table" and a.cmd=="dragOverlay" then M.startOverlayDrag()
+  elseif type(a)=="table" and a.cmd=="fabDown" then M.startFabDrag()
+  elseif type(a)=="table" and a.cmd=="fabReady" then M.fabUpdate()
   elseif type(a)=="table" then M.handle(a) end
 end
 -- window drag: poll mouse until left button released (works with head mice that send no drag events)
-local function startDrag(w, key)
+local function startDrag(w, key, onEnd)
   if not w then return end
   if M._dragEnd then M._dragEnd() end
   local p0, f0 = hs.mouse.absolutePosition(), w:frame()
@@ -331,6 +599,7 @@ local function startDrag(w, key)
     if upTap then upTap:stop(); upTap = nil end
     M._appDragTimer, M._dragEnd = nil, nil
     local nf = clampFrame(w:frame()); w:frame(nf); settings.set(key, {x=nf.x, y=nf.y})
+    if onEnd then local p = hs.mouse.absolutePosition(); onEnd(math.sqrt((p.x-p0.x)^2 + (p.y-p0.y)^2), f0) end
   end
   M._dragEnd = finishDrag
   -- end on the real mouse-up event too: checkMouseButtons() reads hardware state and can miss
@@ -361,7 +630,8 @@ local function showOverlay()
       :html(overlayHTML())
   end
   overlay:frame(overlayFrame()):show()
-  overlay:evaluateJavaScript("window.__tpZoom="..(cfg.uiSize=="compact" and 0.75 or 1)..";document.documentElement.style.zoom=window.__tpZoom")
+  local z = (cfg.uiSize=="compact" and 0.75 or 1) * ((M.look and M.look.scale) or 1)
+  overlay:evaluateJavaScript("window.__tpZoom="..z..";document.documentElement.style.zoom=window.__tpZoom;setLook("..tostring(M.look and M.look.hc or false)..","..tostring(M.look and M.look.rm or false)..")")
 end
 local function hideOverlay() if overlay then overlay:hide() end end
 M._showOverlay, M._hideOverlay = showOverlay, hideOverlay
@@ -373,18 +643,246 @@ end
 
 -- ---------- menu ----------
 local refresh
+local transcribe
+keyText = function(k) return keyLabel(k) end
+-- ---------- look: text size, high contrast, reduce motion ----------
+local function macPref(key)
+  local out = hs.execute("/usr/bin/defaults read com.apple.universalaccess "..key.." 2>/dev/null") or ""
+  return out:match("^%s*1") ~= nil
+end
+local look = { scale = 1, hc = false, rm = false, macHC = false, macRM = false }
+local function updateLook()
+  look.macHC, look.macRM = macPref("increaseContrast"), macPref("reduceMotion")
+  look.hc = cfg.contrast == "on" or (cfg.contrast ~= "off" and look.macHC)
+  look.rm = look.macRM
+  look.scale = ({ normal = 1, large = 1.2, xlarge = 1.4 })[cfg.textSize] or 1
+end
+updateLook()
+M.look, M.updateLook = look, updateLook
+
+-- ---------- recovery: each recording's audio and progress are kept until it is pasted ----------
+local sessf = DATA_DIR.."/tmp/session.json"
+local recoverWav = DATA_DIR.."/tmp/recover.wav"
+local function saveSession(t) local f = io.open(sessf, "w"); if f then f:write(hs.json.encode(t)); f:close() end end
+local function readSession()
+  local f = io.open(sessf, "r"); if not f then return nil end
+  local ok, j = pcall(hs.json.decode, f:read("a")); f:close()
+  return ok and type(j) == "table" and j or nil
+end
+local function clearSession() os.remove(sessf) end
+M.saveSession, M.readSession, M.clearSession = saveSession, readSession, clearSession
+local function fmtSecs(s) s = math.floor((s or 0) + 0.5); return string.format("%d:%02d", s // 60, s % 60) end
+-- at load: an unfinished session means the last dictation never reached the paste step
+function M.checkRecovery()
+  local s = readSession(); M.recoverable = nil
+  if not s then return nil end
+  if s.phase == "recording" and s.wav then
+    -- stop a recorder the previous load left running, so the file is complete
+    hs.execute("/usr/bin/pkill -f "..shq("16000 -b 16 "..s.wav))
+  end
+  if s.wav and s.wav ~= recoverWav and fileExists(s.wav) then
+    os.remove(recoverWav); if os.rename(s.wav, recoverWav) then s.wav = recoverWav end
+  end
+  local secs = s.wav and fileExists(s.wav) and wavSeconds(s.wav) or 0
+  if (type(s.raw) == "string" and s.raw:match("%S")) or secs >= 1 then
+    s.secs = secs; saveSession(s); M.recoverable = s
+  else clearSession() end
+  return M.recoverable
+end
+function M.discardRecovery() M.recoverable = nil; clearSession(); os.remove(recoverWav); hs.alert.show(T("recover_discarded")); refresh() end
+
+-- ---------- paste last dictation again ----------
+function M.pasteLast(app)
+  local e = history[1]
+  if not e then hs.alert.show(T("nothing_paste")); return end
+  app = app or hs.application.frontmostApplication()
+  if not app or app:bundleID() == "org.hammerspoon.Hammerspoon" then app = M.lastApp end
+  doPaste(finalText(e), app); log("PASTED AGAIN ("..#finalText(e).." chars)")
+end
+
+-- remember the last app you used (not Hammerspoon), so text from the floating button goes back there
+M._appWatch = hs.application.watcher.new(function(_, ev, app)
+  if ev == hs.application.watcher.activated and app and app:bundleID() ~= "org.hammerspoon.Hammerspoon" then M.lastApp = app end
+end)
+M._appWatch:start()
+
+-- ---------- voice start / stop ----------
+-- A tiny recorder waits for sound (sox "silence" effect, almost no CPU), keeps one short burst
+-- (up to voiceMaxBurst seconds), and Whisper transcribes only that burst on this Mac. Bursts that
+-- are longer (normal talking) are skipped without transcribing. Audio files are deleted right away.
+local VL = { task = nil, wtask = nil, n = 0, pending = nil, sleeping = false, quick = 0 }
+M.VL = VL
+-- a listener left over from before a reload would keep the microphone open: stop it
+hs.execute("/usr/bin/pkill -f "..shq("16000 -b 16 "..DATA_DIR.."/tmp/voice"))
+local function vlModel()
+  if cfg.voiceModel then return cfg.voiceModel:sub(1,1) == "/" and cfg.voiceModel or (DATA_DIR.."/models/"..cfg.voiceModel) end
+  local dirs = { DATA_DIR.."/models" }
+  local md = modelPath():match("^(.*)/[^/]+$"); if md and md ~= dirs[1] then dirs[#dirs+1] = md end
+  for _,d in ipairs(dirs) do
+    for _,f in ipairs({ "ggml-small-q5_1.bin", "ggml-small-q8_0.bin", "ggml-small.bin" }) do if fileExists(d.."/"..f) then return d.."/"..f end end
+  end
+  return modelPath()
+end
+M.vlModel = vlModel
+function M.voiceActive() return (cfg.voiceControl and not VL.sleeping) and true or false end
+local function vlWanted() return M.voiceActive() and state ~= "busy" and cfg.rec ~= nil and cfg.whisper ~= nil and not M._simInput end
+local vlBurst
+local function vlSync()
+  if vlWanted() then if not VL.task and not VL.waiting then vlBurst() end
+  elseif VL.task then local t = VL.task; VL.task = nil; t:terminate() end
+end
+M.vlSync = vlSync
+vlBurst = function()
+  VL.n = VL.n % 3 + 1
+  local f = DATA_DIR.."/tmp/voice"..VL.n..".wav"; os.remove(f)
+  local thr, cap = cfg.voiceThreshold or "2%", cfg.voiceMaxBurst or 4
+  local t0 = hs.timer.secondsSinceEpoch()
+  local t; t = hs.task.new(cfg.rec, function()
+    if VL.task ~= t then os.remove(f); return end   -- stopped on purpose
+    VL.task = nil
+    local secs = wavSeconds(f)
+    if secs >= 0.3 and secs < cap - 0.05 then M.voiceCheck(f) else os.remove(f) end
+    -- if the recorder keeps failing (no microphone permission, device gone), back off instead of spinning
+    if hs.timer.secondsSinceEpoch() - t0 < 0.5 then VL.quick = VL.quick + 1 else VL.quick = 0 end
+    if VL.quick >= 5 then
+      VL.waiting = true; log("voice: recorder keeps stopping, retrying in 30 s")
+      hs.timer.doAfter(30, function() VL.waiting = false; VL.quick = 0; vlSync() end)
+    else hs.timer.doAfter(0.05, vlSync) end
+  end, { "-q", "-c", "1", "-r", "16000", "-b", "16", f, "silence", "1", "0.15", thr, "1", "0.7", thr, "trim", "0", tostring(cap) })
+  VL.task = t
+  if not t:start() then VL.task = nil end
+end
+function M.voiceCheck(f)
+  if VL.wtask then if VL.pending then os.remove(VL.pending) end; VL.pending = f; return end
+  local t0 = hs.timer.secondsSinceEpoch()
+  -- no --prompt here: with a prompt Whisper "hears" the prompt in plain noise
+  VL.wtask = hs.task.new(cfg.whisper, function(code, out)
+    VL.wtask = nil; if not M._keepVoiceFiles then os.remove(f) end
+    out = (out or ""):gsub("%[BLANK_AUDIO%]", ""):gsub("%b[]", ""):gsub("%b()", ""):gsub("\n", " ")
+    if cfg.voiceDebug then log(string.format("voice heard (%.1fs): %s", hs.timer.secondsSinceEpoch() - t0, out)) end
+    if code == 0 then M.voiceHeard(out) end
+    local p = VL.pending; VL.pending = nil
+    if p then M.voiceCheck(p) end
+  end, { "-m", vlModel(), "-l", cfg.language or "auto", "-nt", "-np", "-bs", "1", "-bo", "1", "-nf", "-f", f })
+  if not VL.wtask:start() then VL.wtask = nil end
+end
+function M.voiceHeard(text)
+  local kind, rest = classifyBurst(text, cfg.startPhrases, cfg.stopPhrases, cfg.customWords)
+  if kind == "start" and state == "idle" then
+    log("voice: start phrase heard"); M._voicePrefix = (rest ~= "" and rest or nil); M._voiceSession = true; M.start()
+  elseif kind == "stop" and state == "rec" then
+    log("voice: stop phrase heard"); M._voiceStopped = true; M.stop(cfg.defaultAction == "copy" and "copy" or "paste")
+  end
+  return kind
+end
+-- pause while the screen is locked or the Mac sleeps
+local function screenLocked() local ok, p = pcall(hs.caffeinate.sessionProperties); return (ok and type(p) == "table" and p.CGSSessionScreenIsLocked) and true or false end
+M._sleepWatch = hs.caffeinate.watcher.new(function(ev)
+  local W = hs.caffeinate.watcher
+  if ev == W.systemWillSleep or ev == W.screensDidSleep or ev == W.screensDidLock then VL.sleeping = true
+  elseif ev == W.screensDidUnlock then VL.sleeping = false
+  elseif ev == W.systemDidWake or ev == W.screensDidWake then VL.sleeping = screenLocked() end
+  vlSync(); if refresh then refresh() end
+end)
+M._sleepWatch:start()
+-- text of a finished recording: custom words, voice phrases removed
+local function polishRaw(out)
+  out = applyWords(out or "", cfg.customWords)
+  if isPromptEcho(out, cfg.customWords) then out = "" end
+  if M._voiceStopped then out = stripStop(out, cfg.stopPhrases, cfg.customWords) end
+  if M._voiceSession or M._voicePrefix then out = stripStart(out, cfg.startPhrases, cfg.customWords) end
+  if M._voicePrefix then out = M._voicePrefix.." "..out end
+  M._voiceStopped, M._voicePrefix, M._voiceSession = false, nil, false
+  return out
+end
+M.polishRaw = polishRaw
+-- Whisper --prompt with the custom words, so it spells them right
+local function whisperHint() local h = hintWords(cfg.customWords); if #h == 0 then return nil end; return table.concat(h, ", ").."." end
+-- line for the cleanup model
+local function wordsRule()
+  local h = hintWords(cfg.customWords); if #h == 0 then return "" end
+  return "Write these words exactly as given and never change, translate or respell them: "..table.concat(h, ", ")..". "
+end
+M.whisperHint, M.wordsRule = whisperHint, wordsRule
+
+-- ---------- floating button ----------
+local fab
+local function fabSize() return math.floor(96 * (look.scale or 1) + 0.5) + 8 end
+local function fabFrame()
+  local s = fabSize(); local p = settings.get(KP.."fabPos"); local sf = hs.screen.mainScreen():frame()
+  if type(p) == "table" and p.x then return clampFrame({ x = p.x, y = p.y, w = s, h = s }) end
+  return { x = sf.x + sf.w - s - 30, y = sf.y + math.floor(sf.h * 0.55), w = s, h = s }
+end
+local fabHTML = [[
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:pointer}
+#b{position:absolute;inset:4px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:#1f6feb;color:#fff;display:flex;align-items:center;justify-content:center;
+ font:700 calc(100vw * .42) -apple-system;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#b.rec{background:#e0282e;animation:pulse 1.2s infinite}#b.busy{background:#c98500}
+#b.busy #i{animation:spin 1.5s linear infinite}
+#b.armed{border-color:#30d158;border-width:6px}#ear{display:none;position:absolute;right:-2px;bottom:-2px;font-size:calc(100vw*.22);background:#30d158;border-radius:50%;padding:2px 4px}
+#b.armed #ear{display:block}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,.75)}50%{box-shadow:0 0 0 8px rgba(255,59,48,0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+html.hc #b{background:#000;border:5px solid #fff;box-shadow:none}html.hc #b.rec{background:#b00000}html.hc #b.busy{background:#ffd60a;color:#000}
+html.hc #b.armed{border-color:#30d158}
+html.rm #b,html.rm #i{animation:none!important}
+@media (prefers-reduced-motion: reduce){#b,#i{animation:none!important}}
+</style></head><body><div id=b role=button aria-label="" title=""><span id=i>🎙</span><span id=ear>👂</span></div>
+<script>function s(a){webkit.messageHandlers.__MSG__.postMessage(a)}
+document.getElementById('b').addEventListener('mousedown',function(e){if(e.button===0){e.preventDefault();s({cmd:'fabDown'})}});
+function setSt(st,armed,label,hc,rm){var b=document.getElementById('b');b.className=st+(armed?' armed':'');
+ document.getElementById('i').textContent=st=='rec'?'⏹':(st=='busy'?'⏳':'🎙');b.title=label;b.setAttribute('aria-label',label);
+ document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
+s({cmd:'fabReady'});</script></body></html>]]
+function M.fabUpdate()
+  if not fab then return end
+  local st = state == "rec" and "rec" or (state == "busy" and "busy" or "idle")
+  local armed = M.voiceActive() and st ~= "busy"
+  local label = st == "rec" and T("fab_rec") or (st == "busy" and T("fab_busy") or (armed and T("fab_listening", (cfg.startPhrases or {})[1] or "") or T("fab_idle")))
+  fab:evaluateJavaScript(string.format("setSt(%q,%s,%q,%s,%s)", st, armed and "true" or "false", label, look.hc and "true" or "false", look.rm and "true" or "false"))
+end
+local function showFab()
+  if not cfg.floatButton then if fab then fab:delete(); fab = nil end; return end
+  if not fab then
+    fab = hs.webview.new(fabFrame(), {}, uc)
+      :windowStyle({ "borderless", "nonactivating" }):level(hs.drawing.windowLevels.floating)
+      :allowTextEntry(false):transparent(true):shadow(false)
+      :behavior(hs.drawing.windowBehaviors.canJoinAllSpaces + hs.drawing.windowBehaviors.stationary)
+      :html((fabHTML:gsub("__MSG__", MSG)))
+  else fab:frame(fabFrame()) end
+  fab:show(); M.fabUpdate()
+end
+M.showFab = showFab
+function M.fabRef() return fab end
+-- press on the button: drag it, or (if it barely moved) treat it as a click
+function M.startFabDrag()
+  if not fab then return end
+  startDrag(fab, KP.."fabPos", function(moved, f0)
+    if moved < 8 then fab:frame(f0); settings.set(KP.."fabPos", { x = f0.x, y = f0.y }); M.toggle() end
+  end)
+end
+
 local function clip(s,n) s=(s or ""):gsub("\n"," "); if #s>n then return s:sub(1,n).."…" end; return s end
 refresh = function()
   local icon = state=="rec" and "🔴" or (state=="busy" and "⏳" or "🎙")
-  menu:setTitle(icon..(cfg.cleanup and "" or " raw")); menu:setTooltip("Taipea")
+  menu:setTitle(icon..((M.voiceActive() and state~="busy") and "👂" or "")..(cfg.cleanup and "" or " raw")); menu:setTooltip("Taipea")
   local items = {
     { title = T("menu_open"), fn = function() M.openApp() end },
     { title = "-" },
     { title = (state=="rec" and T("menu_stop") or T("menu_start")).."  ("..keyLabel(cfg.toggleKey)..")", fn = function() M.toggle() end },
     { title = T("menu_cleanup").."  ("..keyLabel(cfg.modeKey)..")", checked = cfg.cleanup, fn = function() M.toggleMode() end },
     { title = T("menu_autostop", tostring(cfg.silenceSeconds)), checked = cfg.autoStop, fn = function() M.toggleAutoStop() end },
+    { title = T("menu_voice", (cfg.startPhrases or {})[1] or ""), checked = cfg.voiceControl, fn = function() M.handle({cmd="set", key="voiceControl", value=not cfg.voiceControl}) end },
+    { title = T("menu_fab"), checked = cfg.floatButton, fn = function() M.handle({cmd="set", key="floatButton", value=not cfg.floatButton}) end },
     { title = "-" },
+    { title = T("menu_paste_last").."  ("..keyText(cfg.pasteLastKey)..")", disabled = #history==0, fn = function() M.pasteLast() end },
   }
+  if M.recoverable then
+    table.insert(items, { title = "♻️ "..T("menu_recover", fmtSecs(M.recoverable.secs)), fn = function() M.recover() end })
+    table.insert(items, { title = T("menu_discard"), fn = function() M.discardRecovery() end })
+  end
+  table.insert(items, { title = "-" })
   local sub = {}
   for i=1, math.min(10,#history) do
     local e = history[i]
@@ -393,18 +891,24 @@ refresh = function()
   if #sub>0 then table.insert(items, { title = T("menu_recent"), menu = sub }) end
   table.insert(items, { title = T("menu_log"), fn = function() hs.execute("open '"..logf.."'") end })
   menu:setMenu(items)
+  vlSync(); M.fabUpdate()
   if pushState then pushState() end
 end
 
 -- ---------- pipeline ----------
 local function finish(raw, cleaned)
   state="idle"; if tick then tick:stop() end; hideOverlay()
+  clearSession()
+  local recovering = M._recovering; M._recovering = false
+  if recovering then os.remove(recoverWav) end
   local text = ((cleaned or raw) or ""):gsub("^%s+",""):gsub("%s+$","")
+  if M._dry then M._dryResult = text; log("DRY RUN result: "..text); refresh(); return end
   if text == "" then hs.alert.show(T("no_speech")); refresh(); return end
   addHistory((raw or ""):gsub("^%s+",""):gsub("%s+$",""), cleaned and text or nil)
   refresh()
   if cancelled then return end
-  if mode=="copy" then hs.pasteboard.setContents(text); hs.alert.show(T("copied_clip")); log("COPIED: "..text)
+  if recovering then hs.pasteboard.setContents(text); hs.alert.show(T("recovered"), 4); log("RECOVERED: "..text)
+  elseif mode=="copy" then hs.pasteboard.setContents(text); hs.alert.show(T("copied_clip")); log("COPIED: "..text)
   else doPaste(text, targetApp); log("PASTED: "..text) end
 end
 
@@ -450,11 +954,11 @@ local function buildPrompt(raw, style)
   style = style or cfg.style
   if style=="paragraphs" or style=="bullets" or style=="formal" then
     -- instructions, examples, then the text, then a language reminder (small models weigh the end most)
-    return STYLE[style]..STYLE_RULES..STYLE_EX[style].."\n\nTEXT:\n"..raw.."\n\n"..LANG_HINT[guessLang(raw)]..STYLE_GO[style]
+    return STYLE[style]..STYLE_RULES..wordsRule()..STYLE_EX[style].."\n\nTEXT:\n"..raw.."\n\n"..LANG_HINT[guessLang(raw)]..STYLE_GO[style]
   end
   return "You are a dictation editor. "..STYLE.light.." "..
   "CRITICAL: never translate. Every word stays in the language it was spoken in; if the speaker switches between Spanish and English mid-sentence, keep that switch exactly, including small English words like because, but, so. Never change names or places (Cartagena stays Cartagena). "..
-  "Do not add new ideas, do not answer questions in the text. Remove only filler sounds (eh, um); keep every real word, even if repeated. Output ONLY the resulting text, no quotes or comments.\n"..
+  "Do not add new ideas, do not answer questions in the text. Remove only filler sounds (eh, um); keep every real word, even if repeated. Output ONLY the resulting text, no quotes or comments. "..wordsRule().."\n"..
   "Example input: hola eh necesito que me mandes the report antes del viernes\n"..
   "Example output: Hola, necesito que me mandes the report antes del viernes.\n"..
   "Example input: vamos a la playa because hace calor en san andres\n"..
@@ -604,7 +1108,7 @@ function M.restyle(e, style, cb)
     local ok = out and not out:match("^%s*$") and st.failed < st.chunks
     log(string.format("restyle %s -> %s: %s, %d chunk(s), %d fallback(s), %.1fs", e.time or "?", style, ok and "ok" or "FAILED", st.chunks, st.fallbacks, st.secs or 0))
     if ok then
-      out = out:gsub("^%s+",""):gsub("%s+$","")
+      out = applyWords(out, cfg.customWords):gsub("^%s+",""):gsub("%s+$","")
       e.cleaned, e.style = out, style
       saveHistory()
       hs.pasteboard.setContents(out)
@@ -630,13 +1134,18 @@ local function cleanup(raw)
     if st.failed==st.chunks then hs.alert.show(T("cleanup_failed"))
     elseif st.fallbacks>0 and st.chunks==1 then hs.alert.show(T("cleanup_too_much"))
     elseif st.fallbacks>0 then hs.alert.show(T("parts_kept", st.fallbacks, st.chunks)) end
-    if not out or out:match("^%s*$") then finish(raw, nil) else finish(raw, out) end
+    if not out or out:match("^%s*$") then finish(raw, nil) else finish(raw, (applyWords(out, cfg.customWords))) end
   end, function(i, n)
     if n>1 then setOverlay(T("ov_cleaning_part", i, n), T("ov_fixing", model), true) end
   end)
 end
 
-local function whisperArgs(f) return { "-m", modelPath(), "-l", cfg.language, "-nt", "-np", "-f", f } end
+local function whisperArgs(f)
+  local a = { "-m", modelPath(), "-l", cfg.language, "-nt", "-np" }
+  local hint = whisperHint(); if hint then a[#a+1] = "--prompt"; a[#a+1] = hint end
+  a[#a+1] = "-f"; a[#a+1] = f
+  return a
+end
 -- test hook: whisper + cleanup on a file, no paste/history. cb(result table)
 function M.testPipeline(f, cb)
   M._testing = true
@@ -652,7 +1161,15 @@ function M.testPipeline(f, cb)
   M.testTask:start()
 end
 
-local function transcribe()
+local function afterWhisper(out)
+  out = polishRaw(out)
+  if not out:match("^%s*$") then saveSession({ phase="cleaning", wav=M._sessWav, raw=out }) end
+  if cfg.cleanup and not out:match("^%s*$") then cleanup(out) else finish(out, nil) end
+end
+M.afterWhisper = afterWhisper
+transcribe = function(file)
+  file = file or wav; M._sessWav = file
+  saveSession({ phase="transcribing", wav=file })
   state="busy"; refresh(); setOverlay(T("ov_transcribing"), cfg.modelName:gsub("^ggml%-",""):gsub("%.bin$","").." ("..cfg.language..")", true)
   local t0 = hs.timer.secondsSinceEpoch()
   recStart = t0
@@ -662,12 +1179,12 @@ local function transcribe()
     if overlay then local e=math.floor(hs.timer.secondsSinceEpoch()-recStart); overlay:evaluateJavaScript(string.format("document.getElementById('t').textContent=%q", string.format("%d:%02d",e//60,e%60))) end end end)
   M.wTask = hs.task.new(cfg.whisper, function(code, out, err)
     M.wTask = nil
-    if cancelled then state="idle"; hideOverlay(); refresh(); return end
+    if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
     log(string.format("whisper %s exit %d %.1fs RAW: %s", cfg.modelName, code, hs.timer.secondsSinceEpoch()-t0, out or ""))
-    if code ~= 0 then state="idle"; hideOverlay(); refresh(); hs.alert.show(T("trans_failed")); return end
+    if code ~= 0 then state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh(); hs.alert.show(T("trans_failed")); return end
     out = (out or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
-    if cfg.cleanup and not out:match("^%s*$") then cleanup(out) else finish(out, nil) end
-  end, whisperArgs(wav))
+    afterWhisper(out)
+  end, whisperArgs(file))
   M.wTask:start()
 end
 
@@ -694,20 +1211,24 @@ function M.start()
   M.lastApp = targetApp
   cancelled, mode = false, (cfg.defaultAction=="copy" and "copy" or "paste")
   os.remove(wav)
+  saveSession({ phase="recording", wav=wav, started=os.date("%F %T") })
   local args = { "-q", "-c", "1", "-r", "16000", "-b", "16", wav }
   if cfg.autoStop then
     for _,a in ipairs({"silence","1","0.1",cfg.silenceThreshold,"1",tostring(cfg.silenceSeconds),cfg.silenceThreshold}) do table.insert(args,a) end
   end
   for _,a in ipairs({"trim","0",tostring(cfg.maxSeconds)}) do table.insert(args,a) end
-  recTask = hs.task.new(cfg.rec, function()
+  local recCmd = cfg.rec
+  if M._simInput then recCmd = cfg.rec:gsub("rec$","sox"); args = { M._simInput, "-c", "1", "-r", "16000", "-b", "16", wav } end  -- test hook
+  recTask = hs.task.new(recCmd, function()
     recTask = nil
-    if state=="rec" then state="busy"; sound("Pop"); hs.timer.doAfter(0.2, transcribe) end
+    if state=="rec" then state="busy"; sound("Pop"); hs.timer.doAfter(0.2, function() transcribe() end) end
   end, args)
   showOverlay()
   recTask:start(); state="rec"; recStart=hs.timer.secondsSinceEpoch()
   sound("Tink")
   if cfg.cleanup then hs.timer.doAfter(0.5, function() M.warmModel() end) end
   local sub = cfg.autoStop and T("ov_autostop", tostring(cfg.silenceSeconds)) or T("ov_press", keyLabel(cfg.toggleKey))
+  if M.voiceActive() and (cfg.stopPhrases or {})[1] then sub = T("ov_say_stop", cfg.stopPhrases[1]) end
   hs.timer.doAfter(0.3, function() setOverlay(T("ov_listening"), sub, false) end)
   tick = hs.timer.doEvery(1, function() if state=="rec" then setOverlay(T("ov_listening"), sub, false) end end)
   hs.timer.doAfter(0, refresh)
@@ -716,16 +1237,31 @@ function M.stop(m)
   if state ~= "rec" then return end
   mode = m or "paste"; state="busy"; sound("Pop")
   if recTask then recTask:interrupt() end
-  hs.timer.doAfter(0.3, transcribe); refresh()
+  hs.timer.doAfter(0.3, function() transcribe() end); refresh()
 end
 function M.cancel()
-  cancelled = true
+  cancelled = true; clearSession(); M._voiceStopped, M._voicePrefix, M._voiceSession, M._recovering = false, nil, false, false
   if recTask then local t=recTask; recTask=nil; state="busy"; t:interrupt() end
   if M.wTask then M.wTask:terminate() end
   state="idle"; if tick then tick:stop() end; hideOverlay(); sound("Basso"); refresh()
   if targetApp then targetApp:activate() end
 end
 function M.toggle() if state=="idle" then M.start() elseif state=="rec" then M.stop(cfg.defaultAction=="copy" and "copy" or "paste") else hs.alert.show(T("still_processing")) end end
+-- transcribe the audio (or text) an interrupted dictation left behind; result goes to the clipboard and History
+function M.recover()
+  local r = M.recoverable
+  if not r then hs.alert.show(T("recover_none")); return end
+  if state ~= "idle" then hs.alert.show(T("still_processing")); return end
+  M.recoverable = nil
+  cancelled, mode, M._recovering = false, "copy", true
+  targetApp = nil
+  showOverlay(); recStart = hs.timer.secondsSinceEpoch()
+  setOverlay(T("recovering"), "", true)
+  if type(r.raw)=="string" and r.raw:match("%S") then
+    state="busy"; refresh(); M._sessWav = r.wav
+    if cfg.cleanup then cleanup(r.raw) else finish(r.raw, nil) end
+  else fixWavHeader(r.wav); transcribe(r.wav) end
+end
 local function setOpt(k,v) cfg[k]=v; saved[k]=v; saveSettings(); refresh() end
 M.setOpt = setOpt
 function M.toggleMode() setOpt("cleanup", not cfg.cleanup); hs.alert.show(cfg.cleanup and T("mode_clean") or T("mode_raw")) end
@@ -780,15 +1316,19 @@ pushState = function()
   local conv = {}
   for i,e in ipairs(history) do if M.converting[e] then conv[tostring(i)] = M.converting[e] end end
   local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
-     autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay },
-     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey) },
-     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey) },
-     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey) },
+     autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay,
+     voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords },
+     look=look, recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
+     voice={ active=M.voiceActive(), model=(vlModel():match("[^/]+$") or ""):gsub("^ggml%-",""):gsub("%.bin$","") },
+     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey) },
+     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey), pasteLastKey=keyLabel(cfg.pasteLastKey) },
+     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey), pasteLastKey=keyLabel(DEFAULTS.pasteLastKey) },
      lang=uiLang(), sysLang=sysLang,
      whisperModels=wm, llmModels=lm, dl=downloads, ollama=(cfg.ollama~=nil), activeModel=M.activeModel() or "", missing=preflight() or "" }
   local js = hs.json.encode(data)
   if next(downloads)==nil then js = js:gsub('"dl":%[%]','"dl":{}') end
   if next(conv)==nil then js = js:gsub('"conv":%[%]','"conv":{}') end
+  if #(cfg.customWords or {})==0 then js = js:gsub('"customWords":{}','"customWords":[]') end
   appWin:evaluateJavaScript("render("..js..")")
 end
 
@@ -806,14 +1346,28 @@ function M.handle(a)
   elseif c=="del" and e then table.remove(history, math.floor(a.i)); saveHistory(); refresh()
   elseif c=="clearHistory" then history = {}; saveHistory(); refresh(); hs.alert.show(T("history_cleared"))
   elseif c=="resetOverlay" then settings.set("taipea.overlayPos", nil); hs.alert.show(T("overlay_reset"))
+  elseif c=="resetFab" then settings.set(KP.."fabPos", nil); if fab then fab:frame(fabFrame()) end; hs.alert.show(T("fab_reset"))
+  elseif c=="pasteLast" then if appWin then appWin:hide() end; M.pasteLast(M.lastApp)
+  elseif c=="recover" then if appWin then appWin:hide() end; M.recover()
+  elseif c=="discardRecovery" then M.discardRecovery()
+  elseif c=="wordsBad" then hs.alert.show(T("words_bad"))
+  elseif c=="addWord" or c=="setWord" or c=="delWord" then
+    local list = {}; for _,w in ipairs(cfg.customWords or {}) do list[#list+1] = { heard=w.heard, replace=w.replace } end
+    local i = a.i and math.floor(a.i)
+    local h, r = (a.heard or ""):gsub("^%s+",""):gsub("%s+$",""), (a.replace or ""):gsub("^%s+",""):gsub("%s+$","")
+    if c=="delWord" then if i and list[i] then table.remove(list, i) end
+    elseif h=="" or r=="" then hs.alert.show(T("words_bad")); pushState(); return
+    elseif c=="addWord" then list[#list+1] = { heard=h, replace=r }
+    elseif i and list[i] then list[i] = { heard=h, replace=r } end
+    setOpt("customWords", list); hs.alert.show(T("words_saved"))
   elseif c=="resetKeys" then
-    for _,k in ipairs({"toggleKey","modeKey","historyKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
+    for _,k in ipairs({"toggleKey","modeKey","historyKey","pasteLastKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
     saveSettings(); bindAll(); refresh(); hs.alert.show(T("shortcuts_reset"))
   elseif c=="dlWhisper" then dlWhisper(a.file)
   elseif c=="dlLLM" then dlLLM(a.name)
   elseif c=="set" then
     local k, v = a.key, a.value
-    if k=="toggleKey" or k=="modeKey" or k=="historyKey" then
+    if k=="toggleKey" or k=="modeKey" or k=="historyKey" or k=="pasteLastKey" then
       local pk = parseKey(v)
       if not pk then hs.alert.show(T("bad_shortcut", tostring(v))); pushState(); return end
       setOpt(k, pk); bindAll(); hs.alert.show(T("shortcut_set", keyLabel(pk)))
@@ -821,9 +1375,20 @@ function M.handle(a)
       if k=="ollamaModel" then M.warmModel(v) end
     elseif k=="openAtLogin" then setOpt(k, v); hs.autoLaunch(v and true or false)
       hs.alert.show(v and T("login_on") or T("login_off"))
-    elseif k=="uiSize" then setOpt(k, v=="compact" and "compact" or "normal")
+    elseif k=="voiceControl" then setOpt(k, v and true or false); vlSync(); refresh()
+      hs.alert.show(cfg.voiceControl and T("voice_on", (cfg.startPhrases or {})[1] or "") or T("voice_off"))
+    elseif k=="floatButton" then setOpt(k, v and true or false); showFab(); hs.alert.show(cfg.floatButton and T("fab_on") or T("fab_off"))
+    elseif k=="startPhrases" or k=="stopPhrases" then
+      local list = type(v)=="table" and v or splitPhrases(v)
+      if #list==0 then hs.alert.show(T("voice_need_phrase")); pushState(); return end
+      setOpt(k, list); hs.alert.show(T("phrases_saved"))
+    elseif k=="silenceSeconds" then local n = tonumber(v); if n and n>=1 and n<=30 then setOpt(k, n) end
+    elseif k=="contrast" then setOpt(k, (v=="on" or v=="off") and v or "auto"); updateLook(); if overlay then overlay:delete(); overlay=nil end; M.fabUpdate(); pushState()
+    elseif k=="uiSize" or k=="textSize" then
+      if k=="uiSize" then setOpt(k, v=="compact" and "compact" or "normal")
+      else setOpt(k, (v=="large" or v=="xlarge") and v or "normal"); updateLook(); if overlay then overlay:delete(); overlay=nil end; if fab then fab:frame(fabFrame()) end; M.fabUpdate() end
       if appWin then local f=appWin:frame(); local scr=screenFor(f); local sf=scr:frame()
-        local nw = math.min(cfg.uiSize=="compact" and 520 or 760, sf.w-40)
+        local nw = math.min((cfg.uiSize=="compact" and 520 or 760) * look.scale, sf.w-40)
         local nh = cfg.uiSize=="compact" and math.min(700, sf.h-80) or sf.h-80
         local nf = clampFrame({x=f.x, y=f.y, w=nw, h=nh}, scr); appWin:frame(nf); settings.set("taipea.appPos", {x=nf.x, y=nf.y}) end
       pushState()
@@ -842,7 +1407,7 @@ function M.openApp()
     local ap = settings.get("taipea.appPos")
     local scr = ap and screenFor({x=ap.x, y=ap.y, w=1, h=1}, {x=ap.x+20, y=ap.y+20}) or hs.screen.mainScreen()
     local sf = scr:frame()
-    local w, h = math.min(cfg.uiSize=="compact" and 520 or 760, sf.w-40), cfg.uiSize=="compact" and math.min(700, sf.h-80) or sf.h-80
+    local w, h = math.min((cfg.uiSize=="compact" and 520 or 760) * look.scale, sf.w-40), cfg.uiSize=="compact" and math.min(700, sf.h-80) or sf.h-80
     ap = ap or {x=sf.x+(sf.w-w)/2, y=sf.y+30}
     appWin = hs.webview.new(clampFrame({x=ap.x, y=ap.y, w=w, h=h}), {}, uc)
       :windowStyle({"borderless","resizable"}):windowTitle("Taipea"):transparent(true):shadow(true):level(hs.drawing.windowLevels.normal)
@@ -854,6 +1419,7 @@ function M.openApp()
   appWin:level(hs.drawing.windowLevels.normal):show()
   hs.timer.doAfter(0.1, function() local hw=appWin:hswindow(); if hw then hw:focus() end end)
   hs.application.get("org.hammerspoon.Hammerspoon"):activate()
+  updateLook()
   hs.timer.doAfter(0.5, pushState)
 end
 M.showHistory = M.openApp
@@ -862,10 +1428,11 @@ function M.js(s) if appWin then appWin:evaluateJavaScript(s) end end
 
 bindAll = function()
   for _,h in ipairs(hk) do h:delete() end; hk = {}
-  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey }
+  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey, pasteLast=cfg.pasteLastKey }
   table.insert(hk, hs.hotkey.bind(cfg.toggleKey.mods, cfg.toggleKey.key, M.toggle))
   table.insert(hk, hs.hotkey.bind(cfg.modeKey.mods, cfg.modeKey.key, M.toggleMode))
   table.insert(hk, hs.hotkey.bind(cfg.historyKey.mods, cfg.historyKey.key, M.openApp))
+  table.insert(hk, hs.hotkey.bind(cfg.pasteLastKey.mods, cfg.pasteLastKey.key, function() M.pasteLast() end))
 end
 bindAll()
 hs.urlevent.bind("taipea", function() M.openApp() end)
@@ -876,6 +1443,9 @@ if cfg.showAtLogin and not hs.settings.get("taipea.reloading") then
   if os.time() - up < 600 then hs.timer.doAfter(3, function() M.openApp() end) end
 end
 if cfg.cleanup then M.warmModel() end
-log("Taipea loaded · whisper="..tostring(cfg.whisper).." rec="..tostring(cfg.rec).." ollama="..tostring(cfg.ollama).." model="..cfg.modelName)
+if M.checkRecovery() then hs.timer.doAfter(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
+showFab()
+log("Taipea loaded · whisper="..tostring(cfg.whisper).." rec="..tostring(cfg.rec).." ollama="..tostring(cfg.ollama).." model="..cfg.modelName..
+  " · voice="..tostring(cfg.voiceControl).." floatButton="..tostring(cfg.floatButton).." customWords="..#(cfg.customWords or {}))
 refresh()
 return M

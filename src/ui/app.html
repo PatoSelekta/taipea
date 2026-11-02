@@ -23,14 +23,27 @@ input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:
 .m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#24242a;border-radius:10px;padding:10px 12px;margin:8px 0}
 .m small{color:#aaa;display:block;font-size:14px}.prog{color:#ffcc00;font-weight:700}
 /* Size: compact scales the whole UI via one variable; the Size card stays full size */
-:root{--z:1}body.compact{--z:.65}#bar,#inner{zoom:var(--z)}
+body{--z:1}#bar,#inner{zoom:var(--z)}
 body.compact #sizecard,body.compact #langcard{zoom:calc(1/var(--z))}
 .big{font:700 22px -apple-system;margin:4px 0}.kd{background:#24242a;border-radius:10px;padding:12px;margin:8px 0}
+.wr{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:8px 0;align-items:center}.wr input{width:100%}.wh span{color:#999;font-size:14px}
+button:disabled{opacity:.45;pointer-events:none}
+body.hc #panel{background:#000;border:3px solid #fff}body.hc{color:#fff}
+body.hc .h,body.hc small,body.hc .raw,body.hc .wh span,body.hc .lbl{color:#fff!important}
+body.hc .card,body.hc .e,body.hc .m,body.hc .kd{background:#000;border:2px solid #fff}
+body.hc #bar,body.hc #tabs{background:#000;border-bottom:3px solid #fff}
+body.hc button{border:3px solid #fff;background:#1a1a1a}body.hc .b{background:#003f8a}body.hc .g{background:#006b1f}body.hc .r{background:#a00000}body.hc .y{background:#7a4a00}
+body.hc .tab.on,body.hc .opt.on{background:#ffd60a!important;color:#000;outline:4px solid #fff}
+body.hc input[type=text]{background:#000;border:3px solid #fff;color:#fff}
+body.hc :focus-visible{outline:4px solid #ffd60a;outline-offset:2px}
+body.rm *{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style></head><body><div id=panel>
 <div id=bar><div class=t>🎙 Taipea<small id=s_drag></small></div><button id=b_hide onclick="send({cmd:'mini'})">—</button><button id=b_close class=r onclick="send({cmd:'close'})">✕</button></div>
 <div id=scroll><div id=inner>
 <div id=tabs><button class="tab on" data-t=hist id=t_hist></button><button class=tab data-t=set id=t_set></button><button class=tab data-t=mod id=t_mod></button><button class="tab g" id=t_dict onclick="send({cmd:'dictate'})" style="flex:.8"></button></div>
 <section id=hist class=on>
+ <div id=htop></div>
  <div class=row style="margin-bottom:12px"><input id=q type=text style="flex:1" oninput="renderHist()"><button class=r id=clr onclick="clr()"></button></div>
  <div id=hl></div></section>
 <section id=set><div id=sl></div></section>
@@ -56,7 +69,19 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  setup:'⚠ Setup needed',wTitle:'Speech model (Whisper)',wHint:'Saved in ~/Library/Application Support/Taipea/models',lTitle:'Cleanup model (Ollama)',
  nowUsing:'Now using: ',noModel:'⚠ No cleanup model is running. Raw text still works. Start Ollama (brew services start ollama) and download a model below.',
  noOllama:'⚠ Ollama is not installed, so cleanup and styles are off. Raw dictation still works. Install it with: brew install ollama',
- inUse:'✓ In use',use:'Use',download:'Download',refresh:'Refresh list'},
+ inUse:'✓ In use',use:'Use',download:'Download',refresh:'Refresh list',
+ textSize:'Text size',tsNormal:'Normal',tsLarge:'Large',tsXL:'Extra large',contrast:'High contrast',hcAuto:'Auto (Mac: %s)',macOn:'on',macOff:'off',
+ rmNote:'Animations follow the macOS Reduce Motion setting (now %s).',
+ autoHint:'Stops and pastes by itself after you stop talking for the seconds below.',nowSec:'Now: %s seconds (set in config.lua)',sec:'%s s',
+ voice:'Voice start / stop',voiceHint:'Say a start phrase to begin dictating, and a stop phrase on its own to stop and paste. You can still use the shortcut and buttons.',
+ voiceNow:'👂 Listening now (speech model: %s). The menu bar shows 👂 while it listens.',voicePaused:'Paused (screen locked or busy).',
+ startP:'Start phrases',stopP:'Stop phrases',phrasesFmt:'Separate phrases with commas. Say a stop phrase alone, after a short pause.',
+ voicePrivacy:'Privacy: everything stays on this Mac. A small recorder waits for sound; only short bursts (up to 4 seconds) are transcribed by Whisper here, and each burst is deleted right after it is checked. Nothing is saved or sent. macOS shows the orange microphone dot while this is on.',
+ fab:'Floating button',fabHint:'A round 🎙 button that stays on top of other windows. Click it to start, click again to stop and paste into the app you were using. Drag it to move it.',resetFab:'Reset button position',
+ words:'Custom words',wordsHint:'Fixes words Whisper gets wrong, after transcription and again after cleanup. Whole words only; capitals and accents don\'t matter. The cleanup model is told never to change the "Replace with" words. Changes save when you leave a box.',
+ heard:'Heard',replace:'Replace with',add:'Add',wordsNone:'No custom words yet.',
+ pasteLast:'📋 Paste last dictation again',kPaste:'Paste last dictation again',
+ recTitle:'♻️ A recording was interrupted',recInfo:'The audio was kept (%s). Recover it to get the text in History and on the clipboard.',recover:'Recover last recording',discard:'Discard'},
 es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventana',hist:'Historial',set:'Ajustes',mod:'Modelos',dict:'🎙 Dictar',
  search:'Buscar…',searchLbl:'Buscar en el historial',clear:'Borrar todo',clearSure:'Toca otra vez para BORRAR TODO',none:'Aún no hay dictados.',noneMatch:'Ningún dictado coincide.',
  cleaned:'corregido',raw:'original',rawLbl:'Original:',converting:'⏳ Convirtiendo a %s…',copy:'Copiar',paste:'Pegar',copyRaw:'Copiar original',del:'Borrar',convertTo:'Convertir el texto original a:',
@@ -74,10 +99,61 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  setup:'⚠ Falta configurar algo',wTitle:'Modelo de voz (Whisper)',wHint:'Se guarda en ~/Library/Application Support/Taipea/models',lTitle:'Modelo de corrección (Ollama)',
  nowUsing:'Usando ahora: ',noModel:'⚠ No hay un modelo de corrección corriendo. El texto original sigue funcionando. Inicia Ollama (brew services start ollama) y descarga un modelo abajo.',
  noOllama:'⚠ Ollama no está instalado, así que la corrección y los estilos están apagados. El dictado original sigue funcionando. Instálalo con: brew install ollama',
- inUse:'✓ En uso',use:'Usar',download:'Descargar',refresh:'Actualizar lista'}};
+ inUse:'✓ En uso',use:'Usar',download:'Descargar',refresh:'Actualizar lista',
+ textSize:'Tamaño del texto',tsNormal:'Normal',tsLarge:'Grande',tsXL:'Muy grande',contrast:'Alto contraste',hcAuto:'Automático (Mac: %s)',macOn:'sí',macOff:'no',
+ rmNote:'Las animaciones siguen el ajuste Reducir movimiento de macOS (ahora: %s).',
+ autoHint:'Para y pega solo cuando dejas de hablar durante los segundos de abajo.',nowSec:'Ahora: %s segundos (en config.lua)',sec:'%s s',
+ voice:'Empezar / parar con la voz',voiceHint:'Di una frase de inicio para empezar a dictar y una frase de parada, sola, para parar y pegar. El atajo y los botones siguen funcionando.',
+ voiceNow:'👂 Escuchando (modelo de voz: %s). La barra de menús muestra 👂 mientras escucha.',voicePaused:'En pausa (pantalla bloqueada u ocupado).',
+ startP:'Frases de inicio',stopP:'Frases de parada',phrasesFmt:'Separa las frases con comas. Di la frase de parada sola, después de una pausa corta.',
+ voicePrivacy:'Privacidad: todo se queda en este Mac. Una grabadora pequeña espera sonido; solo los fragmentos cortos (hasta 4 segundos) los transcribe Whisper aquí, y cada fragmento se borra apenas se revisa. No se guarda ni se envía nada. macOS muestra el punto naranja del micrófono mientras esto está activo.',
+ fab:'Botón flotante',fabHint:'Un botón redondo 🎙 que queda encima de las demás ventanas. Haz clic para empezar y otra vez para parar y pegar en la app que estabas usando. Arrástralo para moverlo.',resetFab:'Restablecer la posición del botón',
+ words:'Palabras propias',wordsHint:'Corrige palabras que Whisper entiende mal, después de transcribir y otra vez después de la corrección. Solo palabras completas; no importan mayúsculas ni tildes. Al modelo de corrección se le pide no cambiar nunca las palabras de «Reemplazar por». Los cambios se guardan al salir de cada casilla.',
+ heard:'Se oye',replace:'Reemplazar por',add:'Añadir',wordsNone:'Aún no hay palabras propias.',
+ pasteLast:'📋 Pegar otra vez el último dictado',kPaste:'Pegar otra vez el último dictado',
+ recTitle:'♻️ Se interrumpió una grabación',recInfo:'Se guardó el audio (%s). Recupéralo para tener el texto en el Historial y en el portapapeles.',recover:'Recuperar la última grabación',discard:'Descartar'}};
 var S={},LANG='en';
 function t(k,a){var s=(L[LANG]&&L[LANG][k])||L.en[k]||k;return a!==undefined?s.replace('%s',a):s}
 function send(o){webkit.messageHandlers.taipea.postMessage(o)}
+// ---- v0.2 settings cards ----
+function lookApply(){var lk=S.look||{};var z=((S.cfg&&S.cfg.uiSize)=='compact'?.65:1)*(lk.scale||1);
+ document.body.style.setProperty('--z',z);document.body.classList.toggle('hc',!!lk.hc);document.body.classList.toggle('rm',!!lk.rm)}
+// keep what you typed (and the focus) when the window refreshes
+function keepInputs(fn){var ae=document.activeElement,id=ae&&ae.id,ss=ae&&ae.selectionStart,dirty={};
+ document.querySelectorAll('input[data-dirty]').forEach(function(i){if(i.id)dirty[i.id]=i.value});fn();
+ for(var k in dirty){var el=document.getElementById(k);if(el){el.value=dirty[k];el.dataset.dirty=1}}
+ if(id){var el=document.getElementById(id);if(el&&el.tagName=='INPUT'){el.focus();try{el.setSelectionRange(ss,ss)}catch(e){}}}}
+document.addEventListener('input',function(e){if(e.target.tagName=='INPUT')e.target.dataset.dirty=1});
+function lookCard(){var lk=S.look||{};return '<div class=card id=lookcard><h3>'+t('textSize')+'</h3>'+opts('textSize',[['normal',t('tsNormal')],['large',t('tsLarge')],['xlarge',t('tsXL')]])+
+ '<h3 style="margin-top:14px">'+t('contrast')+'</h3>'+opts('contrast',[['auto',t('hcAuto',lk.macHC?t('macOn'):t('macOff'))],['on',t('on')],['off',t('off')]])+
+ '<p class=h>'+t('rmNote',lk.macRM?t('macOn'):t('macOff'))+'</p></div>'}
+function autoCard(){var c=S.cfg;return '<div class=card><h3>'+t('auto')+'</h3><p class=h>'+t('autoHint')+'</p>'+opts('autoStop',[[true,t('on')],[false,t('off')]])+
+ '<h3 style="margin-top:14px">'+t('silSec')+'</h3>'+opts('silenceSeconds',[2,3,5,8].map(function(n){return [n,t('sec',n)]}))+
+ ([2,3,5,8].indexOf(c.silenceSeconds)<0?'<p class=h>'+esc(t('nowSec',c.silenceSeconds))+'</p>':'')+
+ '<div class=row style="margin-top:10px"><span>'+t('sens')+'</span>'+['0.5%','1%','1.5%','3%','5%'].map(function(x){return '<button class="opt'+(c.silenceThreshold==x?' on':'')+'" onclick="set(\'silenceThreshold\',\''+x+'\')">'+x+'</button>'}).join('')+'</div><p class=h>'+t('sensHint')+'</p></div>'}
+function pset(k,id){var el=document.getElementById(id);delete el.dataset.dirty;set(k,el.value)}
+function voiceCard(){var c=S.cfg,v=S.voice||{};
+ var row=function(k,id,lbl){return '<div class=kd><div>'+t(lbl)+'</div><div class=row><input type=text id='+id+' aria-label="'+esc(t(lbl))+'" value="'+esc((c[k]||[]).join(', '))+'" style="flex:1"><button class=b onclick="pset(\''+k+'\',\''+id+'\')">'+t('save')+'</button></div></div>'};
+ return '<div class=card id=voicecard><h3>'+t('voice')+'</h3><p class=h>'+t('voiceHint')+'</p>'+opts('voiceControl',[[true,t('on')],[false,t('off')]])+
+ (c.voiceControl?'<p class=big style="font-size:18px">'+esc(v.active?t('voiceNow',v.model):t('voicePaused'))+'</p>':'')+
+ row('startPhrases','sp_start','startP')+row('stopPhrases','sp_stop','stopP')+'<p class=h>'+t('phrasesFmt')+'</p><p class=h>'+t('voicePrivacy')+'</p></div>'}
+function fabCard(){return '<div class=card><h3>'+t('fab')+'</h3><p class=h>'+t('fabHint')+'</p>'+opts('floatButton',[[true,t('on')],[false,t('off')]])+
+ '<div class=row style="margin-top:10px"><button class=y onclick="send({cmd:\'resetFab\'})">'+t('resetFab')+'</button></div></div>'}
+function wset(i){var h=document.getElementById('w_h_'+i),r=document.getElementById('w_r_'+i);delete h.dataset.dirty;delete r.dataset.dirty;send({cmd:'setWord',i:i+1,heard:h.value,replace:r.value})}
+function wadd(){var h=document.getElementById('w_new_h'),r=document.getElementById('w_new_r');if(!h.value.trim()||!r.value.trim()){send({cmd:'wordsBad'});return}
+ send({cmd:'addWord',heard:h.value,replace:r.value});h.value='';r.value='';delete h.dataset.dirty;delete r.dataset.dirty}
+function wordsCard(){var w=S.cfg.customWords||[],h='<div class=card id=wordscard><h3>'+t('words')+'</h3><p class=h>'+t('wordsHint')+'</p>'+
+ '<div class="wr wh"><span>'+t('heard')+'</span><span>'+t('replace')+'</span><span></span></div>';
+ if(!w.length)h+='<p>'+t('wordsNone')+'</p>';
+ w.forEach(function(x,i){h+='<div class=wr><input type=text id="w_h_'+i+'" aria-label="'+esc(t('heard'))+'" value="'+esc(x.heard)+'" onchange="wset('+i+')">'+
+  '<input type=text id="w_r_'+i+'" aria-label="'+esc(t('replace'))+'" value="'+esc(x.replace)+'" onchange="wset('+i+')">'+
+  '<button class=r onclick="send({cmd:\'delWord\',i:'+(i+1)+'})">'+t('del')+'</button></div>'});
+ return h+'<div class=wr><input type=text id=w_new_h placeholder="select dev" aria-label="'+esc(t('heard'))+'"><input type=text id=w_new_r placeholder="selektdev" aria-label="'+esc(t('replace'))+'">'+
+  '<button class=g onclick="wadd()">'+t('add')+'</button></div></div>'}
+function histTop(){var h='<div class=row style="margin-bottom:12px"><button class=g style="flex:1" onclick="send({cmd:\'pasteLast\'})"'+((S.history||[]).length?'':' disabled')+'>'+t('pasteLast')+'</button></div>';
+ if(S.recover)h='<div class=card style="border:3px solid #ff9f0a"><h3>'+t('recTitle')+'</h3><p>'+esc(t('recInfo',S.recover))+'</p><div class=row>'+
+  '<button class=y style="flex:1" onclick="send({cmd:\'recover\'})">'+t('recover')+'</button><button onclick="send({cmd:\'discardRecovery\'})">'+t('discard')+'</button></div></div>'+h;
+ document.getElementById('htop').innerHTML=h}
 document.getElementById('bar').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();send({cmd:'dragStart'})}});
 document.querySelectorAll('.tab[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab[data-t]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==b.dataset.t))});
@@ -107,8 +183,9 @@ function set(k,v){send({cmd:'set',key:k,value:v})}
 function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
+ h+=lookCard()+autoCard()+voiceCard()+fabCard()+wordsCard();
  h+='<div class=card><h3>'+t('keys')+'</h3>'+
- [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
+ [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
   (S.keyLabels[k[0]]!=S.defaultKeys[k[0]]?'<p class=h>'+esc(t('def',S.defaultKeys[k[0]]))+'</p>':'')+
   '<div class=row><input type=text id="k_'+k[0]+'" aria-label="'+esc(t(k[1]))+'" value="'+esc(S.keys[k[0]])+'" style="flex:1"><button class=b onclick="set(\''+k[0]+'\',document.getElementById(\'k_'+k[0]+'\').value)">'+t('save')+'</button></div></div>').join('')+
  '<p class=h>'+t('keyFmt')+'</p><button class=y onclick="send({cmd:\'resetKeys\'})">'+t('resetKeys')+'</button></div>';
@@ -119,9 +196,6 @@ function renderSet(){var c=S.cfg,h='';
  h+='<div class=card><h3>'+t('login')+'</h3>'+opts('openAtLogin',[[true,t('on')],[false,t('off')]])+
  (c.openAtLogin?'<p class=h>'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=h style="color:#ff9f0a">'+t('loginWarn')+'</p>')+
  '<h3 style="margin-top:14px">'+t('showLogin')+'</h3>'+opts('showAtLogin',[[true,t('on')],[false,t('off')]])+'</div>';
- h+='<div class=card><h3>'+t('auto')+'</h3>'+opts('autoStop',[[true,t('on')],[false,t('off')]])+
- '<div class=row style="margin-top:10px"><span>'+t('silSec')+'</span><button onclick="set(\'silenceSeconds\','+Math.max(1,c.silenceSeconds-0.5)+')">−</button><b style="font-size:24px">'+c.silenceSeconds+'</b><button onclick="set(\'silenceSeconds\','+(c.silenceSeconds+0.5)+')">+</button></div>'+
- '<div class=row style="margin-top:10px"><span>'+t('sens')+'</span>'+['0.5%','1%','1.5%','3%','5%'].map(x=>'<button class="opt'+(c.silenceThreshold==x?' on':'')+'" onclick="set(\'silenceThreshold\',\''+x+'\')">'+x+'</button>').join('')+'</div><p class=h>'+t('sensHint')+'</p></div>';
  document.getElementById('sl').innerHTML=h}
 function renderMod(){var h='';
  if(S.missing)h+='<div class=card style="border:2px solid #ff9f0a"><h3>'+t('setup')+'</h3><p>'+esc(S.missing)+'</p></div>';
@@ -135,7 +209,7 @@ function renderMod(){var h='';
  (S.dl[m.name]?'<span class=prog>'+esc(S.dl[m.name])+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">'+t('download')+'</button>'))+'</div>'});
  h+='</div><button onclick="send({cmd:\'refresh\'})">'+t('refresh')+'</button>';document.getElementById('ml').innerHTML=h}
 function clr(){var b=document.getElementById('clr');if(b.dataset.a){send({cmd:'clearHistory'});b.dataset.a='';b.textContent=t('clear')}else{b.dataset.a=1;b.textContent=t('clearSure');setTimeout(()=>{b.dataset.a='';b.textContent=t('clear')},4000)}}
-function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');staticText();renderHist();renderSet();renderMod()}
+function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();histTop();renderHist();keepInputs(renderSet);renderMod()}
 staticText();
 if(window.webkit)send({cmd:'refresh'});
 </script></body></html>

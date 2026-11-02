@@ -68,7 +68,27 @@ Taipea es para ti si:
 - **Interfaz en español o inglés** (sigue el idioma de tu Mac, o elige uno en Ajustes).
 - **Tamaño Normal o Compacto**, panel que puedes ubicar donde quieras, abre al iniciar
   sesión.
-- **Parada automática opcional** tras unos segundos de silencio.
+- **Parada automática opcional** tras 2, 3, 5 u 8 segundos de silencio (un Sí/No grande
+  en Ajustes).
+- **Empezar / parar con la voz (opcional, apagado por defecto).** Di "Taipea escribe" o
+  "Taipea write" para empezar, y "listo", "done" o "Taipea listo" para parar y pegar. Las
+  frases se pueden cambiar. Mira [Empezar / parar con la voz](#empezar--parar-con-la-voz)
+  para saber cómo funciona y sus límites.
+- **Botón flotante 🎙 (activado por defecto).** Un botón redondo de 96 px que queda encima
+  de todo: haz clic para empezar y otra vez para parar y pegar en la app que estabas
+  usando. Arrástralo donde quieras; recuerda dónde lo dejaste. Se ve distinto en reposo,
+  grabando y trabajando.
+- **Palabras propias.** Dile a Taipea que "select dev" se escribe "selektdev". No importan
+  mayúsculas ni tildes, y solo reemplaza palabras completas. Las palabras también se le dan
+  a Whisper como pista, y al modelo de corrección se le pide no cambiarlas nunca.
+- **Texto más grande y alto contraste.** Tamaño del texto Normal / Grande / Muy grande, y un
+  tema de alto contraste para la ventana, el panel de grabación y el botón flotante. Sigue
+  los ajustes Aumentar contraste (Automático) y Reducir movimiento de macOS.
+- **Recuperación.** Cada grabación se guarda hasta que su texto se pega. Si Hammerspoon se
+  cierra o se recarga en medio, Taipea ofrece **Recuperar la última grabación** y la
+  transcribe.
+- **Pegar otra vez el último dictado** con Ctrl + Opción + V, el menú o un botón en el
+  Historial.
 
 ## Privacidad: 100 % local
 
@@ -80,6 +100,10 @@ Taipea es para ti si:
 - Tu historial es un archivo en tu Mac:
   `~/Library/Application Support/Taipea/history.json`. Bórralo cuando quieras, o usa
   "Borrar todo" en la pestaña Historial.
+- El audio del dictado en curso queda en `…/Taipea/tmp/` hasta que se pega, para poder
+  recuperarlo si algo falla. El audio recuperado o descartado se borra.
+- Empezar / parar con la voz (apagado por defecto) también corre solo en tu Mac. Mira más
+  abajo.
 
 ## Requisitos
 
@@ -164,9 +188,11 @@ de configuración.
 | **Ctrl + Opción + Espacio** | Empieza a dictar. Presiona el mismo atajo otra vez para parar: Taipea transcribe, corrige y pega en tu cursor. |
 | **Ctrl + Opción + C** | Activa o desactiva la corrección (texto sin corregir). |
 | **Ctrl + Opción + H** | Abre la ventana de Taipea: Historial, Ajustes, Modelos. |
+| **Ctrl + Opción + V** | Pega otra vez el último dictado. |
 
 ¿Sin teclado? Todo funciona también con clics:
 
+- El **botón flotante 🎙** redondo empieza el dictado; haz clic otra vez para parar y pegar.
 - Mientras hablas, un panel flotante muestra tres botones grandes: **Parar y pegar**,
   **Parar y solo copiar** y **Cancelar**.
 - Abre **Taipea.app** (en `~/Applications`, agrégala a tu Dock) para abrir la ventana.
@@ -175,6 +201,53 @@ de configuración.
 
 Puedes ver y cambiar los atajos en Ajustes › Atajos (escribe uno como `ctrl+alt+space` y
 presiona Guardar). "Restablecer los atajos de fábrica" vuelve a estos.
+
+### Empezar / parar con la voz
+
+Actívalo en Ajustes › Empezar / parar con la voz (o en el menú 🎙). Después:
+
+1. Di **"Taipea escribe"** o **"Taipea write"** y haz una pausa. Empieza la grabación.
+2. Dicta como siempre.
+3. Haz una pausa, di **"listo"**, **"done"** o **"Taipea listo"** solo, y otra pausa.
+   Taipea para, quita la frase del texto y pega.
+
+Cómo funciona: una grabadora pequeña (SoX) espera sonido, y eso casi no usa CPU (cerca de
+0,1 % en un M2). Cuando hablas, guarda un fragmento corto de hasta 4 segundos, y Whisper
+transcribe solo ese fragmento, en tu Mac (unos 1,5 s por fragmento con large-v3-turbo; pon
+`ggml-small.bin` en la carpeta de modelos para que sea más liviano). Los fragmentos más
+largos, como una conversación normal, se saltan sin transcribir. Cada fragmento se borra
+apenas se revisa. La barra de menús muestra 👂 y el botón flotante tiene un anillo verde
+mientras escucha. Se pausa cuando la pantalla está bloqueada o el Mac duerme.
+
+Ventajas y límites:
+
+- macOS muestra el punto naranja del micrófono todo el tiempo que está activo.
+- Hay una pequeña demora: la frase de parada se detecta unos 2 segundos después de decirla.
+- Una frase de parada solo se reconoce si la dices sola, después de una pausa; así "ya está
+  listo el informe" en medio de una frase no para el dictado. A cambio, "listo." dicho solo
+  sí lo para.
+- "Taipea" es una palabra nueva para Whisper, así que Taipea también acepta cómo suele oírla
+  ("Tapia, right", "Taipei ha listo"). En un lugar con ruido o música, usa mejor el atajo o
+  el botón flotante, o sube `voiceThreshold` en config.lua.
+- No es un detector de palabra clave como "Oye Siri": es la versión más confiable que
+  funciona con las herramientas que Taipea ya usa, sin instalar nada más.
+
+### Palabras propias
+
+Ajustes › Palabras propias tiene una fila grande por palabra: **Se oye** (lo que escribe
+Whisper) y **Reemplazar por** (lo que quieres). Añade una fila con el botón verde
+**Añadir** y bórrala con **Borrar**; los cambios se guardan al salir de cada casilla. Los
+reemplazos se aplican después de transcribir y otra vez después de la corrección, solo a
+palabras completas, sin importar mayúsculas ni tildes ("Select Dev", "select-dev" y
+"sélect dev" quedan como "selektdev").
+
+### Recuperación
+
+Si un dictado se interrumpe (un cierre inesperado, recargar Hammerspoon, un corte de luz),
+Taipea muestra un aviso y la opción **♻️ Recuperar la última grabación** en el menú 🎙 y
+arriba del Historial. Al recuperar, Taipea transcribe el audio guardado (y lo corrige si la
+corrección está activa), copia el texto al portapapeles y lo añade al Historial.
+**Descartar** lo borra.
 
 ## Ajustes por defecto
 
@@ -187,6 +260,7 @@ están en `config.example.lua`).
 | Empezar / parar el dictado | **Ctrl + Opción + Espacio** (al parar, pega) | cualquier atajo |
 | Corrección sí / no | **Ctrl + Opción + C** | cualquier atajo |
 | Abrir la ventana de Taipea | **Ctrl + Opción + H** | cualquier atajo |
+| Pegar otra vez el último dictado | **Ctrl + Opción + V** | cualquier atajo |
 | Corrección (gramática) | Sí | Sí / No (texto original) |
 | Modelo de corrección | `gemma4:e4b`; si falta, `qwen2.5:7b` y luego `gemma4:e2b` | cualquier modelo de Ollama |
 | Estilo | Ligero | Ligero / Párrafos / Viñetas / Formal |
@@ -197,9 +271,14 @@ están en `config.example.lua`).
 | Restaurar el portapapeles al pegar | Sí | Sí / No |
 | Panel de grabación | Sí | Sí / No |
 | Tamaño de la ventana | Normal | Normal / Compacto |
+| Tamaño del texto | Normal | Normal / Grande / Muy grande |
+| Alto contraste | Automático (sigue Aumentar contraste de macOS) | Automático / Sí / No |
+| Botón flotante 🎙 | Sí | Sí / No |
+| Empezar / parar con la voz | No | Sí / No; frases de inicio "Taipea escribe", "Taipea write"; de parada "listo", "done", "Taipea listo" |
+| Palabras propias | ninguna | pares "se oye → reemplazar por" |
 | Abrir al iniciar sesión | Sí | Sí / No |
 | Mostrar la ventana al iniciar sesión | No | Sí / No |
-| Parar solo con el silencio | No (pausa de 2,5 s y umbral de 1,5 % si se activa) | Sí / No, 1–∞ s, 0,5–5 % |
+| Parar solo con el silencio | No (pausa de 3 s y umbral de 1,5 % si se activa) | Sí / No; 2, 3, 5 u 8 s; 0,5–5 % |
 | Dictado más largo | 30 minutos | `maxSeconds` en config.lua |
 | Historial | últimos 500 dictados | `historyMax` en config.lua |
 | Mantener cargado el modelo de corrección | 12 horas | `ollamaKeepAlive` en config.lua |
@@ -268,6 +347,16 @@ Puede que tu Mac no tenga memoria suficiente para Gemma 4 E4B. Elige `qwen2.5:7b
 **La ventana o el panel quedaron fuera de la pantalla.**
 Ajustes › Panel de grabación › Restablecer la posición del panel. Al moverlas, las ventanas siempre se quedan
 dentro de la pantalla.
+
+**Empezar / parar con la voz no reacciona, o empieza solo.**
+Di la frase sola, con una pausa corta antes y después. Revisa que 👂 esté en la barra de
+menús. Si empieza solo en un lugar con ruido, sube `voiceThreshold` (por ejemplo `"4%"`)
+en config.lua, o cambia las frases de inicio. Para ver qué oye, pon `voiceDebug = true` en
+config.lua (esto escribe en el registro el texto de los fragmentos cortos).
+
+**El botón flotante estorba o quedó fuera de la pantalla.**
+Arrástralo a otro lugar, o usa Ajustes › Botón flotante › Restablecer la posición del
+botón, o apágalo ahí.
 
 **¿Dónde están los registros (logs)?**
 `~/Library/Application Support/Taipea/logs/taipea.log`, o 🎙 en la barra de menús › Abrir
