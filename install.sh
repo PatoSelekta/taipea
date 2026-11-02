@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Taipea installer: hands-free, 100% local dictation for macOS.
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/taipea/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 # Options (also work with: ... | bash -s -- --small):
 #   --small            use a smaller speech model (0.57 GB instead of 1.6 GB)
 #   --whisper=NAME     turbo (default) | turbo-q5 | small
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 TAIPEA_VERSION="0.1.0"
-REPO="${TAIPEA_REPO:-OWNER/taipea}"
+REPO="${TAIPEA_REPO:-PatoSelekta/taipea}"
 REF="${TAIPEA_REF:-main}"
 DATA="$HOME/Library/Application Support/Taipea"
 HS_DIR="$HOME/.hammerspoon"
@@ -54,7 +54,7 @@ usage() {
   cat <<'USAGE'
 Taipea installer
   bash install.sh [options]
-  curl -fsSL https://raw.githubusercontent.com/OWNER/taipea/main/install.sh | bash -s -- [options]
+  curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash -s -- [options]
 Options:
   --small            smaller speech model (0.57 GB instead of 1.6 GB)
   --whisper=NAME     turbo (default) | turbo-q5 | small

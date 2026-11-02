@@ -7,6 +7,27 @@ Hands-free, private, and made for English, Spanish, and a mix of both.
 
 ---
 
+## Vision
+
+Taipea is designed first for the **accessibility community**. It was built by a
+quadriplegic developer who controls his Mac with a head mouse and a mouth click, and every
+choice comes from that daily use:
+
+- **Big, clear targets.** Buttons are 60–110 px tall, with plenty of space between them, so
+  a head mouse, eye tracker or switch can hit them without precision.
+- **Hands-free.** One shortcut or one click starts and stops dictation. Nothing needs a
+  double-click, a held key, or a precise drag.
+- **Local and private.** Your voice and text never leave your Mac. No account, no cloud.
+- **Bilingual.** English, Spanish, and the mix many of us actually speak.
+
+That same large, calm design makes Taipea comfortable for **anyone** who wants fast,
+private dictation: writers, developers, people with tired hands, or anyone who would rather
+talk than type.
+
+Taipea is also the first in a series of practical apps by Patricio Escobar, who is building
+his developer career at **[selektdev.com](https://selektdev.com)**. If Taipea helps you,
+a star, a bug report or a hello there means a lot.
+
 ## What is Taipea?
 
 Taipea is a free dictation tool for macOS. You press one shortcut (or click one big
@@ -40,6 +61,7 @@ Taipea is for you if:
 - **Built for head mice and switches.** Large buttons (110 px tall on the recording
   overlay) and no tiny targets. Windows move by dragging their title bar, and this also
   works with head mice that don't send normal drag events.
+- **English or Spanish interface** (follows your Mac, or pick one in Settings).
 - **Normal or Compact size**, overlay you can place anywhere, opens at login.
 - **Optional auto-stop** after a few seconds of silence.
 
@@ -72,7 +94,7 @@ whisper.cpp, [SoX](https://sourceforge.net/projects/sox/) and Ollama.
 Open the **Terminal** app, paste this line, and press Return:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/taipea/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
 The installer explains each step, asks before anything big, and can be run again
@@ -125,9 +147,12 @@ Hammerspoon.
 
 ## How to use it
 
+These are the default shortcuts. They work as soon as Taipea is installed, even with no
+config file.
+
 | Shortcut | What it does |
 |---|---|
-| **Ctrl + Option + Space** | Start dictating. Press again to stop and paste. |
+| **Ctrl + Option + Space** | Start dictating. Press the same shortcut again to stop: Taipea transcribes, cleans up and pastes at your cursor. |
 | **Ctrl + Option + C** | Turn cleanup on or off (raw text). |
 | **Ctrl + Option + H** | Open the Taipea window: History, Settings, Models. |
 
@@ -139,7 +164,35 @@ No keyboard? Everything also works with clicks:
   It has a big **🎙 Dictate** button.
 - The 🎙 icon in the menu bar has the same actions.
 
-You can change the shortcuts in Settings.
+You can see and change the shortcuts in Settings › Shortcuts (type one like
+`ctrl+alt+space` and press Save). "Reset shortcuts to defaults" brings these back.
+
+## Default settings
+
+Taipea works out of the box with these settings. Change them in the window's **Settings**
+tab, or in `config.lua` (every option, with its default, is listed in `config.example.lua`).
+
+| Setting | Default | Options |
+|---|---|---|
+| Start / stop dictation | **Ctrl + Option + Space** (stop also pastes) | any shortcut |
+| Cleanup on / off | **Ctrl + Option + C** | any shortcut |
+| Open the Taipea window | **Ctrl + Option + H** | any shortcut |
+| Cleanup (grammar fix) | On | On / Off (raw text) |
+| Cleanup model | `gemma4:e4b`, falls back to `qwen2.5:7b`, then `gemma4:e2b` | any Ollama model |
+| Style | Light | Light / Paragraph / Bullets / Formal |
+| Speech model | `ggml-large-v3-turbo` | turbo-q5, small, large-v3, medium |
+| Dictation language | Auto (English/Spanish mix) | Auto / English / Español |
+| Interface language | Auto (follows your Mac) | Auto / English / Español |
+| After stopping | Paste at the cursor | Paste / Copy only |
+| Restore clipboard after pasting | On | On / Off |
+| Recording panel (overlay) | On | On / Off |
+| Window size | Normal | Normal / Compact |
+| Open at login | On | On / Off |
+| Show window at login | Off | On / Off |
+| Auto-stop on silence | Off (2.5 s pause, 1.5 % threshold when on) | On / Off, 1–∞ s, 0.5–5 % |
+| Longest dictation | 30 minutes | `maxSeconds` in config.lua |
+| History | last 500 dictations | `historyMax` in config.lua |
+| Keep cleanup model loaded | 12 hours | `ollamaKeepAlive` in config.lua |
 
 ## Styles
 
@@ -200,7 +253,7 @@ Your Mac may not have enough memory for Gemma 4 E4B. Pick `qwen2.5:7b` or `gemma
 Models, or turn cleanup off with Ctrl+Option+C.
 
 **The window or overlay is off screen.**
-Settings › Overlay › Reset overlay position. Windows are always kept inside the screen
+Settings › Recording panel › Reset panel position. Windows are always kept inside the screen
 when you move them.
 
 **Where are the logs?**
@@ -214,7 +267,7 @@ Taipea is open source and contributions are welcome. See [CONTRIBUTING.md](CONTR
 **Accessibility problems are treated as bugs, with high priority.** If a button is too
 small, a step needs a keyboard, something doesn't work with your head mouse, eye tracker,
 switch or screen reader, please
-[open an accessibility issue](https://github.com/OWNER/taipea/issues/new?template=accessibility.yml).
+[open an accessibility issue](https://github.com/PatoSelekta/taipea/issues/new?template=accessibility.yml).
 You don't need to know how to code. Tell us what you use and what got in your way.
 
 ## Credits

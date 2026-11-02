@@ -14,7 +14,9 @@ welcome too.
 - **Suggest a feature** with the "Feature request" template.
 - **Improve the prompts** for the styles, especially for mixed English/Spanish, or add
   support for another language pair.
-- **Translate** the README or the interface.
+- **Translate** the README or the interface. Interface text lives in two tables: `STR` in
+  `src/taipea.lua` (menu, panel, alerts) and `L` in `src/ui/app.html` (window). Add every new
+  string in both English and Spanish; the tests fail if a key is missing.
 
 ## Project layout
 
@@ -26,6 +28,7 @@ welcome too.
 | `install.sh`, `uninstall.sh` | Installer and uninstaller. Must stay idempotent. |
 | `scripts/build-app.sh` | Builds the small `Taipea.app` launcher. |
 | `tests/run.lua` | Offline tests for the text logic (runs anywhere with Lua 5.4). |
+| `tests/ui_strings.js` | Checks that the window's English and Spanish strings match (Node.js). |
 
 ## Developing
 
@@ -43,6 +46,7 @@ welcome too.
 ```bash
 luac -p src/taipea.lua src/config.example.lua   # Lua syntax
 lua tests/run.lua                                # logic tests
+node tests/ui_strings.js                         # window strings in both languages
 shellcheck install.sh uninstall.sh scripts/build-app.sh
 ```
 

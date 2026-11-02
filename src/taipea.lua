@@ -40,16 +40,23 @@ local DEFAULTS = {
   silenceThreshold = "1.5%",
   historyMax  = 500,
   openAtLogin = true, showAtLogin = false,
-  style = "light", language = "auto", defaultAction = "paste", uiSize = "normal",
+  showOverlay = true,                        -- floating panel with big buttons while recording
+  style = "light",                           -- light | paragraphs | bullets | formal
+  language = "auto",                         -- dictation language: auto (EN/ES mix) | en | es
+  uiLanguage = "auto",                       -- interface language: auto (macOS language) | en | es
+  defaultAction = "paste",                   -- after stopping: paste | copy
+  uiSize = "normal",                         -- normal | compact
 }
+
 local cfg = {}
+local cfgError = false
 for k,v in pairs(DEFAULTS) do cfg[k]=v end
 do
   local cf = DATA.."/config.lua"
   if hs.fs.attributes(cf) then
     local ok, user = pcall(dofile, cf)
     if ok and type(user)=="table" then for k,v in pairs(user) do cfg[k]=v end
-    else hs.alert.show("Taipea: config.lua has an error, using defaults") end
+    else cfgError = true end
   end
 end
 local setf = DATA.."/settings.json"
@@ -62,7 +69,85 @@ cfg.ollama  = cfg.ollama or findBin("ollama", { "/Applications/Ollama.app/Conten
 local function saveSettings() local f=io.open(setf,"w"); if f then f:write(hs.json.encode(saved,true)); f:close() end end
 local function modelPath() if cfg.modelName:sub(1,1)=="/" then return cfg.modelName end; return DATA.."/models/"..cfg.modelName end
 
+-- ---------- interface strings (English / Español) ----------
+local STR = {
+ en = {
+  cfg_error="Taipea: config.lua has an error, using defaults",
+  menu_open="Open Taipea…", menu_start="Start dictation", menu_stop="Stop & Paste", menu_cleanup="Cleanup (grammar fix)",
+  menu_autostop="Auto-stop after %ss silence", menu_recent="Recent (click to copy)", menu_log="Open log",
+  ov_listening="Listening…", ov_stop="Stop &amp;<br>Paste", ov_copy="Stop &amp;<br>Copy only", ov_cancel="Cancel",
+  ov_autostop="Auto-stops after %ss of silence", ov_press="Press %s or a button to finish",
+  ov_transcribing="Transcribing…", ov_still="Transcribing… (still working)",
+  ov_cleaning="Cleaning up…", ov_cleaning_part="Cleaning up… part %d of %d", ov_fixing="Fixing grammar with %s",
+  copied="Copied", copied_clip="Copied to clipboard", copied_raw="Copied raw", no_speech="No speech detected",
+  nothing_convert="Nothing to convert", converted="Converted to %s · copied to clipboard", parts_raw=" (%d part(s) kept raw)",
+  styles_need_model="Styles need a cleanup model – install Ollama and a model (see README)",
+  conv_failed="Conversion failed – is Ollama running? (see log)",
+  cleanup_unavail="Cleanup unavailable (Ollama not running or no model) – pasting raw text",
+  cleanup_failed="Cleanup failed (is Ollama running?) – pasted raw text",
+  cleanup_too_much="Cleanup removed too much – pasted raw text",
+  parts_kept="%d of %d parts kept raw (cleanup removed too much)",
+  trans_failed="Transcription failed – see log", still_processing="Still processing…",
+  need_sox="Taipea needs sox (rec). Run: brew install sox", need_whisper="Taipea needs whisper.cpp. Run: brew install whisper-cpp",
+  need_model="No speech model yet. Open Taipea (%s) › Models to download one",
+  mode_clean="Dictation: CLEANED", mode_raw="Dictation: RAW", autostop_on="Auto-stop on silence: ON", autostop_off="Auto-stop on silence: OFF",
+  starting="Starting…", failed="Failed (%s)", downloaded="Downloaded %s", install_ollama="Install Ollama first: brew install ollama",
+  hidden="Taipea hidden – press %s or open Taipea.app to reopen", history_cleared="History cleared", overlay_reset="Overlay position reset",
+  bad_shortcut="Invalid shortcut: %s", shortcut_set="Shortcut set: %s", shortcuts_reset="Shortcuts reset to the defaults", using="Using %s",
+  login_on="Opens at login: ON", login_off="Opens at login: OFF – dictation unavailable until Hammerspoon is opened",
+  lang_set="Language: English", note_local="local file", note_custom="custom path (config.lua)", note_installed="installed",
+  style_light="Light", style_paragraphs="Paragraph", style_bullets="Bullets", style_formal="Formal",
+  k_ctrl="Ctrl", k_alt="Option", k_cmd="Cmd", k_shift="Shift", k_space="Space",
+ },
+ es = {
+  cfg_error="Taipea: config.lua tiene un error, se usan los valores por defecto",
+  menu_open="Abrir Taipea…", menu_start="Empezar a dictar", menu_stop="Parar y pegar", menu_cleanup="Corrección (gramática)",
+  menu_autostop="Parar solo tras %s s de silencio", menu_recent="Recientes (clic para copiar)", menu_log="Abrir registro",
+  ov_listening="Escuchando…", ov_stop="Parar y<br>pegar", ov_copy="Parar y<br>solo copiar", ov_cancel="Cancelar",
+  ov_autostop="Se detiene tras %s s de silencio", ov_press="Presiona %s o un botón para terminar",
+  ov_transcribing="Transcribiendo…", ov_still="Transcribiendo… (sigue trabajando)",
+  ov_cleaning="Corrigiendo…", ov_cleaning_part="Corrigiendo… parte %d de %d", ov_fixing="Corrigiendo con %s",
+  copied="Copiado", copied_clip="Copiado al portapapeles", copied_raw="Texto original copiado", no_speech="No se detectó voz",
+  nothing_convert="No hay nada que convertir", converted="Convertido a %s · copiado al portapapeles", parts_raw=" (%d parte(s) sin corregir)",
+  styles_need_model="Los estilos necesitan un modelo de corrección: instala Ollama y un modelo (mira el README)",
+  conv_failed="La conversión falló: ¿está corriendo Ollama? (mira el registro)",
+  cleanup_unavail="Corrección no disponible (Ollama apagado o sin modelo): se pega el texto original",
+  cleanup_failed="La corrección falló (¿está corriendo Ollama?): se pegó el texto original",
+  cleanup_too_much="La corrección quitó demasiado: se pegó el texto original",
+  parts_kept="%d de %d partes quedaron sin corregir (la corrección quitó demasiado)",
+  trans_failed="La transcripción falló: mira el registro", still_processing="Todavía procesando…",
+  need_sox="Taipea necesita sox (rec). Ejecuta: brew install sox", need_whisper="Taipea necesita whisper.cpp. Ejecuta: brew install whisper-cpp",
+  need_model="Aún no hay modelo de voz. Abre Taipea (%s) › Modelos para descargar uno",
+  mode_clean="Dictado: CORREGIDO", mode_raw="Dictado: ORIGINAL", autostop_on="Parada por silencio: SÍ", autostop_off="Parada por silencio: NO",
+  starting="Empezando…", failed="Falló (%s)", downloaded="Descargado %s", install_ollama="Primero instala Ollama: brew install ollama",
+  hidden="Taipea oculto: presiona %s o abre Taipea.app para volver", history_cleared="Historial borrado", overlay_reset="Posición del panel restablecida",
+  bad_shortcut="Atajo no válido: %s", shortcut_set="Atajo guardado: %s", shortcuts_reset="Atajos restablecidos a los de fábrica", using="Usando %s",
+  login_on="Abrir al iniciar sesión: SÍ", login_off="Abrir al iniciar sesión: NO (el dictado no funciona hasta abrir Hammerspoon)",
+  lang_set="Idioma: Español", note_local="archivo local", note_custom="ruta propia (config.lua)", note_installed="instalado",
+  style_light="Ligero", style_paragraphs="Párrafos", style_bullets="Viñetas", style_formal="Formal",
+  k_ctrl="Ctrl", k_alt="Opción", k_cmd="Cmd", k_shift="Mayús", k_space="Espacio",
+ },
+}
+-- macOS language (first preferred language), "es" or "en"
+local function systemLang()
+  local ok, langs = pcall(function() return hs.host.locale.preferredLanguages() end)
+  local l = ok and type(langs)=="table" and langs[1] or nil
+  if type(l) ~= "string" then local ok2, c = pcall(function() return hs.host.locale.current() end); l = ok2 and c or "en" end
+  return (type(l)=="string" and l:lower():sub(1,2)=="es") and "es" or "en"
+end
+local sysLang = systemLang()
+local function uiLang() if cfg.uiLanguage=="es" or cfg.uiLanguage=="en" then return cfg.uiLanguage end; return sysLang end
+-- translated string; extra arguments fill %s / %d
+local function T(k, ...)
+  local s = STR[uiLang()][k] or STR.en[k] or k
+  if select("#", ...) > 0 then return string.format(s, ...) end
+  return s
+end
+if cfgError then hs.alert.show(T("cfg_error")) end
+
 local M = {}
+M.STR, M.T, M.uiLang, M.systemLang = STR, T, uiLang, systemLang
+M.cfg, M.DEFAULTS = cfg, DEFAULTS
 local recTask, state, cancelled, mode = nil, "idle", false, "paste"
 local targetApp, recStart, tick = nil, 0, nil
 local wav = DATA.."/tmp/rec.wav"
@@ -109,19 +194,19 @@ end
 
 -- ---------- model catalogs ----------
 local WHISPER = {
-  { file="ggml-large-v3-turbo.bin", name="Whisper large-v3-turbo", size="1.6 GB", note="Recommended: fast, excellent EN/ES auto-detect" },
-  { file="ggml-large-v3-turbo-q5_0.bin", name="Whisper large-v3-turbo (q5)", size="0.57 GB", note="Smaller turbo, slightly less accurate (8 GB Macs)" },
-  { file="ggml-small.bin", name="Whisper small", size="0.49 GB", note="Smallest useful model; weaker on mixed EN/ES" },
-  { file="ggml-large-v3.bin", name="Whisper large-v3", size="3.1 GB", note="Most accurate, ~2-3x slower" },
-  { file="ggml-medium.bin", name="Whisper medium", size="1.5 GB", note="Faster, weaker on mixed language" },
+  { file="ggml-large-v3-turbo.bin", name="Whisper large-v3-turbo", size="1.6 GB", note="Recommended: fast, excellent EN/ES auto-detect", note_es="Recomendado: rápido, detecta muy bien EN/ES" },
+  { file="ggml-large-v3-turbo-q5_0.bin", name="Whisper large-v3-turbo (q5)", size="0.57 GB", note="Smaller turbo, slightly less accurate (8 GB Macs)", note_es="Turbo más pequeño, un poco menos preciso (Mac de 8 GB)" },
+  { file="ggml-small.bin", name="Whisper small", size="0.49 GB", note="Smallest useful model; weaker on mixed EN/ES", note_es="El más pequeño útil; peor con EN/ES mezclado" },
+  { file="ggml-large-v3.bin", name="Whisper large-v3", size="3.1 GB", note="Most accurate, ~2-3x slower", note_es="El más preciso, 2 a 3 veces más lento" },
+  { file="ggml-medium.bin", name="Whisper medium", size="1.5 GB", note="Faster, weaker on mixed language", note_es="Más rápido, peor con idiomas mezclados" },
 }
 local LLMS = {
-  { name="gemma4:e4b", size="9.6 GB", note="Recommended: best Formal/Paragraph, keeps EN/ES mix (~1s)" },
-  { name="qwen2.5:7b", size="4.7 GB", note="Fallback: fast (~0.6s), sometimes picks a wrong word" },
-  { name="gemma4:e2b", size="7.2 GB", note="Smaller Gemma 4, for 8 GB Macs" },
-  { name="qwen2.5:14b", size="9.0 GB", note="Keeps EN/ES mix, needs 16 GB+ RAM" },
-  { name="gemma3:12b", size="8.1 GB", note="Keeps EN/ES mix, ~1.5s (slower)" },
-  { name="llama3.1:8b", size="4.9 GB", note="Fast, English-leaning" },
+  { name="gemma4:e4b", size="9.6 GB", note="Recommended: best Formal/Paragraph, keeps EN/ES mix (~1s)", note_es="Recomendado: el mejor en Formal/Párrafos, respeta la mezcla EN/ES (~1 s)" },
+  { name="qwen2.5:7b", size="4.7 GB", note="Fallback: fast (~0.6s), sometimes picks a wrong word", note_es="Alternativa: rápido (~0,6 s), a veces elige una palabra equivocada" },
+  { name="gemma4:e2b", size="7.2 GB", note="Smaller Gemma 4, for 8 GB Macs", note_es="Gemma 4 más pequeño, para Mac de 8 GB" },
+  { name="qwen2.5:14b", size="9.0 GB", note="Keeps EN/ES mix, needs 16 GB+ RAM", note_es="Respeta la mezcla EN/ES, necesita 16 GB+ de RAM" },
+  { name="gemma3:12b", size="8.1 GB", note="Keeps EN/ES mix, ~1.5s (slower)", note_es="Respeta la mezcla EN/ES, ~1,5 s (más lento)" },
+  { name="llama3.1:8b", size="4.9 GB", note="Fast, English-leaning", note_es="Rápido, tiende al inglés" },
 }
 local function fileExists(p) local f=io.open(p,"r"); if f then f:close(); return true end; return false end
 -- installed Ollama models (cached 30 s; empty if Ollama is missing or not running)
@@ -178,8 +263,8 @@ local function overlayFrame()
   if p then return clampFrame({ x=p.x, y=p.y, w=w, h=h }) end
   return { x=sf.x+(sf.w-w)/2, y=sf.y+60, w=w, h=h }
 end
-local overlayHTML = [[
-<html><head><style>
+local function overlayHTML() return [[
+<html lang="]]..uiLang()..[["><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important}
 body{font:600 22px -apple-system;color:#fff;overflow:hidden;-webkit-user-select:none}
 #panel{width:100%;height:100%;background:rgba(25,25,30,.95);border-radius:18px;overflow:hidden;cursor:move}
@@ -197,17 +282,25 @@ button{flex:1;min-width:0;height:110px;border:0;border-radius:14px;font:700 21px
 button:hover{filter:brightness(1.2)} .busy button{opacity:.35;pointer-events:none}
 .busy #cancel{opacity:1;pointer-events:auto}
 </style></head><body><div id=panel>
-<div id=top><div id=dot></div><div id=st>Listening…</div><div id=t>0:00</div></div>
+<div id=top><div id=dot></div><div id=st>]]..T("ov_listening")..[[</div><div id=t>0:00</div></div>
 <div id=sub></div>
-<div id=b><button id=stop onclick="s('stop')">Stop &amp;<br>Paste</button><button id=copy onclick="s('copy')">Stop &amp;<br>Copy only</button><button id=cancel onclick="s('cancel')">Cancel</button></div></div>
+<div id=b><button id=stop onclick="s('stop')">]]..T("ov_stop")..[[</button><button id=copy onclick="s('copy')">]]..T("ov_copy")..[[</button><button id=cancel onclick="s('cancel')">]]..T("ov_cancel")..[[</button></div></div>
 <script>document.documentElement.style.zoom=window.__tpZoom||1;function s(a){webkit.messageHandlers.taipea.postMessage(a)}
 document.getElementById('panel').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();s({cmd:'dragOverlay'})}});
 function upd(st,t,sub,busy){document.getElementById('st').textContent=st;document.getElementById('t').textContent=t;
-document.getElementById('sub').textContent=sub;document.body.className=busy?'busy':''}</script></body></html>]]
+document.getElementById('sub').textContent=sub;document.body.className=busy?'busy':''}</script></body></html>]] end
 
 -- ---------- hotkeys ----------
 local hk = {}
-local function keyStr(k) local m={}; for _,x in ipairs(k.mods) do table.insert(m, x=="alt" and "alt" or x) end; table.insert(m,k.key); return table.concat(m,"+") end
+-- "ctrl+alt+space" (editable form) and "Ctrl + Option + Space" (shown to people)
+local function keyStr(k) local m={}; for _,x in ipairs(k.mods) do table.insert(m, x) end; table.insert(m,k.key); return table.concat(m,"+") end
+local function keyLabel(k)
+  local m={}
+  for _,x in ipairs(k.mods) do table.insert(m, T("k_"..x)) end
+  table.insert(m, k.key=="space" and T("k_space") or k.key:upper())
+  return table.concat(m," + ")
+end
+M.keyStr, M.keyLabel = keyStr, keyLabel
 local function parseKey(s)
   local parts = {}; for p in (s or ""):lower():gsub("%s",""):gmatch("[^+]+") do table.insert(parts,p) end
   if #parts < 2 then return nil end
@@ -259,12 +352,13 @@ function M.overlayRef() return overlay end
 local uc = hs.webview.usercontent.new("taipea"):setCallback(onMsg)
 
 local function showOverlay()
+  if cfg.showOverlay == false then return end
   if not overlay then
     overlay = hs.webview.new(overlayFrame(), {}, uc)
       :windowStyle({"borderless","nonactivating"}):level(hs.drawing.windowLevels.floating)
       :allowTextEntry(false):transparent(true):shadow(true)
       :behavior(hs.drawing.windowBehaviors.canJoinAllSpaces + hs.drawing.windowBehaviors.stationary)
-      :html(overlayHTML)
+      :html(overlayHTML())
   end
   overlay:frame(overlayFrame()):show()
   overlay:evaluateJavaScript("window.__tpZoom="..(cfg.uiSize=="compact" and 0.75 or 1)..";document.documentElement.style.zoom=window.__tpZoom")
@@ -284,20 +378,20 @@ refresh = function()
   local icon = state=="rec" and "🔴" or (state=="busy" and "⏳" or "🎙")
   menu:setTitle(icon..(cfg.cleanup and "" or " raw")); menu:setTooltip("Taipea")
   local items = {
-    { title = "Open Taipea…", fn = function() M.openApp() end },
+    { title = T("menu_open"), fn = function() M.openApp() end },
     { title = "-" },
-    { title = state=="rec" and "Stop & Paste" or "Start dictation", fn = function() M.toggle() end },
-    { title = "Cleanup (grammar fix)", checked = cfg.cleanup, fn = function() M.toggleMode() end },
-    { title = "Auto-stop after "..cfg.silenceSeconds.."s silence", checked = cfg.autoStop, fn = function() M.toggleAutoStop() end },
+    { title = (state=="rec" and T("menu_stop") or T("menu_start")).."  ("..keyLabel(cfg.toggleKey)..")", fn = function() M.toggle() end },
+    { title = T("menu_cleanup").."  ("..keyLabel(cfg.modeKey)..")", checked = cfg.cleanup, fn = function() M.toggleMode() end },
+    { title = T("menu_autostop", tostring(cfg.silenceSeconds)), checked = cfg.autoStop, fn = function() M.toggleAutoStop() end },
     { title = "-" },
   }
   local sub = {}
   for i=1, math.min(10,#history) do
     local e = history[i]
-    table.insert(sub, { title = e.time:sub(12,16).."  "..clip(finalText(e),60), fn = function() hs.pasteboard.setContents(finalText(e)); hs.alert.show("Copied") end })
+    table.insert(sub, { title = e.time:sub(12,16).."  "..clip(finalText(e),60), fn = function() hs.pasteboard.setContents(finalText(e)); hs.alert.show(T("copied")) end })
   end
-  if #sub>0 then table.insert(items, { title = "Recent (click to copy)", menu = sub }) end
-  table.insert(items, { title = "Open log", fn = function() hs.execute("open '"..logf.."'") end })
+  if #sub>0 then table.insert(items, { title = T("menu_recent"), menu = sub }) end
+  table.insert(items, { title = T("menu_log"), fn = function() hs.execute("open '"..logf.."'") end })
   menu:setMenu(items)
   if pushState then pushState() end
 end
@@ -306,11 +400,11 @@ end
 local function finish(raw, cleaned)
   state="idle"; if tick then tick:stop() end; hideOverlay()
   local text = ((cleaned or raw) or ""):gsub("^%s+",""):gsub("%s+$","")
-  if text == "" then hs.alert.show("No speech detected"); refresh(); return end
+  if text == "" then hs.alert.show(T("no_speech")); refresh(); return end
   addHistory((raw or ""):gsub("^%s+",""):gsub("%s+$",""), cleaned and text or nil)
   refresh()
   if cancelled then return end
-  if mode=="copy" then hs.pasteboard.setContents(text); hs.alert.show("Copied to clipboard"); log("COPIED: "..text)
+  if mode=="copy" then hs.pasteboard.setContents(text); hs.alert.show(T("copied_clip")); log("COPIED: "..text)
   else doPaste(text, targetApp); log("PASTED: "..text) end
 end
 
@@ -498,12 +592,12 @@ end
 M.cleanText = cleanText
 
 -- ---------- history re-conversion (Light / Paragraphs / Bullets / Formal) ----------
-local STYLE_NAME = { light="Light", paragraphs="Paragraph", bullets="Bullets", formal="Formal" }
+local function styleName(st) return T("style_"..st) end
 M.converting = {}   -- entry table -> style being produced
 -- re-run cleanup on an entry's RAW text in another style; raw stays unchanged. cb(ok, text) optional
 function M.restyle(e, style, cb)
   if not e or not STYLE[style] or M.converting[e] then return end
-  if not e.raw or e.raw:match("^%s*$") then hs.alert.show("Nothing to convert"); return end
+  if not e.raw or e.raw:match("^%s*$") then hs.alert.show(T("nothing_convert")); return end
   M.converting[e] = style; if pushState then pushState() end
   cleanText(e.raw, function(out, st)
     M.converting[e] = nil
@@ -514,9 +608,9 @@ function M.restyle(e, style, cb)
       e.cleaned, e.style = out, style
       saveHistory()
       hs.pasteboard.setContents(out)
-      hs.alert.show("Converted to "..STYLE_NAME[style].." · copied to clipboard"..(st.fallbacks>0 and (" ("..st.fallbacks.." part(s) kept raw)") or ""))
-    elseif st.noModel then hs.alert.show("Styles need a cleanup model – install Ollama and a model (see README)")
-    else hs.alert.show("Conversion failed – is Ollama running? (see log)") end
+      hs.alert.show(T("converted", styleName(style))..(st.fallbacks>0 and T("parts_raw", st.fallbacks) or ""))
+    elseif st.noModel then hs.alert.show(T("styles_need_model"))
+    else hs.alert.show(T("conv_failed")) end
     refresh()
     if cb then cb(ok, out) end
   end, nil, style)
@@ -526,19 +620,19 @@ local warnedNoModel = false
 local function cleanup(raw)
   local model = M.activeModel()
   if not model then
-    if not warnedNoModel then warnedNoModel = true; hs.alert.show("Cleanup unavailable (Ollama not running or no model) – pasting raw text", 4) end
+    if not warnedNoModel then warnedNoModel = true; hs.alert.show(T("cleanup_unavail"), 4) end
     log("cleanup skipped: no Ollama model; pasting raw"); return finish(raw, nil)
   end
-  setOverlay("Cleaning up…", "Fixing grammar with "..model, true)
+  setOverlay(T("ov_cleaning"), T("ov_fixing", model), true)
   cleanText(raw, function(out, st, wasCancelled)
     if wasCancelled or cancelled then state="idle"; hideOverlay(); refresh(); return end
     log(string.format("cleanup done: %d chunk(s), %d fallback(s), %d failed, %.1fs", st.chunks, st.fallbacks, st.failed, st.secs or 0))
-    if st.failed==st.chunks then hs.alert.show("Cleanup failed (is Ollama running?) – pasted raw text")
-    elseif st.fallbacks>0 and st.chunks==1 then hs.alert.show("Cleanup removed too much – pasted raw text")
-    elseif st.fallbacks>0 then hs.alert.show(st.fallbacks.." of "..st.chunks.." parts kept raw (cleanup removed too much)") end
+    if st.failed==st.chunks then hs.alert.show(T("cleanup_failed"))
+    elseif st.fallbacks>0 and st.chunks==1 then hs.alert.show(T("cleanup_too_much"))
+    elseif st.fallbacks>0 then hs.alert.show(T("parts_kept", st.fallbacks, st.chunks)) end
     if not out or out:match("^%s*$") then finish(raw, nil) else finish(raw, out) end
   end, function(i, n)
-    if n>1 then setOverlay("Cleaning up… part "..i.." of "..n, "Fixing grammar with "..model, true) end
+    if n>1 then setOverlay(T("ov_cleaning_part", i, n), T("ov_fixing", model), true) end
   end)
 end
 
@@ -559,18 +653,18 @@ function M.testPipeline(f, cb)
 end
 
 local function transcribe()
-  state="busy"; refresh(); setOverlay("Transcribing…", cfg.modelName:gsub("^ggml%-",""):gsub("%.bin$","").." ("..cfg.language..")", true)
+  state="busy"; refresh(); setOverlay(T("ov_transcribing"), cfg.modelName:gsub("^ggml%-",""):gsub("%.bin$","").." ("..cfg.language..")", true)
   local t0 = hs.timer.secondsSinceEpoch()
   recStart = t0
   local tsub = cfg.modelName:gsub("^ggml%-",""):gsub("%.bin$","")
   if tick then tick:stop() end
-  tick = hs.timer.doEvery(1, function() if M.wTask then setOverlay("Transcribing… (still working)", tsub, true) elseif state=="busy" then
+  tick = hs.timer.doEvery(1, function() if M.wTask then setOverlay(T("ov_still"), tsub, true) elseif state=="busy" then
     if overlay then local e=math.floor(hs.timer.secondsSinceEpoch()-recStart); overlay:evaluateJavaScript(string.format("document.getElementById('t').textContent=%q", string.format("%d:%02d",e//60,e%60))) end end end)
   M.wTask = hs.task.new(cfg.whisper, function(code, out, err)
     M.wTask = nil
     if cancelled then state="idle"; hideOverlay(); refresh(); return end
     log(string.format("whisper %s exit %d %.1fs RAW: %s", cfg.modelName, code, hs.timer.secondsSinceEpoch()-t0, out or ""))
-    if code ~= 0 then state="idle"; hideOverlay(); refresh(); hs.alert.show("Transcription failed – see log"); return end
+    if code ~= 0 then state="idle"; hideOverlay(); refresh(); hs.alert.show(T("trans_failed")); return end
     out = (out or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
     if cfg.cleanup and not out:match("^%s*$") then cleanup(out) else finish(out, nil) end
   end, whisperArgs(wav))
@@ -586,9 +680,9 @@ function M.warmModel(model)
 end
 -- returns nil when dictation can run, else a friendly message
 local function preflight()
-  if not cfg.rec then return "Taipea needs sox (rec). Run: brew install sox" end
-  if not cfg.whisper then return "Taipea needs whisper.cpp. Run: brew install whisper-cpp" end
-  if not fileExists(modelPath()) then return "No speech model yet. Open Taipea (Ctrl+Option+H) › Models to download one" end
+  if not cfg.rec then return T("need_sox") end
+  if not cfg.whisper then return T("need_whisper") end
+  if not fileExists(modelPath()) then return T("need_model", keyLabel(cfg.historyKey)) end
   return nil
 end
 M.preflight = preflight
@@ -613,9 +707,9 @@ function M.start()
   recTask:start(); state="rec"; recStart=hs.timer.secondsSinceEpoch()
   sound("Tink")
   if cfg.cleanup then hs.timer.doAfter(0.5, function() M.warmModel() end) end
-  local sub = cfg.autoStop and ("Auto-stops after "..cfg.silenceSeconds.."s of silence") or ("Press "..keyStr(cfg.toggleKey).." or a button to finish")
-  hs.timer.doAfter(0.3, function() setOverlay("Listening…", sub, false) end)
-  tick = hs.timer.doEvery(1, function() if state=="rec" then setOverlay("Listening…", sub, false) end end)
+  local sub = cfg.autoStop and T("ov_autostop", tostring(cfg.silenceSeconds)) or T("ov_press", keyLabel(cfg.toggleKey))
+  hs.timer.doAfter(0.3, function() setOverlay(T("ov_listening"), sub, false) end)
+  tick = hs.timer.doEvery(1, function() if state=="rec" then setOverlay(T("ov_listening"), sub, false) end end)
   hs.timer.doAfter(0, refresh)
 end
 function M.stop(m)
@@ -631,21 +725,21 @@ function M.cancel()
   state="idle"; if tick then tick:stop() end; hideOverlay(); sound("Basso"); refresh()
   if targetApp then targetApp:activate() end
 end
-function M.toggle() if state=="idle" then M.start() elseif state=="rec" then M.stop(cfg.defaultAction=="copy" and "copy" or "paste") else hs.alert.show("Still processing…") end end
+function M.toggle() if state=="idle" then M.start() elseif state=="rec" then M.stop(cfg.defaultAction=="copy" and "copy" or "paste") else hs.alert.show(T("still_processing")) end end
 local function setOpt(k,v) cfg[k]=v; saved[k]=v; saveSettings(); refresh() end
 M.setOpt = setOpt
-function M.toggleMode() setOpt("cleanup", not cfg.cleanup); hs.alert.show(cfg.cleanup and "Dictation: CLEANED" or "Dictation: RAW") end
-function M.toggleAutoStop() setOpt("autoStop", not cfg.autoStop); hs.alert.show("Auto-stop on silence: "..(cfg.autoStop and "ON" or "OFF")) end
+function M.toggleMode() setOpt("cleanup", not cfg.cleanup); hs.alert.show(cfg.cleanup and T("mode_clean") or T("mode_raw")) end
+function M.toggleAutoStop() setOpt("autoStop", not cfg.autoStop); hs.alert.show(cfg.autoStop and T("autostop_on") or T("autostop_off")) end
 
 -- ---------- downloads ----------
 local function dlWhisper(file)
   if downloads[file] then return end
-  downloads[file] = "Starting…"; refresh()
+  downloads[file] = T("starting"); refresh()
   local dest = DATA.."/models/"..file
   local url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"..file
   M["t_"..file] = hs.task.new("/usr/bin/curl", function(code)
-    if code==0 then os.rename(dest..".part", dest); downloads[file]=nil; hs.alert.show("Downloaded "..file)
-    else downloads[file]="Failed ("..code..")" ; os.remove(dest..".part") end
+    if code==0 then os.rename(dest..".part", dest); downloads[file]=nil; hs.alert.show(T("downloaded", file))
+    else downloads[file]=T("failed", tostring(code)) ; os.remove(dest..".part") end
     refresh()
   end, function(_, _, err)
     local pct = err and err:match("(%d+%.%d)%s*$") or (err and err:match("(%d+%.%d)%%"))
@@ -656,10 +750,10 @@ local function dlWhisper(file)
 end
 local function dlLLM(name)
   if downloads[name] then return end
-  if not cfg.ollama then hs.alert.show("Install Ollama first: brew install ollama"); return end
-  downloads[name] = "Starting…"; refresh()
+  if not cfg.ollama then hs.alert.show(T("install_ollama")); return end
+  downloads[name] = T("starting"); refresh()
   M["t_"..name] = hs.task.new(cfg.ollama, function(code)
-    downloads[name] = (code==0) and nil or ("Failed ("..code..")"); if code==0 then hs.alert.show("Downloaded "..name) end
+    downloads[name] = (code==0) and nil or T("failed", tostring(code)); if code==0 then hs.alert.show(T("downloaded", name)) end
     ollamaInstalled(true); refresh()
   end, function(_, out, err)
     local s = (out or "")..(err or "")
@@ -677,17 +771,20 @@ pushState = function()
   local wm, lm = {}, {}
   local known = {}
   for _,m in ipairs(WHISPER) do known[m.file]=true
-    table.insert(wm, { file=m.file, name=m.name, size=m.size, note=m.note, installed=fileExists(DATA.."/models/"..m.file) }) end
-  for f in hs.fs.dir(DATA.."/models") do if f:match("%.bin$") and not known[f] then table.insert(wm,{file=f,name=f,size="",note="local file",installed=true}) end end
-  if cfg.modelName:sub(1,1)=="/" and fileExists(cfg.modelName) then table.insert(wm,{file=cfg.modelName,name=(cfg.modelName:match("[^/]+$")),size="",note="custom path (config.lua)",installed=true}) end
+    table.insert(wm, { file=m.file, name=m.name, size=m.size, note=(uiLang()=="es" and m.note_es or m.note), installed=fileExists(DATA.."/models/"..m.file) }) end
+  for f in hs.fs.dir(DATA.."/models") do if f:match("%.bin$") and not known[f] then table.insert(wm,{file=f,name=f,size="",note=T("note_local"),installed=true}) end end
+  if cfg.modelName:sub(1,1)=="/" and fileExists(cfg.modelName) then table.insert(wm,{file=cfg.modelName,name=(cfg.modelName:match("[^/]+$")),size="",note=T("note_custom"),installed=true}) end
   local knownL = {}
-  for _,m in ipairs(LLMS) do knownL[m.name]=true; table.insert(lm, { name=m.name, size=m.size, note=m.note, installed=inst[m.name] or false }) end
-  for n,_ in pairs(inst) do if not knownL[n] and not n:match(":latest$") and not n:match("embed") then table.insert(lm,{name=n,size="",note="installed",installed=true}) end end
+  for _,m in ipairs(LLMS) do knownL[m.name]=true; table.insert(lm, { name=m.name, size=m.size, note=(uiLang()=="es" and m.note_es or m.note), installed=inst[m.name] or false }) end
+  for n,_ in pairs(inst) do if not knownL[n] and not n:match(":latest$") and not n:match("embed") then table.insert(lm,{name=n,size="",note=T("note_installed"),installed=true}) end end
   local conv = {}
   for i,e in ipairs(history) do if M.converting[e] then conv[tostring(i)] = M.converting[e] end end
   local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
-     autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize },
+     autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay },
      keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey) },
+     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey) },
+     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey) },
+     lang=uiLang(), sysLang=sysLang,
      whisperModels=wm, llmModels=lm, dl=downloads, ollama=(cfg.ollama~=nil), activeModel=M.activeModel() or "", missing=preflight() or "" }
   local js = hs.json.encode(data)
   if next(downloads)==nil then js = js:gsub('"dl":%[%]','"dl":{}') end
@@ -700,33 +797,40 @@ function M.handle(a)
   local e = a.i and history[math.floor(a.i)]
   if c=="refresh" then ollamaInstalled(true); pushState()
   elseif c=="close" then appWin:hide(); if M.lastApp then M.lastApp:activate() end
-  elseif c=="mini" then appWin:hide(); hs.alert.show("Taipea hidden – press "..keyStr(cfg.historyKey).." or open Taipea.app to reopen")
+  elseif c=="mini" then appWin:hide(); hs.alert.show(T("hidden", keyLabel(cfg.historyKey)))
   elseif c=="dictate" then if appWin then appWin:hide() end; hs.timer.doAfter(0.3, function() if M.lastApp then M.lastApp:activate() end; hs.timer.doAfter(0.3, M.start) end)
-  elseif c=="copy" and e then hs.pasteboard.setContents(finalText(e)); hs.alert.show("Copied")
-  elseif c=="copyRaw" and e then hs.pasteboard.setContents(e.raw); hs.alert.show("Copied raw")
+  elseif c=="copy" and e then hs.pasteboard.setContents(finalText(e)); hs.alert.show(T("copied"))
+  elseif c=="copyRaw" and e then hs.pasteboard.setContents(e.raw); hs.alert.show(T("copied_raw"))
   elseif c=="paste" and e then appWin:hide(); doPaste(finalText(e), M.lastApp)
   elseif c=="restyle" and e then M.restyle(e, a.style)
   elseif c=="del" and e then table.remove(history, math.floor(a.i)); saveHistory(); refresh()
-  elseif c=="clearHistory" then history = {}; saveHistory(); refresh(); hs.alert.show("History cleared")
-  elseif c=="resetOverlay" then settings.set("taipea.overlayPos", nil); hs.alert.show("Overlay position reset")
+  elseif c=="clearHistory" then history = {}; saveHistory(); refresh(); hs.alert.show(T("history_cleared"))
+  elseif c=="resetOverlay" then settings.set("taipea.overlayPos", nil); hs.alert.show(T("overlay_reset"))
+  elseif c=="resetKeys" then
+    for _,k in ipairs({"toggleKey","modeKey","historyKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
+    saveSettings(); bindAll(); refresh(); hs.alert.show(T("shortcuts_reset"))
   elseif c=="dlWhisper" then dlWhisper(a.file)
   elseif c=="dlLLM" then dlLLM(a.name)
   elseif c=="set" then
     local k, v = a.key, a.value
     if k=="toggleKey" or k=="modeKey" or k=="historyKey" then
       local pk = parseKey(v)
-      if not pk then hs.alert.show("Invalid shortcut: "..tostring(v)); pushState(); return end
-      setOpt(k, pk); bindAll(); hs.alert.show("Shortcut set: "..keyStr(pk))
-    elseif k=="modelName" or k=="ollamaModel" then setOpt(k, v); hs.alert.show("Using "..v)
+      if not pk then hs.alert.show(T("bad_shortcut", tostring(v))); pushState(); return end
+      setOpt(k, pk); bindAll(); hs.alert.show(T("shortcut_set", keyLabel(pk)))
+    elseif k=="modelName" or k=="ollamaModel" then setOpt(k, v); hs.alert.show(T("using", v))
       if k=="ollamaModel" then M.warmModel(v) end
     elseif k=="openAtLogin" then setOpt(k, v); hs.autoLaunch(v and true or false)
-      hs.alert.show(v and "Opens at login: ON" or "Opens at login: OFF – dictation unavailable until Hammerspoon is opened")
+      hs.alert.show(v and T("login_on") or T("login_off"))
     elseif k=="uiSize" then setOpt(k, v=="compact" and "compact" or "normal")
       if appWin then local f=appWin:frame(); local scr=screenFor(f); local sf=scr:frame()
         local nw = math.min(cfg.uiSize=="compact" and 520 or 760, sf.w-40)
         local nh = cfg.uiSize=="compact" and math.min(700, sf.h-80) or sf.h-80
         local nf = clampFrame({x=f.x, y=f.y, w=nw, h=nh}, scr); appWin:frame(nf); settings.set("taipea.appPos", {x=nf.x, y=nf.y}) end
       pushState()
+    elseif k=="uiLanguage" then
+      setOpt(k, (v=="en" or v=="es") and v or "auto")
+      if overlay then overlay:delete(); overlay = nil end   -- rebuilt in the new language
+      hs.alert.show(T("lang_set"))
     else setOpt(k, v) end
   end
 end
@@ -758,6 +862,7 @@ function M.js(s) if appWin then appWin:evaluateJavaScript(s) end end
 
 bindAll = function()
   for _,h in ipairs(hk) do h:delete() end; hk = {}
+  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey }
   table.insert(hk, hs.hotkey.bind(cfg.toggleKey.mods, cfg.toggleKey.key, M.toggle))
   table.insert(hk, hs.hotkey.bind(cfg.modeKey.mods, cfg.modeKey.key, M.toggleMode))
   table.insert(hk, hs.hotkey.bind(cfg.historyKey.mods, cfg.historyKey.key, M.openApp))

@@ -16,6 +16,9 @@ hs.http = { asyncPost = function(_, _, _, cb) cb(fake.post and 200 or 0, fake.po
 hs.alert = { show = function(m) fake.lastAlert = m end }
 hs.keycodes = { map = { space = 49, c = 8, h = 4 } }
 hs.settings = { get = function() return true end, set = function() end }
+hs.host = { locale = { preferredLanguages = function() return { fake.lang or "en-US" } end, current = function() return "en_US" end } }
+hs.hotkey = { bind = function(mods, key) fake.binds = fake.binds or {}; table.insert(fake.binds, table.concat(mods, "+") .. "+" .. key); return { delete = function() end } end }
+fake.lang = "es-CO"
 
 package.preload["hs.ipc"] = function() return true end
 local HOME = "/nonexistent-home"
@@ -85,6 +88,36 @@ check("prompt light", M.buildPrompt("hola", "light"):find("never translate", 1, 
 
 -- preflight: rec missing on this fake Mac
 check("preflight mentions sox", (M.preflight() or ""):find("sox", 1, true) ~= nil)
+
+-- defaults: shortcuts are bound even with no config.lua / settings.json
+local D = M.DEFAULTS
+check("default toggle key", table.concat(D.toggleKey.mods, "+") .. "+" .. D.toggleKey.key == "ctrl+alt+space")
+check("default mode key", table.concat(D.modeKey.mods, "+") .. "+" .. D.modeKey.key == "ctrl+alt+c")
+check("default history key", table.concat(D.historyKey.mods, "+") .. "+" .. D.historyKey.key == "ctrl+alt+h")
+local b = table.concat(fake.binds or {}, ",")
+check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h")
+check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey)
+check("default values", D.style == "light" and D.cleanup == true and D.ollamaModel == "gemma4:e4b" and D.language == "auto"
+  and D.uiLanguage == "auto" and D.showOverlay == true and D.uiSize == "normal" and D.defaultAction == "paste"
+  and D.openAtLogin == true and D.historyMax == 500 and D.maxSeconds == 1800 and D.autoStop == false)
+
+-- interface language: auto follows macOS (stubbed as es-CO), and can be forced
+check("auto -> Spanish Mac", M.uiLang() == "es")
+check("Spanish string", M.T("ov_listening") == "Escuchando…")
+check("Spanish key label", M.keyLabel(D.toggleKey) == "Ctrl + Opción + Espacio")
+M.cfg.uiLanguage = "en"
+check("forced English", M.uiLang() == "en" and M.T("ov_listening") == "Listening…")
+check("English key label", M.keyLabel(D.toggleKey) == "Ctrl + Option + Space")
+check("format args", M.T("parts_kept", 2, 5) == "2 of 5 parts kept raw (cleanup removed too much)")
+M.cfg.uiLanguage = "auto"
+
+-- every string exists in both languages with the same placeholders
+local function ph(str) local t = {}; for x in str:gmatch("%%[sd]") do t[#t + 1] = x end; return table.concat(t) end
+for k, v in pairs(M.STR.en) do
+  check("es has " .. k, M.STR.es[k] ~= nil)
+  if M.STR.es[k] then check("placeholders " .. k, ph(v) == ph(M.STR.es[k])) end
+end
+for k in pairs(M.STR.es) do check("en has " .. k, M.STR.en[k] ~= nil) end
 
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

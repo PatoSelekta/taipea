@@ -7,6 +7,27 @@ Sin manos, privado, y hecho para español, inglés y la mezcla de los dos.
 
 ---
 
+## Visión
+
+Taipea está pensado primero para la **comunidad de accesibilidad**. Lo creó un
+desarrollador cuadripléjico que maneja su Mac con un mouse de cabeza y un clic con la boca,
+y cada decisión viene de ese uso diario:
+
+- **Botones grandes y claros.** Miden de 60 a 110 px de alto y tienen espacio entre ellos,
+  para que un mouse de cabeza, seguimiento ocular o pulsador los alcance sin precisión.
+- **Sin manos.** Un atajo o un clic empieza y termina el dictado. Nada necesita doble clic,
+  mantener una tecla presionada ni arrastrar con precisión.
+- **Local y privado.** Tu voz y tu texto nunca salen de tu Mac. Sin cuenta, sin nube.
+- **Bilingüe.** Inglés, español y la mezcla que muchos de verdad hablamos.
+
+Ese mismo diseño amplio y tranquilo hace que Taipea sea cómodo para **cualquier persona**
+que quiera dictar rápido y en privado: escritores, desarrolladores, personas con las manos
+cansadas, o quien prefiera hablar a escribir.
+
+Taipea es además la primera de una serie de apps prácticas de Patricio Escobar, que está
+construyendo su carrera como desarrollador en **[selektdev.com](https://selektdev.com)**.
+Si Taipea te sirve, una estrella, un reporte de error o un saludo allá significan mucho.
+
 ## ¿Qué es Taipea?
 
 Taipea es una herramienta de dictado gratuita para macOS. Presionas un atajo (o haces
@@ -33,8 +54,8 @@ Taipea es para ti si:
   No se traduce nada.
 - **Corrección gramatical (opcional).** Un modelo de IA local corrige puntuación,
   mayúsculas y ortografía, y quita los "eh" y "mmm".
-- **Cuatro estilos:** Light (solo corregir), Paragraph (párrafos), Bullets (viñetas) y
-  Formal (cortés y profesional, con "usted").
+- **Cuatro estilos:** Ligero (solo corregir), Párrafos, Viñetas y Formal (cortés y
+  profesional, con "usted").
 - **Historial con botones para cambiar el estilo.** Cada dictado se guarda. Convierte uno
   viejo en viñetas o en un correo formal con un clic. Tus palabras originales siempre se
   conservan.
@@ -44,6 +65,7 @@ Taipea es para ti si:
 - **Pensado para mouse de cabeza y pulsadores.** Botones grandes (110 px de alto en el
   panel de grabación) y nada diminuto. Las ventanas se mueven arrastrando la barra de
   título, y esto funciona también con mouse de cabeza que no envían arrastres normales.
+- **Interfaz en español o inglés** (sigue el idioma de tu Mac, o elige uno en Ajustes).
 - **Tamaño Normal o Compacto**, panel que puedes ubicar donde quieras, abre al iniciar
   sesión.
 - **Parada automática opcional** tras unos segundos de silencio.
@@ -57,7 +79,7 @@ Taipea es para ti si:
   descarga los modelos, Taipea funciona con el Wi-Fi apagado.
 - Tu historial es un archivo en tu Mac:
   `~/Library/Application Support/Taipea/history.json`. Bórralo cuando quieras, o usa
-  "Clear all" en la pestaña History.
+  "Borrar todo" en la pestaña Historial.
 
 ## Requisitos
 
@@ -77,7 +99,7 @@ Taipea usa estas herramientas gratuitas, y el instalador las configura por ti:
 Abre la app **Terminal**, pega esta línea y presiona Enter:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/taipea/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
 El instalador explica cada paso, pregunta antes de algo grande y se puede volver a
@@ -132,39 +154,71 @@ reinicia Hammerspoon.
 
 ## Cómo usarlo
 
+Estos son los atajos por defecto. Funcionan apenas se instala Taipea, incluso sin archivo
+de configuración.
+
 | Atajo | Qué hace |
 |---|---|
-| **Ctrl + Opción + Espacio** | Empieza a dictar. Presiona otra vez para parar y pegar. |
+| **Ctrl + Opción + Espacio** | Empieza a dictar. Presiona el mismo atajo otra vez para parar: Taipea transcribe, corrige y pega en tu cursor. |
 | **Ctrl + Opción + C** | Activa o desactiva la corrección (texto sin corregir). |
-| **Ctrl + Opción + H** | Abre la ventana de Taipea: History, Settings, Models. |
+| **Ctrl + Opción + H** | Abre la ventana de Taipea: Historial, Ajustes, Modelos. |
 
 ¿Sin teclado? Todo funciona también con clics:
 
-- Mientras hablas, un panel flotante muestra tres botones grandes: **Stop & Paste**
-  (parar y pegar), **Stop & Copy only** (parar y solo copiar) y **Cancel** (cancelar).
+- Mientras hablas, un panel flotante muestra tres botones grandes: **Parar y pegar**,
+  **Parar y solo copiar** y **Cancelar**.
 - Abre **Taipea.app** (en `~/Applications`, agrégala a tu Dock) para abrir la ventana.
-  Tiene un botón grande **🎙 Dictate**.
+  Tiene un botón grande **🎙 Dictar**.
 - El ícono 🎙 en la barra de menús tiene las mismas acciones.
 
-Puedes cambiar los atajos en Settings. Por ahora la interfaz está en inglés.
+Puedes ver y cambiar los atajos en Ajustes › Atajos (escribe uno como `ctrl+alt+space` y
+presiona Guardar). "Restablecer los atajos de fábrica" vuelve a estos.
+
+## Ajustes por defecto
+
+Taipea funciona desde el primer momento con estos ajustes. Cámbialos en la pestaña
+**Ajustes** de la ventana, o en `config.lua` (todas las opciones, con su valor por defecto,
+están en `config.example.lua`).
+
+| Ajuste | Por defecto | Opciones |
+|---|---|---|
+| Empezar / parar el dictado | **Ctrl + Opción + Espacio** (al parar, pega) | cualquier atajo |
+| Corrección sí / no | **Ctrl + Opción + C** | cualquier atajo |
+| Abrir la ventana de Taipea | **Ctrl + Opción + H** | cualquier atajo |
+| Corrección (gramática) | Sí | Sí / No (texto original) |
+| Modelo de corrección | `gemma4:e4b`; si falta, `qwen2.5:7b` y luego `gemma4:e2b` | cualquier modelo de Ollama |
+| Estilo | Ligero | Ligero / Párrafos / Viñetas / Formal |
+| Modelo de voz | `ggml-large-v3-turbo` | turbo-q5, small, large-v3, medium |
+| Idioma del dictado | Automático (mezcla español/inglés) | Automático / English / Español |
+| Idioma de la interfaz | Automático (el de tu Mac) | Automático / English / Español |
+| Al parar | Pegar en el cursor | Pegar / Solo copiar |
+| Restaurar el portapapeles al pegar | Sí | Sí / No |
+| Panel de grabación | Sí | Sí / No |
+| Tamaño de la ventana | Normal | Normal / Compacto |
+| Abrir al iniciar sesión | Sí | Sí / No |
+| Mostrar la ventana al iniciar sesión | No | Sí / No |
+| Parar solo con el silencio | No (pausa de 2,5 s y umbral de 1,5 % si se activa) | Sí / No, 1–∞ s, 0,5–5 % |
+| Dictado más largo | 30 minutos | `maxSeconds` en config.lua |
+| Historial | últimos 500 dictados | `historyMax` en config.lua |
+| Mantener cargado el modelo de corrección | 12 horas | `ollamaKeepAlive` en config.lua |
 
 ## Estilos
 
 | Estilo | Qué obtienes |
 |---|---|
-| **Light** | Tus palabras, con puntuación, mayúsculas y ortografía corregidas. Sin muletillas. |
-| **Paragraph** | Lo mismo, agrupado en párrafos cuando cambia el tema. |
-| **Bullets** | Una lista limpia, una idea por línea. |
+| **Ligero** | Tus palabras, con puntuación, mayúsculas y ortografía corregidas. Sin muletillas. |
+| **Párrafos** | Lo mismo, agrupado en párrafos cuando cambia el tema. |
+| **Viñetas** | Una lista limpia, una idea por línea. |
 | **Formal** | Redacción cortés y profesional para correos o documentos (con "usted"). |
 
 En todos los estilos, lo que dijiste en inglés queda en inglés y lo que dijiste en
 español queda en español, y se conservan nombres, números y fechas. Elige el estilo por
-defecto en Settings, o convierte cualquier dictado viejo en History. La conversión
+defecto en Ajustes, o convierte cualquier dictado viejo en Historial. La conversión
 siempre parte de tus palabras originales.
 
 ## Modelos
 
-Puedes cambiar los modelos en la pestaña **Models** de la ventana.
+Puedes cambiar los modelos en la pestaña **Modelos** de la ventana.
 
 - **Voz (Whisper):** `large-v3-turbo` (por defecto, 1,6 GB), `large-v3-turbo-q5`
   (0,57 GB), `small` (0,49 GB) y otros más grandes. Los archivos están en
@@ -185,18 +239,18 @@ Accesibilidad. Luego elige Hammerspoon › Reload Config en su ícono de la barr
 
 **Aparece el panel pero no se pega nada.**
 Falta el permiso de Accesibilidad o quedó trabado: apaga y enciende Hammerspoon en
-Privacidad y seguridad › Accesibilidad. También puedes elegir "Copy only" en Settings y
-pegar con Cmd+V.
+Privacidad y seguridad › Accesibilidad. También puedes elegir "Solo copiar" en Ajustes
+y pegar con Cmd+V.
 
-**"No speech detected" o el texto sale vacío.**
+**"No se detectó voz" o el texto sale vacío.**
 Revisa Ajustes del Sistema › Privacidad y seguridad › Micrófono › Hammerspoon. Revisa que
 el micrófono correcto esté elegido en Ajustes del Sistema › Sonido › Entrada.
 
-**"No speech model yet."**
-Abre la ventana (Ctrl+Opción+H) › Models y haz clic en Download, o vuelve a ejecutar el
+**"Aún no hay modelo de voz."**
+Abre la ventana (Ctrl+Opción+H) › Modelos y haz clic en Descargar, o vuelve a ejecutar el
 instalador.
 
-**"Cleanup unavailable" / el texto no se corrige.**
+**"Corrección no disponible" / el texto no se corrige.**
 Ollama no está corriendo o no hay un modelo de corrección. Ejecuta
 `brew services start ollama` y `ollama pull gemma4:e4b`. Si `ollama pull` falla,
 actualízalo con `brew upgrade ollama`.
@@ -207,15 +261,15 @@ Después, Taipea lo mantiene cargado 12 horas.
 
 **La corrección siempre es lenta, o el Mac se pone lento.**
 Puede que tu Mac no tenga memoria suficiente para Gemma 4 E4B. Elige `qwen2.5:7b` o
-`gemma4:e2b` en Models, o desactiva la corrección con Ctrl+Opción+C.
+`gemma4:e2b` en Modelos, o desactiva la corrección con Ctrl+Opción+C.
 
 **La ventana o el panel quedaron fuera de la pantalla.**
-Settings › Overlay › Reset overlay position. Al moverlas, las ventanas siempre se quedan
+Ajustes › Panel de grabación › Restablecer la posición del panel. Al moverlas, las ventanas siempre se quedan
 dentro de la pantalla.
 
 **¿Dónde están los registros (logs)?**
-`~/Library/Application Support/Taipea/logs/taipea.log`, o 🎙 en la barra de menús › Open
-log. El registro contiene tu texto dictado, así que revísalo antes de compartirlo.
+`~/Library/Application Support/Taipea/logs/taipea.log`, o 🎙 en la barra de menús › Abrir
+registro. El registro contiene tu texto dictado, así que revísalo antes de compartirlo.
 
 ## Contribuir y reportar problemas de accesibilidad
 
@@ -225,7 +279,7 @@ Taipea es de código abierto y las contribuciones son bienvenidas. Lee
 **Los problemas de accesibilidad son errores, con prioridad alta.** Si un botón es muy
 pequeño, si un paso necesita teclado, o si algo no funciona con tu mouse de cabeza,
 seguimiento ocular, pulsador o lector de pantalla,
-[abre un reporte de accesibilidad](https://github.com/OWNER/taipea/issues/new?template=accessibility.yml).
+[abre un reporte de accesibilidad](https://github.com/PatoSelekta/taipea/issues/new?template=accessibility.yml).
 No necesitas saber programar. Cuéntanos qué usas y qué te estorbó. Puedes escribir en
 español.
 

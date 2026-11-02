@@ -24,8 +24,17 @@ First public release.
   one-click re-style; Settings; Models with in-app downloads.
 - Accessibility: large click targets, Normal/Compact size, head-mouse-friendly window
   dragging that stays on screen, optional auto-stop on silence, open at login.
+- Bilingual interface (English / Español) for the window, recording panel, menu and alerts,
+  with an Interface language setting: Auto (follows macOS), English or Español. Default: Auto.
+- Default shortcuts defined and shown in Settings › Shortcuts, editable there, with
+  "Reset shortcuts to defaults": Ctrl+Option+Space (start; press again to stop and paste),
+  Ctrl+Option+C (cleanup on/off), Ctrl+Option+H (open the window).
+- Recording panel on/off setting (`showOverlay`, default on).
+- Documented defaults: table in both READMEs, and every default listed in
+  `config.example.lua`.
+- Vision section in both READMEs.
 - `install.sh` (idempotent; Homebrew, Hammerspoon, whisper.cpp, SoX, Ollama, models,
   Taipea.app) and `uninstall.sh`.
 - English and Spanish README.
 
-[0.1.0]: https://github.com/OWNER/taipea/releases/tag/v0.1.0
+[0.1.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.1.0
