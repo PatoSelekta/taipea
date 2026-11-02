@@ -7,6 +7,8 @@
 #   --llm=TAG          Ollama cleanup model (default gemma4:e4b)
 #   --no-cleanup       skip Ollama: raw transcription only
 #   --yes              do not ask questions, use the defaults
+#   --skip-brew        do not install or start anything with Homebrew (tools must already exist)
+#   --no-start         do not restart Hammerspoon, start Ollama or open System Settings
 # Safe to run again: steps that are already done are skipped.
 set -euo pipefail
 
@@ -27,6 +29,8 @@ LLM_SET_BY_USER=0
 FALLBACK_LLM="qwen2.5:7b"
 WITH_CLEANUP=1
 ASSUME_YES=0
+SKIP_BREW="${TAIPEA_SKIP_BREW:-0}"
+NO_START="${TAIPEA_NO_START:-0}"
 
 # ---------- friendly output ----------
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; C=$'\033[36m'; N=$'\033[0m'
@@ -61,6 +65,8 @@ Options:
   --llm=TAG          Ollama cleanup model (default gemma4:e4b)
   --no-cleanup       skip Ollama: raw transcription only
   --yes              do not ask questions, use the defaults
+  --skip-brew        do not install or start anything with Homebrew (tools must already exist)
+  --no-start         do not restart Hammerspoon, start Ollama or open System Settings
 USAGE
   exit 0
 }
@@ -72,6 +78,8 @@ for arg in "$@"; do
     --llm=*) LLM="${arg#*=}"; LLM_SET_BY_USER=1 ;;
     --no-cleanup) WITH_CLEANUP=0 ;;
     --yes|-y) ASSUME_YES=1 ;;
+    --skip-brew) SKIP_BREW=1 ;;
+    --no-start) NO_START=1 ;;
     --help|-h) usage ;;
     *) die "Unknown option: $arg (try --help)" ;;
   esac
@@ -115,6 +123,20 @@ if [ "$free_gb" -lt "$need_gb" ]; then
 else ok "$free_gb GB free on disk (about $need_gb GB needed)"; fi
 
 # ---------- 2. Homebrew ----------
+if [ "$SKIP_BREW" = 1 ]; then
+  step "Checking tools (--skip-brew: nothing is installed)"
+  BIN=""
+  for d in /opt/homebrew/bin /usr/local/bin; do [ -x "$d/whisper-cli" ] && BIN="$d" && break; done
+  [ -n "$BIN" ] || die "whisper-cli not found in /opt/homebrew/bin or /usr/local/bin."
+  [ -x "$BIN/rec" ] || die "rec not found in $BIN (install sox)."
+  [ -d /Applications/Hammerspoon.app ] || [ -d "$HOME/Applications/Hammerspoon.app" ] || warn "Hammerspoon.app not found."
+  ok "Tools found in $BIN"
+  OLLAMA_KIND=""
+  if [ "$WITH_CLEANUP" = 1 ]; then
+    if [ -x "$BIN/ollama" ]; then OLLAMA_KIND="brew"; elif [ -d /Applications/Ollama.app ]; then OLLAMA_KIND="app"
+    else warn "Ollama not found: cleanup will be off until you install it."; WITH_CLEANUP=0; fi
+  fi
+else
 step "Homebrew"
 BREW=""
 for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && BREW="$b" && break; done
@@ -152,6 +174,7 @@ fi
 BIN="$("$BREW" --prefix)/bin"
 [ -x "$BIN/whisper-cli" ] || die "whisper-cli not found in $BIN. Try: brew reinstall whisper-cpp"
 [ -x "$BIN/rec" ] || die "rec not found in $BIN. Try: brew reinstall sox"
+fi
 
 # ---------- 4. Taipea files ----------
 step "Copying Taipea files"
@@ -189,7 +212,7 @@ fi
 # ---------- 5. speech model ----------
 step "Speech model ($WHISPER_FILE, about $WHISPER_GB GB)"
 dest="$DATA/models/$WHISPER_FILE"
-if [ -f "$dest" ] && [ "$(stat -f %z "$dest")" -gt 100000000 ]; then ok "Already downloaded"
+if [ -f "$dest" ] && [ "$(stat -Lf %z "$dest")" -gt 100000000 ]; then ok "Already downloaded"
 else
   info "Downloading from Hugging Face (ggerganov/whisper.cpp). This can take a few minutes…"
   curl -fL --retry 3 -C - --progress-bar -o "$dest.part" "$HF_URL/$WHISPER_FILE" || die "Download failed. Run the installer again to resume."
@@ -200,13 +223,16 @@ fi
 # ---------- 6. cleanup model ----------
 if [ "$WITH_CLEANUP" = 1 ]; then
   step "Cleanup model ($LLM)"
-  if [ "$OLLAMA_KIND" = "brew" ]; then
+  if [ "$OLLAMA_KIND" = "brew" ]; then OLLAMA="$BIN/ollama"; else OLLAMA="/Applications/Ollama.app/Contents/Resources/ollama"; fi
+  if curl -fs "$OLLAMA_API/api/version" >/dev/null 2>&1; then
+    ok "Ollama is already running"
+  elif [ "$NO_START" = 1 ] || { [ "$SKIP_BREW" = 1 ] && [ "$OLLAMA_KIND" = "brew" ]; }; then
+    warn "Ollama is not running and was not started (--no-start / --skip-brew)."
+  elif [ "$OLLAMA_KIND" = "brew" ]; then
     "$BREW" services start ollama >/dev/null 2>&1 || "$BREW" services restart ollama >/dev/null 2>&1 || true
     ok "Ollama runs in the background and starts at login (brew services)"
-    OLLAMA="$BIN/ollama"
   else
     open -g -a Ollama || true
-    OLLAMA="/Applications/Ollama.app/Contents/Resources/ollama"
     ok "Started the Ollama app"
   fi
   up=0
@@ -248,12 +274,16 @@ ok "Taipea.app is in ~/Applications (it opens the Taipea window; you can add it 
 
 # ---------- 9. start ----------
 step "Starting Taipea"
-if pgrep -xq Hammerspoon; then
-  info "Restarting Hammerspoon to load Taipea…"
-  osascript -e 'quit app "Hammerspoon"' >/dev/null 2>&1 || true
-  sleep 2
+if [ "$NO_START" = 1 ]; then
+  info "Not starting Hammerspoon (--no-start). Choose Hammerspoon › Reload Config when ready."
+else
+  if pgrep -xq Hammerspoon; then
+    info "Restarting Hammerspoon to load Taipea…"
+    osascript -e 'quit app "Hammerspoon"' >/dev/null 2>&1 || true
+    sleep 2
+  fi
+  open -g -a Hammerspoon && ok "Hammerspoon is running (look for 🎙 in the menu bar)"
 fi
-open -g -a Hammerspoon && ok "Hammerspoon is running (look for 🎙 in the menu bar)"
 
 # ---------- 10. permissions ----------
 step "One-time permissions (macOS asks for these, Taipea cannot grant them itself)"
@@ -262,7 +292,7 @@ info "   System Settings › Privacy & Security › Accessibility"
 info "2. Microphone → turn ON Hammerspoon. macOS asks the first time you dictate; click Allow."
 info "   System Settings › Privacy & Security › Microphone"
 info "If a switch was already on but Taipea does not paste, turn it off and on again."
-if ask "Open the Accessibility settings now?" y; then
+if [ "$NO_START" != 1 ] && ask "Open the Accessibility settings now?" y; then
   open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" || true
 fi
 

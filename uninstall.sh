@@ -51,7 +51,7 @@ if [ -d "$DATA" ]; then
 fi
 
 # Taipea saved window positions in Hammerspoon's settings; they are harmless and tiny.
-if pgrep -xq Hammerspoon; then
+if [ "${TAIPEA_NO_START:-0}" != 1 ] && pgrep -xq Hammerspoon; then
   osascript -e 'quit app "Hammerspoon"' >/dev/null 2>&1 || true
   sleep 2; open -g -a Hammerspoon || true
   ok "Restarted Hammerspoon"
