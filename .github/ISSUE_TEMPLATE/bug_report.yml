@@ -1,0 +1,48 @@
+name: Bug report
+description: Something doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! You can write in English or Spanish.
+        **Privacy:** logs contain your dictated text. Remove anything private before pasting.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Press Ctrl+Option+Space in Mail
+        2. Say "..."
+        3. ...
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: "MacBook Air M2, 16 GB, macOS 15.1"
+    validations:
+      required: true
+  - type: input
+    id: models
+    attributes:
+      label: Models in use
+      description: Shown in the Taipea window › Models.
+      placeholder: "large-v3-turbo + gemma4:e4b"
+  - type: dropdown
+    id: style
+    attributes:
+      label: Style
+      options: ["Light", "Paragraph", "Bullets", "Formal", "Cleanup off (raw)", "Not sure"]
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines (optional)
+      description: From ~/Library/Application Support/Taipea/logs/taipea.log. Remove private text.
+      render: text

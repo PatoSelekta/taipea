@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Taipea</title><style>
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important;overflow:hidden}body{font:17px -apple-system;color:#eee}
+#panel{width:100%;height:100%;background:#1c1c20;border:2px solid #3a3a40;border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+#scroll{flex:1;min-height:0;overflow-y:auto}
+#bar{flex:none;height:64px;display:flex;align-items:center;gap:10px;padding:0 10px 0 18px;background:#2a2a30;border-bottom:1px solid #444;cursor:grab;-webkit-user-select:none;z-index:3}
+#bar .t{flex:1;font:700 20px -apple-system}#bar .t small{font:400 14px -apple-system;color:#999;margin-left:10px}
+#bar button{height:52px;min-width:72px;font-size:22px}
+#tabs{display:flex;gap:8px;padding:12px;background:#111;position:sticky;top:0;z-index:2}
+.tab{flex:1;height:64px;border:0;border-radius:12px;background:#333;color:#fff;font:700 20px -apple-system;cursor:pointer}
+.tab.on{background:#0a84ff}
+section{display:none;padding:14px}section.on{display:block}
+button{height:60px;min-width:120px;padding:0 18px;border:0;border-radius:12px;font:700 18px -apple-system;color:#fff;cursor:pointer;background:#3a3a40}
+button:hover{filter:brightness(1.25)}.b{background:#0a84ff}.g{background:#34c759}.r{background:#ff453a}.y{background:#ff9f0a}
+input[type=text],input[type=number],textarea{font:18px -apple-system;padding:14px;border-radius:10px;border:1px solid #555;background:#2a2a30;color:#fff}
+.e{background:#2c2c32;border-radius:12px;padding:14px;margin-bottom:12px}.h{color:#999;font-size:14px}
+.x{font-size:19px;margin:8px 0;white-space:pre-wrap}
+.sty{margin-top:10px}.sty .opt{min-width:110px}.sty .lbl{width:100%;color:#999;font-size:14px}
+.e.busy .sty .opt{opacity:.4;pointer-events:none}.conv{color:#ffcc00;font-weight:700;font-size:18px}.raw{color:#aaa;font-size:15px;margin-bottom:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card{background:#2c2c32;border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
+.opt{flex:1;min-width:130px}.opt.on{background:#0a84ff;outline:3px solid #fff}
+.m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#24242a;border-radius:10px;padding:10px 12px;margin:8px 0}
+.m small{color:#aaa;display:block;font-size:14px}.prog{color:#ffcc00;font-weight:700}
+/* Size: compact scales the whole UI via one variable; the Size card stays full size */
+:root{--z:1}body.compact{--z:.65}#bar,#inner{zoom:var(--z)}
+body.compact #sizecard{zoom:calc(1/var(--z))}
+</style></head><body><div id=panel>
+<div id=bar><div class=t>🎙 Taipea<small>drag here to move</small></div><button onclick="send({cmd:'mini'})" title="Hide" aria-label="Hide window">—</button><button class=r onclick="send({cmd:'close'})" title="Close" aria-label="Close window">✕</button></div>
+<div id=scroll><div id=inner>
+<div id=tabs><button class="tab on" data-t=hist>History</button><button class=tab data-t=set>Settings</button><button class=tab data-t=mod>Models</button><button class="tab g" onclick="send({cmd:'dictate'})" style="flex:.8">🎙 Dictate</button></div>
+<section id=hist class=on>
+ <div class=row style="margin-bottom:12px"><input id=q type=text aria-label="Search history" placeholder="Search…" style="flex:1" oninput="renderHist()"><button class=r id=clr onclick="clr()">Clear all</button></div>
+ <div id=hl></div></section>
+<section id=set><div id=sl></div></section>
+<section id=mod><div id=ml></div></section>
+</div></div></div>
+<script>
+var S={};function send(o){webkit.messageHandlers.taipea.postMessage(o)}
+document.getElementById('bar').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();send({cmd:'dragStart'})}});
+document.querySelectorAll('.tab[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab[data-t]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==b.dataset.t))});
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fin(e){return e.cleaned||e.raw}
+var SN={light:'Light',paragraphs:'Paragraph',bullets:'Bullets',formal:'Formal'},PEND={};
+function restyle(i,st){PEND[i]=st;renderHist();send({cmd:'restyle',i:i,style:st})}
+function renderHist(){var q=document.getElementById('q').value.toLowerCase(),h='';
+ (S.history||[]).forEach((e,i)=>{if(q&&!((e.raw||'')+' '+(e.cleaned||'')).toLowerCase().includes(q))return;
+  var cv=(S.conv||{})[i+1]||PEND[i+1];
+ h+='<div class="e'+(cv?' busy':'')+'"><div class=h>'+esc(e.time)+(e.cleaned?' · '+(SN[e.style]||'cleaned'):' · raw')+'</div>'+
+ (cv?'<div class=conv>⏳ Converting to '+SN[cv]+'…</div>':'')+'<div class=x>'+esc(fin(e))+'</div>'+
+ (e.cleaned&&e.cleaned!=e.raw?'<div class=raw><b>Raw:</b> '+esc(e.raw)+'</div>':'')+
+ '<div class=row><button class=b onclick="send({cmd:\'copy\',i:'+(i+1)+'})">Copy</button><button class=g onclick="send({cmd:\'paste\',i:'+(i+1)+'})">Paste</button>'+
+ (e.cleaned&&e.cleaned!=e.raw?'<button onclick="send({cmd:\'copyRaw\',i:'+(i+1)+'})">Copy raw</button>':'')+
+ '<button class=r onclick="send({cmd:\'del\',i:'+(i+1)+'})">Delete</button></div>'+
+ '<div class="row sty"><span class=lbl>Convert raw text to:</span>'+['light','paragraphs','bullets','formal'].map(st=>'<button class="opt'+(e.cleaned&&e.style==st?' on':'')+'" onclick="restyle('+(i+1)+',\''+st+'\')">'+SN[st]+'</button>').join('')+'</div></div>'});
+ document.getElementById('hl').innerHTML=h||'<p>No dictations'+(q?' match.':' yet.')+'</p>'}
+function opts(key,list){return '<div class=row>'+list.map(o=>'<button class="opt'+(S.cfg[key]==o[0]?' on':'')+'" onclick="set(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,'&quot;')+')">'+o[1]+'</button>').join('')+'</div>'}
+function set(k,v){send({cmd:'set',key:k,value:v})}
+function renderSet(){var c=S.cfg,h='';
+ h+='<div class=card id=sizecard><h3>Size</h3>'+opts('uiSize',[['normal','Normal'],['compact','Compact']])+'</div>';
+ h+='<div class=card><h3>Open at login</h3>'+opts('openAtLogin',[[true,'On'],[false,'Off']])+
+ (c.openAtLogin?'<p class=h>Dictation shortcut is ready after every login'+(S.autoLaunch?' ✓ (registered)':' ⚠ not registered yet')+'</p>':'<p class=h style="color:#ff9f0a">⚠ When off, dictation won\'t work after restarting until you open Hammerspoon or the Taipea app.</p>')+
+ '<h3 style="margin-top:14px">Show window at login</h3>'+opts('showAtLogin',[[true,'On'],[false,'Off']])+'</div>';
+ h+='<div class=card><h3>Shortcuts</h3><p class=h>Format: ctrl+alt+space · cmd, ctrl, alt, shift + key</p>'+
+ [['toggleKey','Start / stop'],['modeKey','Cleaned ↔ raw'],['historyKey','Open this app']].map(k=>'<div class=row style="margin:6px 0"><span style="width:160px">'+k[1]+'</span><input type=text id="k_'+k[0]+'" value="'+esc(S.keys[k[0]])+'" style="flex:1"><button class=b onclick="set(\''+k[0]+'\',document.getElementById(\'k_'+k[0]+'\').value)">Save</button></div>').join('')+'</div>';
+ h+='<div class=card><h3>Cleanup (grammar fix)</h3>'+opts('cleanup',[[true,'On'],[false,'Off (raw)']])+'<h3 style="margin-top:14px">Style</h3>'+opts('style',[['light','Light fix'],['paragraphs','Paragraphs'],['bullets','Bullet points'],['formal','Formal']])+'</div>';
+ h+='<div class=card><h3>Language</h3>'+opts('language',[['auto','Auto (EN/ES mix)'],['en','English'],['es','Español']])+'</div>';
+ h+='<div class=card><h3>After stopping</h3>'+opts('defaultAction',[['paste','Paste at cursor'],['copy','Copy only']])+'</div>';
+ h+='<div class=card><h3>Auto-stop on silence</h3>'+opts('autoStop',[[true,'On'],[false,'Off']])+
+ '<div class=row style="margin-top:10px"><span>Silence seconds</span><button onclick="set(\'silenceSeconds\','+Math.max(1,c.silenceSeconds-0.5)+')">−</button><b style="font-size:24px">'+c.silenceSeconds+'</b><button onclick="set(\'silenceSeconds\','+(c.silenceSeconds+0.5)+')">+</button></div>'+
+ '<div class=row style="margin-top:10px"><span>Sensitivity threshold</span>'+['0.5%','1%','1.5%','3%','5%'].map(t=>'<button class="opt'+(c.silenceThreshold==t?' on':'')+'" onclick="set(\'silenceThreshold\',\''+t+'\')">'+t+'</button>').join('')+'</div><p class=h>Higher threshold = treats more background noise as silence.</p></div>';
+ h+='<div class=card><h3>Overlay</h3><button class=y onclick="send({cmd:\'resetOverlay\'})">Reset overlay position</button></div>';
+ document.getElementById('sl').innerHTML=h}
+function renderMod(){var h='';
+ if(S.missing)h+='<div class=card style="border:2px solid #ff9f0a"><h3>⚠ Setup needed</h3><p>'+esc(S.missing)+'</p></div>';
+ h+='<div class=card><h3>Speech model (Whisper)</h3><p class=h>Saved in ~/Library/Application Support/Taipea/models</p>';
+ (S.whisperModels||[]).forEach(m=>{h+='<div class=m><div><b>'+esc(m.name)+'</b><small>'+esc(m.size)+' · '+esc(m.note)+'</small></div>'+
+ (m.installed?(S.cfg.modelName==m.file?'<button class=g>✓ In use</button>':'<button class=b onclick="set(\'modelName\',\''+m.file+'\')">Use</button>'):
+ (S.dl[m.file]?'<span class=prog>'+S.dl[m.file]+'</span>':'<button class=y onclick="send({cmd:\'dlWhisper\',file:\''+m.file+'\'})">Download</button>'))+'</div>'});
+ h+='</div><div class=card><h3>Cleanup model (Ollama)</h3>'+(S.ollama?(S.activeModel?'<p class=h>Now using: <b>'+esc(S.activeModel)+'</b></p>':'<p class=h style="color:#ff9f0a">⚠ No cleanup model is running. Raw text still works. Start Ollama (brew services start ollama) and download a model below.</p>'):'<p class=h style="color:#ff9f0a">⚠ Ollama is not installed, so cleanup and styles are off. Raw dictation still works. Install it with: brew install ollama</p>');
+ (S.llmModels||[]).forEach(m=>{h+='<div class=m><div><b>'+esc(m.name)+'</b><small>'+esc(m.size)+' · '+esc(m.note)+'</small></div>'+
+ (m.installed?(S.cfg.ollamaModel==m.name?'<button class=g>✓ In use</button>':'<button class=b onclick="set(\'ollamaModel\',\''+m.name+'\')">Use</button>'):
+ (S.dl[m.name]?'<span class=prog>'+S.dl[m.name]+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">Download</button>'))+'</div>'});
+ h+='</div><button onclick="send({cmd:\'refresh\'})">Refresh list</button>';document.getElementById('ml').innerHTML=h}
+function clr(){var b=document.getElementById('clr');if(b.dataset.a){send({cmd:'clearHistory'});b.dataset.a='';b.textContent='Clear all'}else{b.dataset.a=1;b.textContent='Tap again to DELETE ALL';setTimeout(()=>{b.dataset.a='';b.textContent='Clear all'},4000)}}
+function render(d){S=d;PEND={};document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');renderHist();renderSet();renderMod()}
+send({cmd:'refresh'});
+</script></body></html>

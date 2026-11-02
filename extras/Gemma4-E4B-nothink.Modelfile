@@ -1,0 +1,28 @@
+# OPTIONAL. Taipea already asks Ollama not to "think" (think=false), so you
+# normally do not need this. Use it only if your Ollama version still makes
+# gemma4 write long "thinking" text and cleanup is slow.
+#
+#   ollama pull gemma4:e4b
+#   ollama create taipea-gemma4 -f extras/Gemma4-E4B-nothink.Modelfile
+#   then set  ollamaModel = "taipea-gemma4"  in config.lua (or pick it in Models)
+FROM gemma4:e4b
+TEMPLATE """{{- if .System }}<|turn>system
+{{ .System }}<turn|>
+{{ end }}
+{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 }}
+{{- if eq .Role "user" }}<|turn>user
+{{ .Content }}<turn|>
+{{ if $last }}<|turn>model
+<|channel>thought
+<channel|>{{ end }}
+{{- else if eq .Role "assistant" }}<|turn>model
+{{ .Content }}{{ if not $last }}<turn|>
+{{ end }}
+{{- end }}
+{{- end }}"""
+PARAMETER stop <turn|>
+PARAMETER stop <|turn>
+PARAMETER temperature 1
+PARAMETER top_p 0.95
+PARAMETER top_k 64

@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+._*
+
+# Personal data: never commit these
+history*.json
+settings*.json
+config.lua
+!src/config.example.lua
+logs/
+tmp/
+*.log
+
+# Models (large downloads)
+models/
+*.bin
+*.gguf
+
+# Backups and build output
+*.bak
+*.taipea-backup-*
+*.taipea-uninstall-backup-*
+build/
+dist/
+*.zip
+Taipea.app/

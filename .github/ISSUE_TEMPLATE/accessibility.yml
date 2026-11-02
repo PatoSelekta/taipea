@@ -1,0 +1,48 @@
+name: Accessibility issue
+description: Something is hard or impossible to use with your body, your setup, or your assistive technology.
+labels: ["accessibility", "priority: high"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Accessibility problems are bugs, and we fix them first. You don't need any technical
+        knowledge. Short answers are fine, and you can write in English or Spanish.
+        You can also dictate this report with Taipea.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What got in your way?
+      placeholder: "The Cancel button is too close to Stop & Paste, and my head mouse hits the wrong one."
+    validations:
+      required: true
+  - type: checkboxes
+    id: at
+    attributes:
+      label: What do you use to control your Mac?
+      options:
+        - label: Head mouse / head tracking
+        - label: Eye tracker
+        - label: Switch access
+        - label: Voice Control
+        - label: VoiceOver or another screen reader
+        - label: Mouth stick, stylus, or one finger
+        - label: Regular mouse or trackpad, with limited movement or strength
+        - label: Something else (please tell us below)
+  - type: input
+    id: tool
+    attributes:
+      label: Name of the device or app (optional)
+      placeholder: "SmartNav, Tobii, Apple Head Pointer, Dwell Control…"
+  - type: textarea
+    id: better
+    attributes:
+      label: What would make it easier? (optional)
+  - type: dropdown
+    id: size
+    attributes:
+      label: Interface size
+      options: ["Normal", "Compact", "Not sure"]
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version (optional)
