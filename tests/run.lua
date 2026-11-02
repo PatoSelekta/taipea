@@ -215,5 +215,8 @@ check("satellite labels es", M.T("sat_copy") == "Parar y solo copiar" and M.T("s
 check("satellite labels en", M.STR.en.sat_copy == "Stop & Copy only" and M.STR.en.fab_rec == "Stop & Paste")
 check("icons", M.ICON.paste:find("<svg", 1, true) and M.ICON.copy:find("<svg", 1, true) and M.ICON.x:find("<svg", 1, true) and M.ICON.mic:find("<svg", 1, true))
 
+check("watchdog present", type(M.watchdogReset) == "function" and type(M._timers) == "table")
+check("watchdog strings", M.STR.en.wd_reset ~= nil and M.STR.es.wd_reset ~= nil and M.STR.es.wd_empty ~= nil)
+
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

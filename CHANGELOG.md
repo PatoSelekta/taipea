@@ -4,6 +4,13 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-02
+
+### Fixed
+- Dictation could get stuck on "processing" after stopping (a one-shot timer was garbage-collected).
+- Added a processing watchdog that restarts or resets to idle with an alert and keeps the audio for Recover last recording.
+- An empty recording now returns to idle with a microphone alert.
+
 ## [0.2.0] - 2026-11-02
 
 First public release (includes everything listed under 0.1.0 below, which was never published).
@@ -78,4 +85,5 @@ Internal baseline (not published as a GitHub release).
 - The installer no longer starts or restarts Ollama when it is already running.
 - `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
+[0.2.1]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.1
 [0.2.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.0

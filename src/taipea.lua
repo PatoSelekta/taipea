@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.0
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.1
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -154,6 +154,7 @@ local NEWSTR = {
   voice_on="Voice start/stop: ON. Say “%s” to start", voice_off="Voice start/stop: OFF", voice_paused="Voice start/stop is paused while the screen is locked",
   voice_need_phrase="Type at least one phrase", phrases_saved="Phrases saved",
   fab_idle="Start dictation", fab_rec="Stop & Paste", sat_copy="Stop & Copy only", sat_cancel="Cancel", fab_busy="Working…", fab_listening="Listening for “%s”", fab_reset="Floating button position reset",
+  wd_reset="Processing got stuck, so it was reset. Your audio is kept: 🎙 › Recover last recording", wd_empty="The recording was empty, nothing to transcribe. Check the microphone.", wd_nowhisper="Speech engine (whisper-cli) not found. Your audio is kept for recovery.",
   fab_on="Floating button: ON", card_on="Recording card: shown with the floating button", card_off="Recording card: hidden while the floating button is on", fab_off="Floating button: OFF",
   words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
   look_set="Display updated",
@@ -168,6 +169,7 @@ local NEWSTR = {
   voice_on="Empezar/parar con la voz: SÍ. Di «%s» para empezar", voice_off="Empezar/parar con la voz: NO", voice_paused="La voz está en pausa mientras la pantalla está bloqueada",
   voice_need_phrase="Escribe al menos una frase", phrases_saved="Frases guardadas",
   fab_idle="Empezar a dictar", fab_rec="Parar y pegar", sat_copy="Parar y solo copiar", sat_cancel="Cancelar", fab_busy="Trabajando…", fab_listening="Escuchando «%s»", fab_reset="Posición del botón flotante restablecida",
+  wd_reset="El procesamiento se trabó y se reinició. Tu audio está guardado: 🎙 › Recuperar la última grabación", wd_empty="La grabación quedó vacía, no hay nada que transcribir. Revisa el micrófono.", wd_nowhisper="No se encontró el motor de voz (whisper-cli). Tu audio está guardado para recuperarlo.",
   fab_on="Botón flotante: SÍ", card_on="Tarjeta de grabación: se muestra con el botón flotante", card_off="Tarjeta de grabación: oculta mientras el botón flotante está activo", fab_off="Botón flotante: NO",
   words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
   look_set="Pantalla actualizada",
@@ -192,6 +194,14 @@ end
 if cfgError then hs.alert.show(T("cfg_error")) end
 
 local M = {}
+-- one-shot timers are kept referenced until they fire (an unreferenced hs.timer can be
+-- garbage-collected and never run, which once left a dictation stuck in "processing")
+M._timers = {}
+local function after(sec, fn)
+  local t; t = hs.timer.doAfter(sec, function(...) M._timers[t] = nil; return fn(...) end)
+  M._timers[t] = true
+  return t
+end
 M.STR, M.T, M.uiLang, M.systemLang = STR, T, uiLang, systemLang
 M.cfg, M.DEFAULTS = cfg, DEFAULTS
 local DATA_DIR, KP, MSG = DATA, "taipea.", "taipea"
@@ -462,9 +472,9 @@ local function doPaste(text, app)
   local old = hs.pasteboard.readAllData()
   hs.pasteboard.setContents(text)
   if app then app:activate() end
-  hs.timer.doAfter(0.25, function()
+  after(0.25, function()
     hs.eventtap.keyStroke({"cmd"}, "v", 0)
-    if cfg.restoreClipboard and old then hs.timer.doAfter(0.6, function() hs.pasteboard.writeAllData(old) end) end
+    if cfg.restoreClipboard and old then after(0.6, function() hs.pasteboard.writeAllData(old) end) end
   end)
 end
 
@@ -621,7 +631,7 @@ local function startDrag(w, key, onEnd)
   M._dragEnd = finishDrag
   -- end on the real mouse-up event too: checkMouseButtons() reads hardware state and can miss
   -- releases sent by assistive/head-mouse software, which left the window following the pointer
-  upTap = hs.eventtap.new({hs.eventtap.event.types.leftMouseUp}, function() hs.timer.doAfter(0, finishDrag); return false end)
+  upTap = hs.eventtap.new({hs.eventtap.event.types.leftMouseUp}, function() after(0, finishDrag); return false end)
   upTap:start()
   timer = hs.timer.doEvery(0.016, function()
     local p = hs.mouse.absolutePosition()
@@ -764,8 +774,8 @@ vlBurst = function()
     if hs.timer.secondsSinceEpoch() - t0 < 0.5 then VL.quick = VL.quick + 1 else VL.quick = 0 end
     if VL.quick >= 5 then
       VL.waiting = true; log("voice: recorder keeps stopping, retrying in 30 s")
-      hs.timer.doAfter(30, function() VL.waiting = false; VL.quick = 0; vlSync() end)
-    else hs.timer.doAfter(0.05, vlSync) end
+      after(30, function() VL.waiting = false; VL.quick = 0; vlSync() end)
+    else after(0.05, vlSync) end
   end, { "-q", "-c", "1", "-r", "16000", "-b", "16", f, "silence", "1", "0.15", thr, "1", "0.7", thr, "trim", "0", tostring(cap) })
   VL.task = t
   if not t:start() then VL.task = nil end
@@ -1027,7 +1037,7 @@ function M.satPress(which)
     if math.sqrt((p.x - p0.x)^2 + (p.y - p0.y)^2) >= 8 or state ~= "rec" then return end
     if which == "copy" then M.stop("copy") elseif which == "cancel" then M.cancel() end
   end
-  P.tap = hs.eventtap.new({ hs.eventtap.event.types.leftMouseUp }, function() hs.timer.doAfter(0, fin); return false end)
+  P.tap = hs.eventtap.new({ hs.eventtap.event.types.leftMouseUp }, function() after(0, fin); return false end)
   P.tap:start()
   local n = 0
   P.tm = hs.timer.doEvery(0.03, function() n = n + 1
@@ -1341,6 +1351,14 @@ end
 M.afterWhisper = afterWhisper
 transcribe = function(file)
   file = file or wav; M._sessWav = file
+  M._wdKick = true
+  if not cfg.whisper or not fileExists(cfg.whisper) then M.watchdogReset("whisper-cli not found", T("wd_nowhisper")); return end
+  local sz = (hs.fs.attributes(file) or {}).size or 0
+  if sz <= 44 + 3200 then   -- header + 0.1 s of audio
+    log("watchdog: recording empty ("..sz.." bytes), back to idle")
+    state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false; refresh()
+    hs.alert.show(T("wd_empty"), 5); return
+  end
   saveSession({ phase="transcribing", wav=file })
   state="busy"; refresh(); setOverlay(T("ov_transcribing"), cfg.modelName:gsub("^ggml%-",""):gsub("%.bin$","").." ("..cfg.language..")", true)
   local t0 = hs.timer.secondsSinceEpoch()
@@ -1357,7 +1375,7 @@ transcribe = function(file)
     out = (out or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
     afterWhisper(out)
   end, whisperArgs(file))
-  M.wTask:start()
+  if not M.wTask:start() then M.wTask = nil; M.watchdogReset("whisper-cli did not start", T("wd_reset")) end
 end
 
 -- load the cleanup model in the background (same num_ctx as cleanup, or Ollama reloads it)
@@ -1393,23 +1411,23 @@ function M.start()
   if M._simInput then recCmd = cfg.rec:gsub("rec$","sox"); args = { M._simInput, "-c", "1", "-r", "16000", "-b", "16", wav } end  -- test hook
   recTask = hs.task.new(recCmd, function()
     recTask = nil
-    if state=="rec" then state="busy"; sound("Pop"); hs.timer.doAfter(0.2, function() transcribe() end) end
+    if state=="rec" then state="busy"; sound("Pop"); after(0.2, function() transcribe() end) end
   end, args)
   showOverlay()
   recTask:start(); state="rec"; recStart=hs.timer.secondsSinceEpoch()
   sound("Tink")
-  if cfg.cleanup then hs.timer.doAfter(0.5, function() M.warmModel() end) end
+  if cfg.cleanup then after(0.5, function() M.warmModel() end) end
   local sub = cfg.autoStop and T("ov_autostop", tostring(cfg.silenceSeconds)) or T("ov_press", keyLabel(cfg.toggleKey))
   if M.voiceActive() and (cfg.stopPhrases or {})[1] then sub = T("ov_say_stop", cfg.stopPhrases[1]) end
-  hs.timer.doAfter(0.3, function() setOverlay(T("ov_listening"), sub, false) end)
+  after(0.3, function() setOverlay(T("ov_listening"), sub, false) end)
   tick = hs.timer.doEvery(1, function() if state=="rec" then setOverlay(T("ov_listening"), sub, false) end end)
-  hs.timer.doAfter(0, refresh)
+  after(0, refresh)
 end
 function M.stop(m)
   if state ~= "rec" then return end
   mode = m or "paste"; state="busy"; sound("Pop")
   if recTask then recTask:interrupt() end
-  hs.timer.doAfter(0.3, function() transcribe() end); refresh()
+  after(0.3, function() transcribe() end); refresh()
 end
 function M.cancel()
   cancelled = true; clearSession(); M._voiceStopped, M._voicePrefix, M._voiceSession, M._recovering = false, nil, false, false
@@ -1510,7 +1528,7 @@ function M.handle(a)
   if c=="refresh" then ollamaInstalled(true); pushState()
   elseif c=="close" then appWin:hide(); if M.lastApp then M.lastApp:activate() end
   elseif c=="mini" then appWin:hide(); hs.alert.show(T("hidden", keyLabel(cfg.historyKey)))
-  elseif c=="dictate" then if appWin then appWin:hide() end; hs.timer.doAfter(0.3, function() if M.lastApp then M.lastApp:activate() end; hs.timer.doAfter(0.3, M.start) end)
+  elseif c=="dictate" then if appWin then appWin:hide() end; after(0.3, function() if M.lastApp then M.lastApp:activate() end; after(0.3, M.start) end)
   elseif c=="copy" and e then hs.pasteboard.setContents(finalText(e)); hs.alert.show(T("copied"))
   elseif c=="copyRaw" and e then hs.pasteboard.setContents(e.raw); hs.alert.show(T("copied_raw"))
   elseif c=="paste" and e then appWin:hide(); doPaste(finalText(e), M.lastApp)
@@ -1591,10 +1609,10 @@ function M.openApp()
   do local nf = clampFrame(appWin:frame()); appWin:frame(nf)
     local sp = settings.get("taipea.appPos"); if sp and (sp.x~=nf.x or sp.y~=nf.y) then settings.set("taipea.appPos", {x=nf.x, y=nf.y}) end end
   appWin:level(hs.drawing.windowLevels.normal):show()
-  hs.timer.doAfter(0.1, function() local hw=appWin:hswindow(); if hw then hw:focus() end end)
+  after(0.1, function() local hw=appWin:hswindow(); if hw then hw:focus() end end)
   hs.application.get("org.hammerspoon.Hammerspoon"):activate()
   updateLook()
-  hs.timer.doAfter(0.5, pushState)
+  after(0.5, pushState)
 end
 M.showHistory = M.openApp
 function M.appWinRef() return appWin end
@@ -1614,10 +1632,39 @@ if hs.autoLaunch() ~= (cfg.openAtLogin and true or false) then hs.autoLaunch(cfg
 -- show window at startup only on a fresh launch shortly after login (not on config reload)
 if cfg.showAtLogin and not hs.settings.get("taipea.reloading") then
   local up = tonumber((hs.execute("sysctl -n kern.boottime"):match("sec = (%d+)"))) or 0
-  if os.time() - up < 600 then hs.timer.doAfter(3, function() M.openApp() end) end
+  if os.time() - up < 600 then after(3, function() M.openApp() end) end
 end
 if cfg.cleanup then M.warmModel() end
-if M.checkRecovery() then hs.timer.doAfter(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
+if M.checkRecovery() then after(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
+-- ---------- watchdog ----------
+-- Checks every 5 s while processing. If transcription never started it starts it; if processing
+-- runs past 60 s with nothing working (or past 180 s at all) it resets to idle and keeps the audio.
+function M.watchdogReset(reason, msg)
+  log("watchdog: "..reason.." – reset to idle, audio kept for recovery")
+  local keep = M._sessWav or wav
+  if keep ~= recoverWav and fileExists(keep) then os.remove(recoverWav); if os.rename(keep, recoverWav) then keep = recoverWav end end
+  local function keepIt() if fileExists(keep) then saveSession({ phase="recording", wav=keep, started=os.date("%F %T") }) end end
+  keepIt()
+  cancelled = true
+  if M.wTask then local t = M.wTask; M.wTask = nil; t:terminate() end
+  if recTask then local t = recTask; recTask = nil; t:terminate() end
+  state = "idle"; if tick then tick:stop() end; hideOverlay(); M._recovering = false
+  M._wdBusy, M._wdKick = nil, false
+  M.checkRecovery(); refresh()
+  hs.alert.show(msg or T("wd_reset"), 8)
+  -- a stopped whisper/recorder reports back a moment later and clears the session: save it again
+  after(1.5, function() if state == "idle" then keepIt(); M.checkRecovery(); refresh() end end)
+end
+M._watchdog = hs.timer.doEvery(5, function()
+  if state ~= "busy" then M._wdBusy, M._wdKick = nil, false; return end
+  local now = hs.timer.secondsSinceEpoch()
+  M._wdBusy = M._wdBusy or now
+  local age = now - M._wdBusy
+  if not M._wdKick and not M.wTask and not recTask and age >= 4 and not M._recovering then
+    M._wdKick = true; log("watchdog: transcription never started, starting it now"); transcribe(); return
+  end
+  if (age > 60 and not M.wTask) or age > 180 then M.watchdogReset(string.format("processing for %.0f s", age)) end
+end)
 showFab()
 log("Taipea loaded · whisper="..tostring(cfg.whisper).." rec="..tostring(cfg.rec).." ollama="..tostring(cfg.ollama).." model="..cfg.modelName..
   " · voice="..tostring(cfg.voiceControl).." floatButton="..tostring(cfg.floatButton).." card="..tostring(M.cardWanted()).." customWords="..#(cfg.customWords or {}))
