@@ -15,6 +15,12 @@ hs.json = { encode = function() return "{}" end, decode = function(s) return { r
 hs.http = { asyncPost = function(_, _, _, cb) cb(fake.post and 200 or 0, fake.post and fake.post() or nil) end }
 hs.alert = { show = function(m) fake.lastAlert = m end }
 hs.keycodes = { map = { space = 49, c = 8, h = 4, v = 9, f = 3 } }
+local TY = { flagsChanged = 12, keyDown = 10, leftMouseDown = 1, rightMouseDown = 3, otherMouseDown = 25, scrollWheel = 22, leftMouseUp = 2 }
+hs.eventtap = { event = { types = TY }, keyStroke = function() end, checkMouseButtons = function() return {} end,
+  new = function(types, fn) local t = { types = types, fn = fn, on = false }
+    function t:start() self.on = true; return self end; function t:stop() self.on = false; return self end
+    function t:isEnabled() return self.on end
+    if types[1] == TY.flagsChanged then fake.tap = t end; return t end }
 hs.settings = { get = function() return true end, set = function() end }
 hs.host = { locale = { preferredLanguages = function() return { fake.lang or "en-US" } end, current = function() return "en_US" end } }
 hs.hotkey = { bind = function(mods, key) fake.binds = fake.binds or {}; table.insert(fake.binds, table.concat(mods, "+") .. "+" .. key); return { delete = function() end } end }
@@ -106,13 +112,16 @@ check("default toggle key", table.concat(D.toggleKey.mods, "+") .. "+" .. D.togg
 check("default mode key", table.concat(D.modeKey.mods, "+") .. "+" .. D.modeKey.key == "ctrl+alt+c")
 check("default history key", table.concat(D.historyKey.mods, "+") .. "+" .. D.historyKey.key == "ctrl+alt+h")
 local b = table.concat(fake.binds or {}, ",")
-check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v,ctrl+alt+f")
-check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey and M.bound.fabHide == D.fabHideKey)
-check("default hide key", table.concat(D.fabHideKey.mods, "+") .. "+" .. D.fabHideKey.key == "ctrl+alt+f")
-do local seen, dup = {}, false
-  for _, k in ipairs({ "toggleKey", "modeKey", "historyKey", "pasteLastKey", "fabHideKey" }) do
+check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v")
+check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey and M.bound.fabHide == nil)
+check("no Ctrl+Option+F any more", D.fabHideKey == nil and not b:find("ctrl+alt+f", 1, true))
+do local seen, dup, cmdAlt = {}, false, false
+  for _, k in ipairs({ "toggleKey", "modeKey", "historyKey", "pasteLastKey" }) do
+    local m = {}; for _, x in ipairs(D[k].mods) do m[x] = true end
+    if m.cmd and m.alt then cmdAlt = true end   -- would also be a Cmd+Option press, which the tap ignores anyway
     local s = table.concat(D[k].mods, "+") .. "+" .. D[k].key; if seen[s] then dup = true end; seen[s] = true end
-  check("default shortcuts don't collide", not dup) end
+  check("default shortcuts don't collide", not dup)
+  check("no default shortcut uses Cmd+Option (the tap)", not cmdAlt) end
 check("default paste-last key", table.concat(D.pasteLastKey.mods, "+") .. "+" .. D.pasteLastKey.key == "ctrl+alt+v")
 check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.cardWithFab == false and D.textSize == "normal" and D.contrast == "auto"
   and D.silenceSeconds == 3 and #D.customWords == 0 and D.startPhrases[1] == "Taipea escribe" and D.stopPhrases[1] == "listo")
@@ -300,5 +309,41 @@ M.micProblem(M.T("no_speech"))
 check("mic hint shown", M.micWarn == true and (fake.lastAlert or ""):find(M.T("perm_mic_hint"), 1, true) ~= nil)
 check("permission URLs", M.AX_URL:find("Privacy_Accessibility", 1, true) and M.MIC_URL:find("Privacy_Microphone", 1, true))
 
+-- ---------- v0.2.3: Option + Command tap ----------
+local function tapSeq(steps)
+  M.FT.seq, M.FT.both, M.FT.dirty = false, false, false
+  local fired = false
+  for _, s in ipairs(steps) do if M.fabTapFeed(s[1], s[2], s[3]) then fired = true end end
+  return fired
+end
+local F = "flags"
+for _, c in ipairs({
+  { "tap, one key then the other", true, { { F, { cmd = true }, 0 }, { F, { cmd = true, alt = true }, 0.1 }, { F, { alt = true }, 0.2 }, { F, {}, 0.25 } } },
+  { "tap, both at once", true, { { F, { cmd = true, alt = true }, 0 }, { F, {}, 0.1 } } },
+  { "Cmd+Option+key does not toggle", false, { { F, { cmd = true }, 0 }, { F, { cmd = true, alt = true }, 0.1 }, { "key", nil, 0.2 }, { F, { cmd = true }, 0.3 }, { F, {}, 0.35 } } },
+  { "Cmd+Option+click does not toggle", false, { { F, { cmd = true, alt = true }, 0 }, { "mouse", nil, 0.1 }, { F, {}, 0.2 } } },
+  { "with Shift does not toggle", false, { { F, { cmd = true, alt = true }, 0 }, { F, { cmd = true, alt = true, shift = true }, 0.1 }, { F, {}, 0.2 } } },
+  { "with Control does not toggle", false, { { F, { ctrl = true, cmd = true, alt = true }, 0 }, { F, {}, 0.2 } } },
+  { "with Fn does not toggle", false, { { F, { fn = true, cmd = true, alt = true }, 0 }, { F, {}, 0.2 } } },
+  { "too slow (1.4 s) does not toggle", false, { { F, { cmd = true }, 0 }, { F, { cmd = true, alt = true }, 0.5 }, { F, {}, 1.4 } } },
+  { "Command alone does not toggle", false, { { F, { cmd = true }, 0 }, { F, {}, 0.1 } } },
+  { "Option alone does not toggle", false, { { F, { alt = true }, 0 }, { F, {}, 0.1 } } },
+  { "Cmd+Tab then Option does not toggle", false, { { F, { cmd = true }, 0 }, { "key", nil, 0.05 }, { F, { cmd = true, alt = true }, 0.1 }, { F, {}, 0.2 } } },
+}) do check("tap: " .. c[1], tapSeq(c[3]) == c[2]) end
+check("tap: a clean tap right after a cancelled one", tapSeq({ { F, { cmd = true, alt = true }, 0 }, { "key", nil, 0.05 }, { F, {}, 0.1 } }) == false
+  and tapSeq({ { F, { cmd = true, alt = true }, 1 }, { F, {}, 1.1 } }) == true)
+-- the real event tap: started, watches the right events, never consumes them
+local tap = fake.tap
+check("event tap started", tap ~= nil and tap.on == true and M.fabTapOK == true)
+local function ev(t, fl) return { getType = function() return t end, getFlags = function() return fl or {} end } end
+check("event tap never consumes keys", tap.fn(ev(TY.keyDown)) == false and tap.fn(ev(TY.flagsChanged, { cmd = true })) == false
+  and tap.fn(ev(TY.flagsChanged, { cmd = true, alt = true })) == false and tap.fn(ev(TY.flagsChanged, {})) == false)
+local watches = {}; for _, x in ipairs(tap.types) do watches[x] = true end
+check("event tap watches keys, clicks and scrolls", watches[TY.flagsChanged] and watches[TY.keyDown] and watches[TY.leftMouseDown] and watches[TY.scrollWheel])
+check("tap label in both languages", M.STR.en.fab_tap_key == "Option + Command" and M.STR.es.fab_tap_key == "Opción + Comando")
+check("hidden alert names the tap", M.T("fab_hidden", M.T("fab_tap_key")):find("Opción + Comando", 1, true) ~= nil)
+M.cfg.uiLanguage = "en"
+check("hidden alert names the tap (en)", M.T("fab_hidden", M.T("fab_tap_key")) == "Floating button hidden (tap Option + Command to show it again)")
+M.cfg.uiLanguage = "auto"
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

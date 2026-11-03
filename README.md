@@ -72,7 +72,7 @@ Taipea is for you if:
   using. Two smaller buttons appear beside it (blue = stop and copy only, red = cancel). Drag
   it anywhere; it remembers where you left it. You can also show the full recording card in
   Settings. It looks different when idle, recording and working.
-- **Hide the floating button when you don't need it.** Press Ctrl + Option + F (or use the
+- **Hide the floating button when you don't need it.** Tap Option + Command (or use the
   menu) to hide it until you press it again; hide it by itself while an app is full screen
   (on by default) or while chosen apps are in front (for example VLC or TV). It never hides
   while you are recording or Taipea is working, so Stop is always reachable.
@@ -129,7 +129,7 @@ Open the **Terminal** app, paste this line, and press Return:
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
-The one-line installer installs from `main`. To install exactly v0.2.2, download the release source zip, unzip it, and run `./install.sh` from that folder.
+The one-line installer installs from `main`. To install exactly v0.2.3, download the release source zip, unzip it, and run `./install.sh` from that folder.
 
 The installer explains each step, asks before anything big, and can be run again
 safely (it skips what is already done). It:
@@ -231,7 +231,7 @@ config file.
 | **Ctrl + Option + C** | Turn cleanup on or off (raw text). |
 | **Ctrl + Option + H** | Open the Taipea window: History, Settings, Models. |
 | **Ctrl + Option + V** | Paste the last dictation again. |
-| **Ctrl + Option + F** | Hide or show the floating button (until you press it again). |
+| **Option + Command** (tap: press both, let go) | Hide or show the floating button (until you tap it again). Cmd + Option + other key shortcuts are not affected. |
 
 No keyboard? Everything also works with clicks:
 
@@ -302,7 +302,7 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Cleanup on / off | **Ctrl + Option + C** | any shortcut |
 | Open the Taipea window | **Ctrl + Option + H** | any shortcut |
 | Paste last dictation again | **Ctrl + Option + V** | any shortcut |
-| Hide / show floating button | **Ctrl + Option + F** | any shortcut |
+| Hide / show floating button | **Option + Command** tap | fixed |
 | Cleanup (grammar fix) | On | On / Off (raw text) |
 | Cleanup model | `gemma4:e4b`, falls back to `qwen2.5:7b`, then `gemma4:e2b` | any Ollama model |
 | Style | Light | Light / Paragraph / Bullets / Formal |

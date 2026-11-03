@@ -79,7 +79,7 @@ Taipea es para ti si:
   usando. Al lado aparecen dos botones más pequeños (azul = parar y solo copiar, rojo = cancelar). Arrástralo
   donde quieras; recuerda dónde lo dejaste. También puedes mostrar la tarjeta de grabación completa en Ajustes.
   Se ve distinto en reposo, grabando y trabajando.
-- **Oculta el botón flotante cuando no lo necesitas.** Presiona Ctrl + Opción + F (o usa el
+- **Oculta el botón flotante cuando no lo necesitas.** Toca Opción + Comando (o usa el
   menú) para ocultarlo hasta que lo vuelvas a presionar; se oculta solo mientras una app está
   en pantalla completa (activado por defecto) o mientras ciertas apps están adelante (por
   ejemplo VLC o TV). Nunca se oculta mientras grabas o Taipea trabaja, así que Parar siempre
@@ -140,7 +140,7 @@ Abre la app **Terminal**, pega esta línea y presiona Enter:
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
-El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.2, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
+El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.3, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
 
 El instalador explica cada paso, pregunta antes de algo grande y se puede volver a
 ejecutar sin problema (se salta lo que ya está hecho). El instalador:
@@ -244,7 +244,7 @@ de configuración.
 | **Ctrl + Opción + C** | Activa o desactiva la corrección (texto sin corregir). |
 | **Ctrl + Opción + H** | Abre la ventana de Taipea: Historial, Ajustes, Modelos. |
 | **Ctrl + Opción + V** | Pega otra vez el último dictado. |
-| **Ctrl + Opción + F** | Oculta o muestra el botón flotante (hasta que lo vuelvas a presionar). |
+| **Opción + Comando** (toque: presiona las dos y suelta) | Oculta o muestra el botón flotante (hasta que lo vuelvas a tocar). Los atajos Cmd + Opción + otra tecla no cambian. |
 
 ¿Sin teclado? Todo funciona también con clics:
 
@@ -320,7 +320,7 @@ están en `config.example.lua`).
 | Corrección sí / no | **Ctrl + Opción + C** | cualquier atajo |
 | Abrir la ventana de Taipea | **Ctrl + Opción + H** | cualquier atajo |
 | Pegar otra vez el último dictado | **Ctrl + Opción + V** | cualquier atajo |
-| Ocultar / mostrar el botón flotante | **Ctrl + Opción + F** | cualquier atajo |
+| Ocultar / mostrar el botón flotante | toque de **Opción + Comando** | fijo |
 | Corrección (gramática) | Sí | Sí / No (texto original) |
 | Modelo de corrección | `gemma4:e4b`; si falta, `qwen2.5:7b` y luego `gemma4:e2b` | cualquier modelo de Ollama |
 | Estilo | Ligero | Ligero / Párrafos / Viñetas / Formal |

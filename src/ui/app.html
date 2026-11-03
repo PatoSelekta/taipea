@@ -103,7 +103,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  thclassic:'Classic Blue',thstudio:'Studio',thmidnight:'Midnight',thforest:'Forest',thsunset:'Sunset',thcontrast:'High Contrast',thpaper:'Paper',thcustom:'Custom',
  ccBg:'Background',ccMic:'Microphone and text',ccAcc:'Accent (buttons, ring)',ccHint:'Click a color square to open the color picker; the colors change as you pick. Text that would be hard to read is adjusted automatically. Or type a code like #E8503A and press Save.',
  hideT:'Hide the floating button',hideHint:'Hiding only happens while you are not dictating. While you record, the button and its Stop buttons always show. Your shortcuts keep working while it is hidden.',
- hideKeyInfo:'Press %s to hide or show it until you press it again.',hideNow:'Hide for now',showNow:'Show it again',hiddenNow:'Hidden right now: %s',whyShortcut:'by the shortcut',whyFull:'an app is full screen',whyApp:'this app is in the list',
+ hideKeyInfo:'Tap %s (press both keys together, then let go) to hide or show it until you tap it again.',tapFixed:'Tap both keys together and let go, with no other key. This shortcut is fixed and can\'t be changed here.',tapOff:'⚠ The Option + Command tap needs Accessibility permission. Until then, use the menu or the Hide for now button.',hideNow:'Hide for now',showNow:'Show it again',hiddenNow:'Hidden right now: %s',whyShortcut:'by the shortcut',whyFull:'an app is full screen',whyApp:'this app is in the list',
  hideFull:'Hide when an app is full screen',hideFullHint:'Hides it while the app in front is full screen (for example a full-screen video) and brings it back when you leave full screen.',
  hideApps:'Hide in these apps',hideAppsHint:'The button hides while one of these apps is in front.',hideNone:'No apps yet.',remove:'Remove',quick:'Quick add',addRunning:'Add an open app',closeList:'Close list',pickApp:'Click an open app to add it:',kFabHide:'Hide / show floating button',
  axTitle:'⚠️ Accessibility permission is off',axInfo:'Hammerspoon needs it to paste your text. Until it is on, each dictation is copied: paste it with Cmd+V.',
@@ -145,7 +145,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  thclassic:'Azul clásico',thstudio:'Estudio',thmidnight:'Medianoche',thforest:'Bosque',thsunset:'Atardecer',thcontrast:'Alto contraste',thpaper:'Papel',thcustom:'Personalizado',
  ccBg:'Fondo',ccMic:'Micrófono y texto',ccAcc:'Acento (botones, aro)',ccHint:'Haz clic en un cuadro de color para abrir el selector; los colores cambian mientras eliges. El texto difícil de leer se ajusta solo. O escribe un código como #E8503A y presiona Guardar.',
  hideT:'Ocultar el botón flotante',hideHint:'Solo se oculta cuando no estás dictando. Mientras grabas, el botón y sus botones de parar siempre se ven. Tus atajos siguen funcionando aunque esté oculto.',
- hideKeyInfo:'Presiona %s para ocultarlo o mostrarlo hasta que lo vuelvas a presionar.',hideNow:'Ocultar por ahora',showNow:'Mostrar otra vez',hiddenNow:'Oculto ahora: %s',whyShortcut:'por el atajo',whyFull:'hay una app en pantalla completa',whyApp:'esta app está en la lista',
+ hideKeyInfo:'Toca %s (presiona las dos teclas juntas y suéltalas) para ocultarlo o mostrarlo hasta que lo vuelvas a tocar.',tapFixed:'Presiona las dos teclas juntas y suéltalas, sin otra tecla. Este atajo es fijo y no se puede cambiar aquí.',tapOff:'⚠ El toque de Opción + Comando necesita el permiso de Accesibilidad. Mientras tanto, usa el menú o el botón Ocultar por ahora.',hideNow:'Ocultar por ahora',showNow:'Mostrar otra vez',hiddenNow:'Oculto ahora: %s',whyShortcut:'por el atajo',whyFull:'hay una app en pantalla completa',whyApp:'esta app está en la lista',
  hideFull:'Ocultar cuando una app está en pantalla completa',hideFullHint:'Lo oculta mientras la app de adelante está en pantalla completa (por ejemplo un video) y lo vuelve a mostrar al salir.',
  hideApps:'Ocultar en estas apps',hideAppsHint:'El botón se oculta mientras una de estas apps está adelante.',hideNone:'Aún no hay apps.',remove:'Quitar',quick:'Añadir rápido',addRunning:'Añadir una app abierta',closeList:'Cerrar la lista',pickApp:'Haz clic en una app abierta para añadirla:',kFabHide:'Ocultar / mostrar el botón flotante',
  axTitle:'⚠️ El permiso de Accesibilidad está apagado',axInfo:'Hammerspoon lo necesita para pegar tu texto. Mientras esté apagado, cada dictado se copia: pégalo con Cmd+V.',
@@ -212,7 +212,7 @@ function jsq(v){return JSON.stringify(v).replace(/"/g,'&quot;')}
 function hadd(n,id){send({cmd:'hideAppAdd',name:n,id:id})}
 function hideSection(){var c=S.cfg,list=c.hideApps||[],why={shortcut:t('whyShortcut'),fullscreen:t('whyFull'),app:t('whyApp')}[S.fabHidden];
  var h='<div class=kd style="margin-top:14px"><h3 style="margin:4px 0 8px">'+t('hideT')+'</h3><p class=h>'+t('hideHint')+'</p>';
- h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Ctrl + Option + F'))+'</p>';
+ h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>'+(S.fabTapOK===false?'<p style="color:var(--warn);font-weight:700">'+esc(t('tapOff'))+'</p>':'');
  if(why)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('hiddenNow',why))+'</p>';
  h+='<div class=row><button class=b style="flex:1" onclick="send({cmd:\'fabHideToggle\'})">'+(S.fabSessionHidden?t('showNow'):t('hideNow'))+'</button></div>';
  h+='<h3 style="margin-top:14px">'+t('hideFull')+'</h3><p class=h>'+t('hideFullHint')+'</p>'+opts('hideFullscreen',[[true,t('on')],[false,t('off')]]);
@@ -278,9 +278,10 @@ function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
  h+=colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard();
  h+='<div class=card><h3>'+t('keys')+'</h3>'+
- [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste'],['fabHideKey','kFabHide']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
+ [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
   (S.keyLabels[k[0]]!=S.defaultKeys[k[0]]?'<p class=h>'+esc(t('def',S.defaultKeys[k[0]]))+'</p>':'')+
   '<div class=row><input type=text id="k_'+k[0]+'" aria-label="'+esc(t(k[1]))+'" value="'+esc(S.keys[k[0]])+'" style="flex:1"><button class=b onclick="set(\''+k[0]+'\',document.getElementById(\'k_'+k[0]+'\').value)">'+t('save')+'</button></div></div>').join('')+
+ '<div class=kd><div>'+t('kFabHide')+'</div><div class=big>'+esc((S.keyLabels||{}).fabHideKey||'Option + Command')+'</div><p class=h>'+t('tapFixed')+'</p>'+(S.fabTapOK===false?'<p style="color:var(--warn);font-weight:700">'+esc(t('tapOff'))+'</p>':'')+'</div>'+
  '<p class=h>'+t('keyFmt')+'</p><button class=y onclick="send({cmd:\'resetKeys\'})">'+t('resetKeys')+'</button></div>';
  h+='<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:14px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>';
  h+='<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>';

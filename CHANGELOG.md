@@ -4,6 +4,20 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-11-03
+
+### Changed
+- Hide / show the floating button is now a tap of **Option + Command** (press both keys together
+  and let go within about 1 second, with no other key, click, scroll or Control / Shift / Fn in
+  between; left or right keys). It replaces Ctrl + Option + F. Cmd + Option + <key> shortcuts are
+  not affected: the tap only watches keys and never blocks them. Settings › Shortcuts shows it as
+  a fixed shortcut, and the alert and menu item say "Option + Command" / "Opción + Comando".
+- The key watcher is restarted automatically if macOS turns it off. It needs Accessibility; without
+  it, Settings shows a note and the menu item and Hide for now button still work.
+
+### Removed
+- The `fabHideKey` setting (Ctrl + Option + F).
+
 ## [0.2.2] - 2026-11-03
 
 ### Added
@@ -113,6 +127,7 @@ Internal baseline (not published as a GitHub release).
 - The installer no longer starts or restarts Ollama when it is already running.
 - `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
+[0.2.3]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.3
 [0.2.2]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.2
 [0.2.1]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.1
 [0.2.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.0

@@ -11,7 +11,8 @@ return {
   -- modeKey     = { mods = {"ctrl","alt"}, key = "c" },      -- Ctrl+Option+C: cleanup on / off (raw text)
   -- historyKey  = { mods = {"ctrl","alt"}, key = "h" },      -- Ctrl+Option+H: open the Taipea window
   -- pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },     -- Ctrl+Option+V: paste the last dictation again
-  -- fabHideKey  = { mods = {"ctrl","alt"}, key = "f" },      -- Ctrl+Option+F: hide / show the floating button
+  -- Tap Option + Command (press both, let go, no other key) to hide / show the floating button.
+  -- That tap is fixed and needs Accessibility; it is not a setting.
 
   -- Cleanup (grammar fix with a local Ollama model)
   -- cleanup     = true,                 -- false = always paste the raw transcription

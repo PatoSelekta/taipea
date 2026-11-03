@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.2
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.3
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -54,7 +54,6 @@ local DEFAULTS = {
   cardWithFab = false,                       -- also show the recording card while the floating button is on
   floatingTheme = "classic",                 -- app colours: classic | studio | midnight | forest | sunset | contrast | paper | custom
   customBg = "#1A1A1A", customMic = "#FFFFFF", customAccent = "#E8503A",  -- the 3 colours of the Custom set (#RRGGBB)
-  fabHideKey = { mods = {"ctrl","alt"}, key = "f" },  -- hide / show the floating button until pressed again
   hideFullscreen = true,                     -- hide the floating button while the app in front is full screen
   hideApps = {},                             -- hide it while one of these apps is in front: { {name="VLC", id="org.videolan.vlc"}, ... }
   customWords = {},                          -- { {heard="select dev", replace="selektdev"}, ... } (edit in Settings)
@@ -163,7 +162,7 @@ local NEWSTR = {
   fab_on="Floating button: ON", card_on="Recording card: shown with the floating button", card_off="Recording card: hidden while the floating button is on", fab_off="Floating button: OFF",
   words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
   look_set="Display updated",
-  fab_hidden="Floating button hidden (%s shows it again)", fab_shown="Floating button shown", fab_is_off="The floating button is off in Settings",
+  fab_hidden="Floating button hidden (tap %s to show it again)", fab_tap_key="Option + Command", fab_shown="Floating button shown", fab_is_off="The floating button is off in Settings",
   menu_fab_hide="Hide floating button for now", hide_added="Added: %s", hide_removed="Removed: %s", color_bad="That color is not valid. Use a code like #E8503A",
   perm_ax_paste="⚠️ Accessibility permission is off, so Taipea can't paste.\nThe text is on the clipboard: paste it with Cmd+V. Open Taipea for the settings button.",
   perm_ax_start="⚠️ Taipea needs Accessibility permission (for Hammerspoon) to paste.\nOpen Taipea › Open Accessibility settings.",
@@ -185,7 +184,7 @@ local NEWSTR = {
   fab_on="Botón flotante: SÍ", card_on="Tarjeta de grabación: se muestra con el botón flotante", card_off="Tarjeta de grabación: oculta mientras el botón flotante está activo", fab_off="Botón flotante: NO",
   words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
   look_set="Pantalla actualizada",
-  fab_hidden="Botón flotante oculto (%s lo vuelve a mostrar)", fab_shown="Botón flotante visible", fab_is_off="El botón flotante está apagado en Ajustes",
+  fab_hidden="Botón flotante oculto (toca %s para mostrarlo otra vez)", fab_tap_key="Opción + Comando", fab_shown="Botón flotante visible", fab_is_off="El botón flotante está apagado en Ajustes",
   menu_fab_hide="Ocultar el botón flotante por ahora", hide_added="Añadida: %s", hide_removed="Quitada: %s", color_bad="Ese color no es válido. Usa un código como #E8503A",
   perm_ax_paste="⚠️ El permiso de Accesibilidad está apagado: Taipea no puede pegar.\nEl texto está en el portapapeles: pégalo con Cmd+V. Abre Taipea para el botón de ajustes.",
   perm_ax_start="⚠️ Taipea necesita el permiso de Accesibilidad (para Hammerspoon) para pegar.\nAbre Taipea › Abrir ajustes de Accesibilidad.",
@@ -1245,9 +1244,66 @@ function M.toggleFabHidden()
   if not cfg.floatButton then hs.alert.show(T("fab_is_off")); return end
   M.fabSessionHidden = not M.fabSessionHidden
   M.applyFabVis()
-  hs.alert.show(M.fabSessionHidden and T("fab_hidden", keyText(cfg.fabHideKey)) or T("fab_shown"), 2)
+  hs.alert.show(M.fabSessionHidden and T("fab_hidden", T("fab_tap_key")) or T("fab_shown"), 2)
   if pushState then pushState() end
 end
+
+-- ---------- Option + Command tap: hide / show the floating button ----------
+-- Press Option and Command together and let go, with no other key, click, scroll or modifier
+-- (Control, Shift, Fn) in between, within about 1 second. Left or right keys both work. The event
+-- tap only watches and never consumes events, so Cmd+Option+<key> shortcuts keep working (and
+-- don't toggle). It needs Accessibility; a watchdog restarts the tap if macOS disables it (for
+-- example after a timeout). Without it, use the menu item or Settings › Hide for now.
+local FT = { seq = false, both = false, dirty = false, t0 = 0 }
+M.FT = FT
+M.FAB_TAP_MAX = 1.0
+-- one step of the decision, separate from the event tap so it can be tested.
+-- kind = "flags" (fl = {cmd=,alt=,ctrl=,shift=,fn=}) or "key" / "mouse"; returns true = toggle now
+local function fabTapFeed(kind, fl, now)
+  now = now or hs.timer.secondsSinceEpoch()
+  if kind ~= "flags" then if FT.seq then FT.dirty = true end; return false end
+  fl = fl or {}
+  local any = fl.cmd or fl.alt or fl.ctrl or fl.shift or fl.fn
+  if any and not FT.seq then FT.seq, FT.both, FT.dirty, FT.t0 = true, false, false, now end
+  if not FT.seq then return false end
+  if fl.ctrl or fl.shift or fl.fn then FT.dirty = true end
+  if fl.cmd and fl.alt then FT.both = true end
+  if not any then
+    local fire = FT.both and not FT.dirty and (now - FT.t0) <= M.FAB_TAP_MAX
+    FT.seq, FT.both, FT.dirty = false, false, false
+    return fire and true or false
+  end
+  return false
+end
+M.fabTapFeed = fabTapFeed
+local function fabTapStart()
+  if M._fabTap then M._fabTap:stop() end
+  local ty = hs.eventtap.event.types
+  M._fabTap = hs.eventtap.new({ ty.flagsChanged, ty.keyDown, ty.leftMouseDown, ty.rightMouseDown, ty.otherMouseDown, ty.scrollWheel }, function(ev)
+    local ok, fire = pcall(function()
+      local t = ev:getType()
+      if t == ty.flagsChanged then return fabTapFeed("flags", ev:getFlags()) end
+      return fabTapFeed(t == ty.keyDown and "key" or "mouse")
+    end)
+    if ok and fire then log("Option+Command tap: toggle floating button"); after(0, function() M.toggleFabHidden() end) end
+    return false   -- never consume: other apps still get every key
+  end)
+  M._fabTap:start()
+  M.fabTapOK = M._fabTap:isEnabled() and true or false
+  if not M.fabTapOK then log("Option+Command tap: could not start (Accessibility off?); use the menu or Settings") end
+end
+M.fabTapStart = fabTapStart
+fabTapStart()
+if M._fabTapDog then M._fabTapDog:stop() end
+M._fabTapDog = hs.timer.doEvery(5, function()
+  if not M._fabTap then return end
+  if not M._fabTap:isEnabled() then
+    M._fabTap:start()
+    M.fabTapOK = M._fabTap:isEnabled() and true or false
+    log("Option+Command tap: was disabled, restart "..(M.fabTapOK and "OK" or "failed"))
+    if pushState then pushState() end
+  else M.fabTapOK = true end
+end)
 -- react when you switch apps, plus a light check every second for full screen changes
 if M._fabAppW then M._fabAppW:stop() end
 M._fabAppW = hs.application.watcher.new(function(_, ev)
@@ -1327,7 +1383,7 @@ refresh = function()
     { title = T("menu_autostop", tostring(cfg.silenceSeconds)), checked = cfg.autoStop, fn = function() M.toggleAutoStop() end },
     { title = T("menu_voice", (cfg.startPhrases or {})[1] or ""), checked = cfg.voiceControl, fn = function() M.handle({cmd="set", key="voiceControl", value=not cfg.voiceControl}) end },
     { title = T("menu_fab"), checked = cfg.floatButton, fn = function() M.handle({cmd="set", key="floatButton", value=not cfg.floatButton}) end },
-    { title = T("menu_fab_hide").."  ("..keyText(cfg.fabHideKey)..")", checked = M.fabSessionHidden, disabled = not cfg.floatButton, fn = function() M.toggleFabHidden() end },
+    { title = T("menu_fab_hide").."  ("..T("fab_tap_key")..")", checked = M.fabSessionHidden, disabled = not cfg.floatButton, fn = function() M.toggleFabHidden() end },
     { title = "-" },
     { title = T("menu_paste_last").."  ("..keyText(cfg.pasteLastKey)..")", disabled = #history==0, fn = function() M.pasteLast() end },
   }
@@ -1792,9 +1848,9 @@ pushState = function()
      look=look, perm={ ax=M.permAx, mic=M.micWarn }, pal=M.palette(), fabThemes=FAB_THEMES, fabHidden=(fab and M._fabHidR or ""), fabSessionHidden=M.fabSessionHidden, runApps=M._runApps,
      recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
      voice={ active=M.voiceActive(), model=(vlModel():match("[^/]+$") or ""):gsub("^ggml%-",""):gsub("%.bin$","") },
-     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey), fabHideKey=keyStr(cfg.fabHideKey) },
-     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey), pasteLastKey=keyLabel(cfg.pasteLastKey), fabHideKey=keyLabel(cfg.fabHideKey) },
-     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey), pasteLastKey=keyLabel(DEFAULTS.pasteLastKey), fabHideKey=keyLabel(DEFAULTS.fabHideKey) },
+     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey) },
+     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey), pasteLastKey=keyLabel(cfg.pasteLastKey), fabHideKey=T("fab_tap_key") }, fabTapOK=(M.fabTapOK==true),
+     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey), pasteLastKey=keyLabel(DEFAULTS.pasteLastKey), fabHideKey=T("fab_tap_key") },
      lang=uiLang(), sysLang=sysLang,
      whisperModels=wm, llmModels=lm, dl=downloads, ollama=(cfg.ollama~=nil), activeModel=M.activeModel() or "", missing=preflight() or "" }
   local js = hs.json.encode(data)
@@ -1855,13 +1911,13 @@ function M.handle(a)
     elseif i and list[i] then list[i] = { heard=h, replace=r } end
     setOpt("customWords", list); hs.alert.show(T("words_saved"))
   elseif c=="resetKeys" then
-    for _,k in ipairs({"toggleKey","modeKey","historyKey","pasteLastKey","fabHideKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
+    for _,k in ipairs({"toggleKey","modeKey","historyKey","pasteLastKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
     saveSettings(); bindAll(); refresh(); hs.alert.show(T("shortcuts_reset"))
   elseif c=="dlWhisper" then dlWhisper(a.file)
   elseif c=="dlLLM" then dlLLM(a.name)
   elseif c=="set" then
     local k, v = a.key, a.value
-    if k=="toggleKey" or k=="modeKey" or k=="historyKey" or k=="pasteLastKey" or k=="fabHideKey" then
+    if k=="toggleKey" or k=="modeKey" or k=="historyKey" or k=="pasteLastKey" then
       local pk = parseKey(v)
       if not pk then hs.alert.show(T("bad_shortcut", tostring(v))); pushState(); return end
       setOpt(k, pk); bindAll(); hs.alert.show(T("shortcut_set", keyLabel(pk)))
@@ -1933,12 +1989,11 @@ function M.js(s) if appWin then appWin:evaluateJavaScript(s) end end
 
 bindAll = function()
   for _,h in ipairs(hk) do h:delete() end; hk = {}
-  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey, pasteLast=cfg.pasteLastKey, fabHide=cfg.fabHideKey }
+  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey, pasteLast=cfg.pasteLastKey }
   table.insert(hk, hs.hotkey.bind(cfg.toggleKey.mods, cfg.toggleKey.key, M.toggle))
   table.insert(hk, hs.hotkey.bind(cfg.modeKey.mods, cfg.modeKey.key, M.toggleMode))
   table.insert(hk, hs.hotkey.bind(cfg.historyKey.mods, cfg.historyKey.key, M.openApp))
   table.insert(hk, hs.hotkey.bind(cfg.pasteLastKey.mods, cfg.pasteLastKey.key, function() M.pasteLast() end))
-  table.insert(hk, hs.hotkey.bind(cfg.fabHideKey.mods, cfg.fabHideKey.key, function() M.toggleFabHidden() end))
 end
 bindAll()
 hs.urlevent.bind("taipea", function() M.openApp() end)
