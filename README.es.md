@@ -81,7 +81,7 @@ Taipea es para ti si:
   usando. Al lado aparecen dos botones más pequeños (azul = parar y solo copiar, rojo = cancelar). Arrástralo
   donde quieras; recuerda dónde lo dejaste. También puedes mostrar la tarjeta de grabación completa en Ajustes.
   Se ve distinto en reposo, grabando y trabajando.
-- **Oculta el botón flotante cuando no lo necesitas.** Toca Opción + Comando (o usa el
+- **Oculta el botón flotante cuando no lo necesitas.** Presiona Opción + Comando (o usa el
   menú) para ocultarlo hasta que lo vuelvas a presionar; se oculta solo mientras una app está
   en pantalla completa (activado por defecto) o mientras ciertas apps están adelante (por
   ejemplo VLC o TV). Nunca se oculta mientras grabas o Taipea trabaja, así que Parar siempre
@@ -100,8 +100,12 @@ Taipea es para ti si:
 - **Recuperación.** Cada grabación se guarda hasta que su texto se pega. Si Hammerspoon se
   cierra o se recarga en medio, Taipea ofrece **Recuperar la última grabación** y la
   transcribe.
-- **Pegar otra vez el último dictado** con Ctrl + Opción + V, el menú o un botón en el
+- **Pegar otra vez el último dictado** con Control + Opción + V, el menú o un botón en el
   Historial.
+- **Atajos que se adaptan a cómo escribes.** Control + Comando empieza y para (presiona las
+  dos juntas, o déjalas fijas en el Teclado de accesibilidad: actúa al presionar). Escape para
+  y pega mientras grabas. Graba cualquier atajo presionando las teclas en Ajustes › Atajos.
+  La tecla Micrófono (Dictado) 🎙 (F5) también puede empezar y parar Taipea (opcional).
 - **Revisión de permisos.** Si falta Accesibilidad, Taipea te avisa, deja tu texto en el
   portapapeles (pégalo con Cmd + V) y muestra un botón grande **Abrir ajustes de
   Accesibilidad**. Si una grabación sale vacía, te lleva al permiso de Micrófono.
@@ -246,7 +250,8 @@ Hammerspoon, así que el permiso es para **Hammerspoon**:
 
 1. **Accesibilidad:** Ajustes del Sistema › Privacidad y seguridad › Accesibilidad ›
    activa **Hammerspoon**. Se necesita para pegar el texto donde está tu cursor (Taipea
-   presiona Cmd+V por ti). Los atajos funcionan sin este permiso.
+   presiona Cmd+V por ti) y para notar Control + Comando, Opción + Comando, Escape y la
+   tecla Micrófono. Control + Opción + Espacio funciona sin este permiso.
 2. **Micrófono:** la primera vez que dictes, macOS te pregunta. Haz clic en **Permitir**.
    Para revisarlo después: Ajustes del Sistema › Privacidad y seguridad › Micrófono ›
    **Hammerspoon**. Hammerspoon solo aparece en esa lista después de tu primer dictado.
@@ -303,11 +308,18 @@ de configuración.
 
 | Atajo | Qué hace |
 |---|---|
-| **Ctrl + Opción + Espacio** | Empieza a dictar. Presiona el mismo atajo otra vez para parar: Taipea transcribe, corrige y pega en tu cursor. |
-| **Ctrl + Opción + C** | Activa o desactiva la corrección (texto sin corregir). |
-| **Ctrl + Opción + H** | Abre la ventana de Taipea: Historial, Ajustes, Modelos. |
-| **Ctrl + Opción + V** | Pega otra vez el último dictado. |
-| **Opción + Comando** (toque: presiona las dos y suelta) | Oculta o muestra el botón flotante (hasta que lo vuelvas a tocar). Los atajos Cmd + Opción + otra tecla no cambian. |
+| **Control + Comando** | Empieza a dictar. Presiónalo otra vez para parar: Taipea transcribe, corrige y pega en tu cursor. Presiona las dos teclas juntas; en el Teclado de accesibilidad, haz clic en las dos (quedan fijas). Actúa al presionar. |
+| **Control + Opción + Espacio** | Empezar / parar de respaldo (igual que el anterior). |
+| **Escape** (mientras grabas) | Para y pega. Escape sola, solo mientras grabas (puedes apagarlo en Ajustes › Atajos). |
+| **Control + Opción + C** | Activa o desactiva la corrección (texto sin corregir). |
+| **Control + Opción + H** | Abre la ventana de Taipea: Historial, Ajustes, Modelos. |
+| **Control + Opción + V** | Pega otra vez el último dictado. |
+| **Opción + Comando** | Oculta o muestra el botón flotante (hasta que lo vuelvas a presionar). |
+| **🎙 Tecla Micrófono (F5)** | Opcional, apagada por defecto. Mira [Usar la tecla Micrófono (Dictado)](#tecla-microfono). |
+
+Control + Comando y Opción + Comando actúan un cuarto de segundo después de que las dos
+teclas están abajo. Si presionas otra tecla en ese momento (Control + Comando + Q,
+Opción + Comando + Esc…), Taipea no hace nada, así que tus otros atajos siguen funcionando.
 
 ¿Sin teclado? Todo funciona también con clics:
 
@@ -321,8 +333,40 @@ de configuración.
   Tiene un botón grande **🎙 Dictar**.
 - El ícono 🎙 en la barra de menús tiene las mismas acciones.
 
-Puedes ver y cambiar los atajos en Ajustes › Atajos (escribe uno como `ctrl+alt+space` y
-presiona Guardar). "Restablecer los atajos de fábrica" vuelve a estos.
+### Cambiar tus atajos
+
+Todos los atajos se pueden cambiar en **Ajustes › Atajos**, sin escribir:
+
+1. Haz clic en **⏺ Grabar atajo** en una fila.
+2. Presiona las teclas que quieras: modificadoras con una tecla (Control + Opción + Espacio)
+   o dos o más modificadoras solas (Control + Mayúsculas + Comando). En el Teclado de
+   accesibilidad, haz clic en las modificadoras para que queden fijas. Escape cancela.
+3. Haz clic en **Guardar**.
+
+Taipea rechaza, y dice por qué, una sola tecla, Mayúsculas + una tecla, una sola
+modificadora, un atajo que macOS ya usa (Comando + Q, Comando + Espacio, Control + Comando +
+Q…), uno que ya tiene otro atajo de Taipea, o la tecla Micrófono. También puedes escribirlo
+(**Escribirlo**, como `ctrl+cmd` o `ctrl+alt+space`). **Restablecer los atajos de fábrica**
+vuelve a estos. Paso a paso con capturas: [docs/USAGE.es.md › Atajos](docs/USAGE.es.md#4-atajos).
+
+**Consejo:** en el Teclado de accesibilidad puedes agregar tu propio botón de Taipea. En el
+**Editor de paneles** (Ajustes del Sistema › Accesibilidad › Teclado › Teclado de
+accesibilidad › Editor de paneles), agrega un botón, pon su **Acción** en **Presionar
+teclas**, haz clic en **Grabar** y presiona Control + Opción + Espacio. Un clic empieza y el
+siguiente para y pega.
+
+<a id="tecla-microfono"></a>
+### Usar la tecla Micrófono (Dictado) 🎙 (F5)
+
+La tecla 🎙 de los teclados Apple recientes puede empezar y parar Taipea. Está apagada por
+defecto porque macOS usa esa tecla para su propio Dictado:
+
+1. Ajustes del Sistema › Teclado › **Dictado** › **Atajo**: elige **Desactivada** (u otro
+   atajo). Apagar Dictado también sirve.
+2. Taipea › Ajustes › Atajos › **Tecla Micrófono (Dictado) 🎙 (F5)**: **Sí**.
+
+Para deshacerlo, pon la tecla Micrófono en **No** en Taipea y vuelve a poner Atajo en
+**Presionar 🎤** en Ajustes del Sistema. Más en [docs/USAGE.es.md](docs/USAGE.es.md#tecla-microfono).
 
 ### Empezar / parar con la voz
 
@@ -379,11 +423,14 @@ están en `config.example.lua`).
 
 | Ajuste | Por defecto | Opciones |
 |---|---|---|
-| Empezar / parar el dictado | **Ctrl + Opción + Espacio** (al parar, pega) | cualquier atajo |
-| Corrección sí / no | **Ctrl + Opción + C** | cualquier atajo |
-| Abrir la ventana de Taipea | **Ctrl + Opción + H** | cualquier atajo |
-| Pegar otra vez el último dictado | **Ctrl + Opción + V** | cualquier atajo |
-| Ocultar / mostrar el botón flotante | toque de **Opción + Comando** | fijo |
+| Empezar / parar el dictado | **Control + Comando** (al parar, pega) | cualquier atajo, grabado o escrito |
+| Empezar / parar (respaldo) | **Control + Opción + Espacio** | cualquier atajo |
+| Escape al grabar | Sí: para y pega | Sí / No |
+| Tecla Micrófono (Dictado) 🎙 (F5) | No | Sí / No ([cómo](#tecla-microfono)) |
+| Corrección sí / no | **Control + Opción + C** | cualquier atajo |
+| Abrir la ventana de Taipea | **Control + Opción + H** | cualquier atajo |
+| Pegar otra vez el último dictado | **Control + Opción + V** | cualquier atajo |
+| Ocultar / mostrar el botón flotante | **Opción + Comando** | cualquier atajo |
 | Corrección (gramática) | Sí | Sí / No (texto original) |
 | Modelo de corrección | `gemma4:e4b`; si falta, `qwen2.5:7b` y luego `gemma4:e2b` | cualquier modelo de Ollama |
 | Estilo | Ligero | Ligero / Párrafos / Viñetas / Formal |
@@ -443,10 +490,21 @@ Los ajustes avanzados están en `~/Library/Application Support/Taipea/config.lua
 
 **No pasa nada al presionar el atajo.**
 Revisa que Hammerspoon esté abierto (🎙 en la barra de menús) y luego elige Hammerspoon ›
-Reload Config en su ícono de la barra de menús. Los atajos no necesitan ningún permiso; si
-uno sigue sin hacer nada, puede que otra app use las mismas teclas: elige otro en Ajustes ›
-Atajos. (Si la grabación empieza pero el texto no se pega, es el permiso de Accesibilidad:
+Reload Config en su ícono de la barra de menús. Control + Comando, Opción + Comando, Escape
+y la tecla Micrófono necesitan el permiso de Accesibilidad (Control + Opción + Espacio no).
+Si uno sigue sin hacer nada, puede que otra app use las mismas teclas: graba otro en
+Ajustes › Atajos. En el Teclado de accesibilidad, deja fijas las dos teclas (clic en Control
+y luego en Comando). (Si la grabación empieza pero el texto no se pega, es el permiso de Accesibilidad:
 mira el punto siguiente.)
+
+**El dictado empieza cuando uso otro atajo con Control + Comando.**
+Taipea espera un cuarto de segundo por otra tecla. Si dejas fijas Control + Comando en el
+Teclado de accesibilidad y tardas más en hacer clic en la siguiente tecla, cuenta como el
+atajo de Taipea. Graba otro (por ejemplo Control + Mayúsculas + Comando) en Ajustes › Atajos.
+
+**La tecla Micrófono 🎙 abre el Dictado de Apple en vez de Taipea.**
+Pon Ajustes del Sistema › Teclado › Dictado › Atajo en Desactivada, y la tecla Micrófono en
+Sí en Taipea › Ajustes › Atajos. Mira [Usar la tecla Micrófono (Dictado)](#tecla-microfono).
 
 **Aparece el panel pero no se pega nada.**
 Falta el permiso de Accesibilidad o quedó trabado: apaga y enciende Hammerspoon en
@@ -458,7 +516,7 @@ Revisa Ajustes del Sistema › Privacidad y seguridad › Micrófono › Hammers
 el micrófono correcto esté elegido en Ajustes del Sistema › Sonido › Entrada.
 
 **"Aún no hay modelo de voz."**
-Abre la ventana (Ctrl+Opción+H) › Modelos y haz clic en Descargar, o vuelve a ejecutar el
+Abre la ventana (Control+Opción+H) › Modelos y haz clic en Descargar, o vuelve a ejecutar el
 instalador.
 
 **"Corrección no disponible" / el texto no se corrige.**
@@ -472,7 +530,7 @@ Después, Taipea lo mantiene cargado 12 horas.
 
 **La corrección siempre es lenta, o el Mac se pone lento.**
 Puede que tu Mac no tenga memoria suficiente para Gemma 4 E4B. Elige `qwen2.5:7b` o
-`gemma4:e2b` en Modelos, o desactiva la corrección con Ctrl+Opción+C.
+`gemma4:e2b` en Modelos, o desactiva la corrección con Control+Opción+C.
 
 **La ventana o el panel quedaron fuera de la pantalla.**
 Ajustes › Panel de grabación › Restablecer la posición del panel. Al moverlas, las ventanas siempre se quedan

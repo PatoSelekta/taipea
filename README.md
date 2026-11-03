@@ -74,7 +74,7 @@ Taipea is for you if:
   using. Two smaller buttons appear beside it (blue = stop and copy only, red = cancel). Drag
   it anywhere; it remembers where you left it. You can also show the full recording card in
   Settings. It looks different when idle, recording and working.
-- **Hide the floating button when you don't need it.** Tap Option + Command (or use the
+- **Hide the floating button when you don't need it.** Press Option + Command (or use the
   menu) to hide it until you press it again; hide it by itself while an app is full screen
   (on by default) or while chosen apps are in front (for example VLC or TV). It never hides
   while you are recording or Taipea is working, so Stop is always reachable.
@@ -91,7 +91,11 @@ Taipea is for you if:
   Increase Contrast (Auto) and Reduce Motion.
 - **Recovery.** Each recording is kept until its text is pasted. If Hammerspoon crashes or
   reloads in the middle, Taipea offers **Recover last recording** and transcribes it.
-- **Paste last dictation again** with Ctrl + Option + V, the menu, or a button in History.
+- **Paste last dictation again** with Control + Option + V, the menu, or a button in History.
+- **Shortcuts that fit how you type.** Control + Command starts and stops (press both
+  together, or latch both on the Accessibility Keyboard: it acts on press). Escape stops and
+  pastes while recording. Record any shortcut by pressing the keys in Settings › Shortcuts.
+  The Mic (Dictation) key 🎙 (F5) can start and stop Taipea too (optional).
 - **Permission checks.** If Accessibility is off, Taipea tells you, keeps your text on the
   clipboard (paste it with Cmd + V) and shows a big **Open Accessibility settings** button. If
   a recording comes back empty, it points you to the Microphone permission.
@@ -231,7 +235,8 @@ inside Hammerspoon, so the permission is for **Hammerspoon**:
 
 1. **Accessibility:** System Settings › Privacy & Security › Accessibility › turn on
    **Hammerspoon**. Needed to paste the text where your cursor is (Taipea presses Cmd+V
-   for you). The shortcuts themselves work without it.
+   for you) and to notice Control + Command, Option + Command, Escape and the Mic key.
+   Control + Option + Space works without it.
 2. **Microphone:** the first time you dictate, macOS asks. Click **Allow**. To check
    later: System Settings › Privacy & Security › Microphone › **Hammerspoon**.
    Hammerspoon only appears in that list after your first dictation.
@@ -286,11 +291,18 @@ config file.
 
 | Shortcut | What it does |
 |---|---|
-| **Ctrl + Option + Space** | Start dictating. Press the same shortcut again to stop: Taipea transcribes, cleans up and pastes at your cursor. |
-| **Ctrl + Option + C** | Turn cleanup on or off (raw text). |
-| **Ctrl + Option + H** | Open the Taipea window: History, Settings, Models. |
-| **Ctrl + Option + V** | Paste the last dictation again. |
-| **Option + Command** (tap: press both, let go) | Hide or show the floating button (until you tap it again). Cmd + Option + other key shortcuts are not affected. |
+| **Control + Command** | Start dictating. Press it again to stop: Taipea transcribes, cleans up and pastes at your cursor. Press both keys together; on the Accessibility Keyboard, click (latch) both. It acts on press. |
+| **Control + Option + Space** | Backup start / stop (same as above). |
+| **Escape** (while recording) | Stop and paste. Escape alone, only while recording (turn it off in Settings › Shortcuts). |
+| **Control + Option + C** | Turn cleanup on or off (raw text). |
+| **Control + Option + H** | Open the Taipea window: History, Settings, Models. |
+| **Control + Option + V** | Paste the last dictation again. |
+| **Option + Command** | Hide or show the floating button (until you press it again). |
+| **🎙 Mic key (F5)** | Optional, off by default. See [Use the Mic (Dictation) key](#mic-key). |
+
+Control + Command and Option + Command act a quarter of a second after both keys are down.
+If you press another key in that moment (Control + Command + Q, Option + Command + Esc…),
+Taipea does nothing, so your other shortcuts keep working.
 
 No keyboard? Everything also works with clicks:
 
@@ -303,8 +315,39 @@ No keyboard? Everything also works with clicks:
   It has a big **🎙 Dictate** button.
 - The 🎙 icon in the menu bar has the same actions.
 
-You can see and change the shortcuts in Settings › Shortcuts (type one like
-`ctrl+alt+space` and press Save). "Reset shortcuts to defaults" brings these back.
+### Change your shortcuts
+
+Every shortcut can be changed in **Settings › Shortcuts**, without typing:
+
+1. Click **⏺ Record shortcut** on a row.
+2. Press the keys you want: modifiers with a key (Control + Option + Space) or two or more
+   modifiers alone (Control + Shift + Command). On the Accessibility Keyboard, click the
+   modifiers so they stay latched. Escape cancels.
+3. Click **Save**.
+
+Taipea refuses, and says why, a single key, Shift + a key, a single modifier, a shortcut
+macOS already uses (Command + Q, Command + Space, Control + Command + Q…), one another
+Taipea shortcut has, or the Mic key. You can also type one (**Type it instead**, like
+`ctrl+cmd` or `ctrl+alt+space`). **Reset shortcuts to defaults** brings these back. Step by
+step with screenshots: [docs/USAGE.md › Shortcuts](docs/USAGE.md#4-shortcuts).
+
+**Tip:** on the Accessibility Keyboard you can add your own Taipea button. In the **Panel
+Editor** (System Settings › Accessibility › Keyboard › Accessibility Keyboard › Panel
+Editor), add a button, set its **Action** to **Press Keys**, click **Record** and press
+Control + Option + Space. One click starts, the next stops and pastes.
+
+<a id="mic-key"></a>
+### Use the Mic (Dictation) key 🎙 (F5)
+
+The 🎙 key on recent Apple keyboards can start and stop Taipea. It is off by default because
+macOS uses that key for its own Dictation:
+
+1. System Settings › Keyboard › **Dictation** › **Shortcut**: choose **Off** (or another
+   shortcut). Turning Dictation off also works.
+2. Taipea › Settings › Shortcuts › **Mic (Dictation) key 🎙 (F5)**: **On**.
+
+To undo it, set the Mic key to **Off** in Taipea and set Shortcut back to **Press 🎤** in
+System Settings. More in [docs/USAGE.md](docs/USAGE.md#mic-key).
 
 ### Voice start / stop
 
@@ -357,11 +400,14 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 
 | Setting | Default | Options |
 |---|---|---|
-| Start / stop dictation | **Ctrl + Option + Space** (stop also pastes) | any shortcut |
-| Cleanup on / off | **Ctrl + Option + C** | any shortcut |
-| Open the Taipea window | **Ctrl + Option + H** | any shortcut |
-| Paste last dictation again | **Ctrl + Option + V** | any shortcut |
-| Hide / show floating button | **Option + Command** tap | fixed |
+| Start / stop dictation | **Control + Command** (stop also pastes) | any shortcut, recorded or typed |
+| Start / stop (backup) | **Control + Option + Space** | any shortcut |
+| Escape while recording | On: stop and paste | On / Off |
+| Mic (Dictation) key 🎙 (F5) | Off | On / Off ([how](#mic-key)) |
+| Cleanup on / off | **Control + Option + C** | any shortcut |
+| Open the Taipea window | **Control + Option + H** | any shortcut |
+| Paste last dictation again | **Control + Option + V** | any shortcut |
+| Hide / show floating button | **Option + Command** | any shortcut |
 | Cleanup (grammar fix) | On | On / Off (raw text) |
 | Cleanup model | `gemma4:e4b`, falls back to `qwen2.5:7b`, then `gemma4:e2b` | any Ollama model |
 | Style | Light | Light / Paragraph / Bullets / Formal |
@@ -419,10 +465,22 @@ Advanced settings are in `~/Library/Application Support/Taipea/config.lua` (see
 
 **Nothing happens when I press the shortcut.**
 Check that Hammerspoon is running (🎙 in the menu bar), then choose Hammerspoon › Reload
-Config from its menu bar icon. Shortcuts don't need any permission; if one still does
-nothing, another app may use the same keys: pick a different one in Settings › Shortcuts.
+Config from its menu bar icon. Control + Command, Option + Command, Escape and the Mic key
+need the Accessibility permission (Control + Option + Space doesn't). If one still does
+nothing, another app may use the same keys: record a different one in Settings › Shortcuts.
+On the Accessibility Keyboard, latch both keys (click Control, then Command).
 (If the recording starts but the text is not pasted, that is the Accessibility permission:
 see the next item.)
+
+**Dictation starts when I use another Control + Command shortcut.**
+Taipea waits a quarter of a second for another key. If you latch Control + Command on the
+Accessibility Keyboard and take longer to click the next key, it counts as Taipea's
+shortcut. Record a different one (for example Control + Shift + Command) in Settings ›
+Shortcuts.
+
+**The Mic key 🎙 opens Apple's Dictation instead of Taipea.**
+Set System Settings › Keyboard › Dictation › Shortcut to Off, and the Mic key to On in
+Taipea › Settings › Shortcuts. See [Use the Mic (Dictation) key](#mic-key).
 
 **The overlay appears but nothing is pasted.**
 Accessibility permission is missing or stuck: turn Hammerspoon off and on again in
@@ -434,7 +492,7 @@ Check System Settings › Privacy & Security › Microphone › Hammerspoon. Che
 right microphone is selected in System Settings › Sound › Input.
 
 **"No speech model yet."**
-Open the window (Ctrl+Option+H) › Models and click Download, or run the installer again.
+Open the window (Control+Option+H) › Models and click Download, or run the installer again.
 
 **"Cleanup unavailable" / text is not cleaned.**
 Ollama isn't running or no cleanup model is installed. Run
@@ -447,7 +505,7 @@ it loaded for 12 hours after that.
 
 **Cleanup is slow every time, or the Mac gets slow.**
 Your Mac may not have enough memory for Gemma 4 E4B. Pick `qwen2.5:7b` or `gemma4:e2b` in
-Models, or turn cleanup off with Ctrl+Option+C.
+Models, or turn cleanup off with Control+Option+C.
 
 **The window or overlay is off screen.**
 Settings › Recording panel › Reset panel position. Windows are always kept inside the screen

@@ -81,7 +81,8 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  size:'Size',normal:'Normal',compact:'Compact',login:'Open at login',on:'On',off:'Off',
  loginOk:'Dictation shortcut is ready after every login',reg:' ✓ (registered)',notReg:' ⚠ not registered yet',
  loginWarn:'⚠ When off, dictation won\'t work after restarting until you open Hammerspoon or the Taipea app.',showLogin:'Show window at login',
- keys:'Shortcuts',keyFmt:'To change one, type it like ctrl+alt+space (keys: cmd, ctrl, alt, shift + a key) and press Save.',
+ keys:'Shortcuts',kHint:'Click ⏺ Record shortcut, then press the keys you want and click Save. Shortcuts made only of modifier keys (like Control + Command) act as soon as you press them; on the Accessibility Keyboard, click both keys so they stay latched.',kStart2:'Start / stop and paste (backup)',kListening:'Press your keys now… (Esc to cancel)',kCancel:'Cancel',kAgain:'Record again',kRecord:'Record shortcut',kTyped:'Type it instead',kFormat:'Like ctrl+cmd or ctrl+alt+space (keys: ctrl, alt = Option, shift, cmd, plus an optional key) and press Save.',chordOff:'⚠ Taipea\'s key watcher needs Accessibility permission. Until then, Control + Command, Option + Command, Escape and the Mic key don\'t work: use Control + Option + Space or the menu.',kEsc:'Escape while recording',kEscInfo:'Press Escape (alone) while recording to stop and paste. To throw a recording away, use the Cancel button.',kMic:'Mic (Dictation) key 🎙 (F5)',kMicInfo:'Start and stop Taipea with the 🎙 key (F5) on recent Apple keyboards. macOS uses that key for its own Dictation, so first free it:',kMic1:'System Settings › Keyboard › Dictation › Shortcut: choose Off (or turn Dictation off).',kMic2:'Here, set Mic key to On.',kMicUndo:'To undo: set Mic key to Off, then in System Settings › Keyboard › Dictation set Shortcut back to “Press 🎤”.',
+
  kToggle:'Start / stop and paste',kMode:'Cleanup on / off (raw)',kHist:'Open this window',def:'Default: %s',save:'Save',resetKeys:'Reset shortcuts to defaults',
  cleanup:'Cleanup (grammar fix)',offRaw:'Off (raw)',style:'Style',sLight:'Light fix',sPar:'Paragraphs',sBul:'Bullet points',sFor:'Formal',
  dlang:'Dictation language',dAuto:'Auto (EN/ES mix)',after:'After stopping',pasteCur:'Paste at cursor',copyOnly:'Copy only',
@@ -103,7 +104,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  thclassic:'Classic Blue',thstudio:'Studio',thmidnight:'Midnight',thforest:'Forest',thsunset:'Sunset',thcontrast:'High Contrast',thpaper:'Paper',thcustom:'Custom',
  ccBg:'Background',ccMic:'Microphone and text',ccAcc:'Accent (buttons, ring)',ccHint:'Click a color square to open the color picker; the colors change as you pick. Text that would be hard to read is adjusted automatically. Or type a code like #E8503A and press Save.',
  hideT:'Hide the floating button',hideHint:'Hiding only happens while you are not dictating. While you record, the button and its Stop buttons always show. Your shortcuts keep working while it is hidden.',
- hideKeyInfo:'Tap %s (press both keys together, then let go) to hide or show it until you tap it again.',tapFixed:'Tap both keys together and let go, with no other key. This shortcut is fixed and can\'t be changed here.',tapOff:'⚠ The Option + Command tap needs Accessibility permission. Until then, use the menu or the Hide for now button.',hideNow:'Hide for now',showNow:'Show it again',hiddenNow:'Hidden right now: %s',whyShortcut:'by the shortcut',whyFull:'an app is full screen',whyApp:'this app is in the list',
+ hideKeyInfo:'Press %s (both keys together) to hide or show it until you press it again. Change it in Settings › Shortcuts.',tapOff:'⚠ The %s shortcut needs Accessibility permission. Until then, use the menu or the Hide for now button.',hideNow:'Hide for now',showNow:'Show it again',hiddenNow:'Hidden right now: %s',whyShortcut:'by the shortcut',whyFull:'an app is full screen',whyApp:'this app is in the list',
  hideFull:'Hide when an app is full screen',hideFullHint:'Hides it while the app in front is full screen (for example a full-screen video) and brings it back when you leave full screen.',
  hideApps:'Hide in these apps',hideAppsHint:'The button hides while one of these apps is in front.',hideNone:'No apps yet.',remove:'Remove',quick:'Quick add',addRunning:'Add an open app',closeList:'Close list',pickApp:'Click an open app to add it:',kFabHide:'Hide / show floating button',
  axTitle:'⚠️ Accessibility permission is off',axInfo:'Hammerspoon needs it to paste your text. Until it is on, each dictation is copied: paste it with Cmd+V.',
@@ -125,7 +126,8 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  size:'Tamaño',normal:'Normal',compact:'Compacto',login:'Abrir al iniciar sesión',on:'Sí',off:'No',
  loginOk:'El atajo de dictado queda listo en cada inicio de sesión',reg:' ✓ (registrado)',notReg:' ⚠ aún no registrado',
  loginWarn:'⚠ Si está apagado, el dictado no funciona después de reiniciar hasta que abras Hammerspoon o la app Taipea.',showLogin:'Mostrar la ventana al iniciar sesión',
- keys:'Atajos',keyFmt:'Para cambiar uno, escríbelo como ctrl+alt+space (teclas: cmd, ctrl, alt, shift + una tecla) y presiona Guardar.',
+ keys:'Atajos',kHint:'Haz clic en ⏺ Grabar atajo, presiona las teclas que quieras y haz clic en Guardar. Los atajos hechos solo de teclas modificadoras (como Control + Comando) actúan apenas las presionas; en el Teclado de accesibilidad, haz clic en las dos teclas para que queden fijas.',kStart2:'Empezar / parar y pegar (respaldo)',kListening:'Presiona tus teclas ahora… (Esc para cancelar)',kCancel:'Cancelar',kAgain:'Grabar otra vez',kRecord:'Grabar atajo',kTyped:'Escribirlo',kFormat:'Como ctrl+cmd o ctrl+alt+space (teclas: ctrl, alt = Opción, shift, cmd, más una tecla opcional) y presiona Guardar.',chordOff:'⚠ El vigilante de teclas de Taipea necesita el permiso de Accesibilidad. Mientras tanto, Control + Comando, Opción + Comando, Escape y la tecla Micrófono no funcionan: usa Control + Opción + Espacio o el menú.',kEsc:'Escape al grabar',kEscInfo:'Presiona Escape (sola) mientras grabas para detener y pegar. Para descartar una grabación, usa el botón Cancelar.',kMic:'Tecla Micrófono (Dictado) 🎙 (F5)',kMicInfo:'Empieza y detén Taipea con la tecla 🎙 (F5) de los teclados Apple recientes. macOS usa esa tecla para su propio Dictado, así que primero libérala:',kMic1:'Ajustes del Sistema › Teclado › Dictado › Atajo: elige Desactivada (o apaga Dictado).',kMic2:'Aquí, pon Tecla Micrófono en Sí.',kMicUndo:'Para deshacerlo: pon Tecla Micrófono en No y luego, en Ajustes del Sistema › Teclado › Dictado, vuelve a poner Atajo en “Presionar 🎤”.',
+
  kToggle:'Empezar / parar y pegar',kMode:'Corrección sí / no (original)',kHist:'Abrir esta ventana',def:'De fábrica: %s',save:'Guardar',resetKeys:'Restablecer los atajos de fábrica',
  cleanup:'Corrección (gramática)',offRaw:'No (original)',style:'Estilo',sLight:'Ligero',sPar:'Párrafos',sBul:'Viñetas',sFor:'Formal',
  dlang:'Idioma del dictado',dAuto:'Automático (mezcla EN/ES)',after:'Al parar',pasteCur:'Pegar en el cursor',copyOnly:'Solo copiar',
@@ -147,7 +149,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  thclassic:'Azul clásico',thstudio:'Estudio',thmidnight:'Medianoche',thforest:'Bosque',thsunset:'Atardecer',thcontrast:'Alto contraste',thpaper:'Papel',thcustom:'Personalizado',
  ccBg:'Fondo',ccMic:'Micrófono y texto',ccAcc:'Acento (botones, aro)',ccHint:'Haz clic en un cuadro de color para abrir el selector; los colores cambian mientras eliges. El texto difícil de leer se ajusta solo. O escribe un código como #E8503A y presiona Guardar.',
  hideT:'Ocultar el botón flotante',hideHint:'Solo se oculta cuando no estás dictando. Mientras grabas, el botón y sus botones de parar siempre se ven. Tus atajos siguen funcionando aunque esté oculto.',
- hideKeyInfo:'Toca %s (presiona las dos teclas juntas y suéltalas) para ocultarlo o mostrarlo hasta que lo vuelvas a tocar.',tapFixed:'Presiona las dos teclas juntas y suéltalas, sin otra tecla. Este atajo es fijo y no se puede cambiar aquí.',tapOff:'⚠ El toque de Opción + Comando necesita el permiso de Accesibilidad. Mientras tanto, usa el menú o el botón Ocultar por ahora.',hideNow:'Ocultar por ahora',showNow:'Mostrar otra vez',hiddenNow:'Oculto ahora: %s',whyShortcut:'por el atajo',whyFull:'hay una app en pantalla completa',whyApp:'esta app está en la lista',
+ hideKeyInfo:'Presiona %s (las dos teclas juntas) para ocultarlo o mostrarlo hasta que lo vuelvas a presionar. Cámbialo en Ajustes › Atajos.',tapOff:'⚠ El atajo %s necesita el permiso de Accesibilidad. Mientras tanto, usa el menú o el botón Ocultar por ahora.',hideNow:'Ocultar por ahora',showNow:'Mostrar otra vez',hiddenNow:'Oculto ahora: %s',whyShortcut:'por el atajo',whyFull:'hay una app en pantalla completa',whyApp:'esta app está en la lista',
  hideFull:'Ocultar cuando una app está en pantalla completa',hideFullHint:'Lo oculta mientras la app de adelante está en pantalla completa (por ejemplo un video) y lo vuelve a mostrar al salir.',
  hideApps:'Ocultar en estas apps',hideAppsHint:'El botón se oculta mientras una de estas apps está adelante.',hideNone:'Aún no hay apps.',remove:'Quitar',quick:'Añadir rápido',addRunning:'Añadir una app abierta',closeList:'Cerrar la lista',pickApp:'Haz clic en una app abierta para añadirla:',kFabHide:'Ocultar / mostrar el botón flotante',
  axTitle:'⚠️ El permiso de Accesibilidad está apagado',axInfo:'Hammerspoon lo necesita para pegar tu texto. Mientras esté apagado, cada dictado se copia: pégalo con Cmd+V.',
@@ -216,7 +218,7 @@ function jsq(v){return JSON.stringify(v).replace(/"/g,'&quot;')}
 function hadd(n,id){send({cmd:'hideAppAdd',name:n,id:id})}
 function hideSection(){var c=S.cfg,list=c.hideApps||[],why={shortcut:t('whyShortcut'),fullscreen:t('whyFull'),app:t('whyApp')}[S.fabHidden];
  var h='<div class=kd style="margin-top:14px"><h3 style="margin:4px 0 8px">'+t('hideT')+'</h3><p class=h>'+t('hideHint')+'</p>';
- h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>'+(S.fabTapOK===false?'<p style="color:var(--warn);font-weight:700">'+esc(t('tapOff'))+'</p>':'');
+ h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>'+(S.fabTapOK===false?'<p style="color:var(--warn);font-weight:700">'+esc(t('tapOff',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>':'');
  if(why)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('hiddenNow',why))+'</p>';
  h+='<div class=row><button class=b style="flex:1" onclick="send({cmd:\'fabHideToggle\'})">'+(S.fabSessionHidden?t('showNow'):t('hideNow'))+'</button></div>';
  h+='<h3 style="margin-top:14px">'+t('hideFull')+'</h3><p class=h>'+t('hideFullHint')+'</p>'+opts('hideFullscreen',[[true,t('on')],[false,t('off')]]);
@@ -288,16 +290,37 @@ function renderHist(){var q=document.getElementById('q').value.toLowerCase(),h='
  document.getElementById('hl').innerHTML=h||'<p>'+t(q?'noneMatch':'none')+'</p>'}
 function opts(key,list){return '<div class=row>'+list.map(o=>'<button class="opt'+(S.cfg[key]==o[0]?' on':'')+'" onclick="set(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,'&quot;')+')">'+o[1]+'</button>').join('')+'</div>'}
 function set(k,v){send({cmd:'set',key:k,value:v})}
+var OT={};
+function keysCard(){var K=S.keys||{},P=S.keySyms||{},L=S.keyLabels||{},D=S.defaultKeys||{},cap=S.cap||null,listening=!!(cap&&cap.phase=='listen');
+ var rows=[['toggleKey','kToggle'],['toggleKey2','kStart2'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste'],['fabHideKey','kFabHide']];
+ var h='<div class=card id=keyscard><h3>'+t('keys')+'</h3><p class=h>'+esc(t('kHint'))+'</p>';
+ rows.forEach(function(r){var k=r[0],q="'"+k+"'";
+  h+='<div class=kd id="kd_'+k+'"><div style="font-weight:700">'+esc(t(r[1]))+'</div>';
+  if(cap&&cap.target==k&&listening){
+   h+='<p class=big role=status style="font-size:24px;color:var(--warn)">'+esc(t('kListening'))+'</p><div class=row><button style="flex:1" onclick="send({cmd:\'capCancel\'})">'+t('kCancel')+'</button></div>';
+  }else if(cap&&cap.target==k&&cap.phase=='result'){
+   h+='<p class=big role=status style="font-size:30px;margin:6px 0">'+esc(cap.sym||'')+'</p><p class=h>'+esc(cap.label||'')+'</p>'+(cap.err?'<p style="color:var(--warn);font-weight:700">⚠ '+esc(cap.err)+'</p>':'');
+   h+='<div class=row>'+(cap.err?'':'<button class=g style="flex:1" onclick="send({cmd:\'capSave\'})">'+t('save')+'</button>')+
+    '<button class=b style="flex:1" onclick="send({cmd:\'capStart\',key:'+q+'})">'+t('kAgain')+'</button><button style="flex:1" onclick="send({cmd:\'capCancel\'})">'+t('kCancel')+'</button></div>';
+  }else{
+   h+='<p class=big style="font-size:30px;margin:6px 0" aria-label="'+esc(L[k]||'')+'">'+esc(P[k]||'')+'</p><p class=h>'+esc(L[k]||'')+'</p>'+
+    (L[k]!=D[k]?'<p class=h>'+esc(t('def',D[k]||''))+'</p>':'')+
+    '<div class=row><button class=b style="flex:1"'+(listening?' disabled':'')+' onclick="send({cmd:\'capStart\',key:'+q+'})">⏺ '+t('kRecord')+'</button></div>';
+   h+='<details'+(OT[k]?' open':'')+' ontoggle="OT['+q+']=this.open" style="margin-top:8px"><summary class=h style="min-height:60px;line-height:60px;cursor:pointer">'+t('kTyped')+'</summary>'+
+    '<div class=row><input type=text id="k_'+k+'" aria-label="'+esc(t(r[1]))+'" value="'+esc(K[k]||'')+'" style="flex:1"><button onclick="set('+q+',document.getElementById(\'k_'+k+'\').value)">'+t('save')+'</button></div><p class=h>'+t('kFormat')+'</p></details>';
+  }
+  h+='</div>'});
+ if(S.fabTapOK===false)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('chordOff'))+'</p>';
+ h+='<div class=row style="margin-top:8px"><button class=y style="flex:1"'+(listening?' disabled':'')+' onclick="send({cmd:\'resetKeys\'})">'+t('resetKeys')+'</button></div>';
+ h+='<h3 style="margin-top:16px">'+esc(t('kEsc'))+'</h3><p class=h>'+esc(t('kEscInfo'))+'</p>'+opts('escStop',[[true,t('on')],[false,t('off')]]);
+ h+='<h3 style="margin-top:16px" id=mickey>'+esc(t('kMic'))+'</h3><p class=h>'+esc(t('kMicInfo'))+'</p><ol class=h style="margin:6px 0 8px 22px;line-height:1.5"><li>'+esc(t('kMic1'))+'</li><li>'+esc(t('kMic2'))+'</li></ol><p class=h>'+esc(t('kMicUndo'))+'</p>'+opts('micKey',[[true,t('on')],[false,t('off')]]);
+ if(S.cfg.micKey&&S.micTapOK===false)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('chordOff'))+'</p>';
+ return h+'</div>'}
 function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
  h+=colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard()+updCard();
- h+='<div class=card><h3>'+t('keys')+'</h3>'+
- [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
-  (S.keyLabels[k[0]]!=S.defaultKeys[k[0]]?'<p class=h>'+esc(t('def',S.defaultKeys[k[0]]))+'</p>':'')+
-  '<div class=row><input type=text id="k_'+k[0]+'" aria-label="'+esc(t(k[1]))+'" value="'+esc(S.keys[k[0]])+'" style="flex:1"><button class=b onclick="set(\''+k[0]+'\',document.getElementById(\'k_'+k[0]+'\').value)">'+t('save')+'</button></div></div>').join('')+
- '<div class=kd><div>'+t('kFabHide')+'</div><div class=big>'+esc((S.keyLabels||{}).fabHideKey||'Option + Command')+'</div><p class=h>'+t('tapFixed')+'</p>'+(S.fabTapOK===false?'<p style="color:var(--warn);font-weight:700">'+esc(t('tapOff'))+'</p>':'')+'</div>'+
- '<p class=h>'+t('keyFmt')+'</p><button class=y onclick="send({cmd:\'resetKeys\'})">'+t('resetKeys')+'</button></div>';
+ h+=keysCard();
  h+='<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:14px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>';
  h+='<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card><h3>'+t('after')+'</h3>'+opts('defaultAction',[['paste',t('pasteCur')],['copy',t('copyOnly')]])+'</div>';

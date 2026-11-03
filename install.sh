@@ -12,7 +12,7 @@
 # Safe to run again: steps that are already done are skipped.
 set -euo pipefail
 
-TAIPEA_VERSION="0.2.4"
+TAIPEA_VERSION="0.2.5"
 REPO="${TAIPEA_REPO:-PatoSelekta/taipea}"
 REF="${TAIPEA_REF:-main}"
 DATA="$HOME/Library/Application Support/Taipea"
@@ -314,7 +314,7 @@ if [ "$NO_START" != 1 ]; then
 fi
 
 printf '\n%s%s  Taipea is installed!%s\n' "$B" "$G" "$N"
-info "Ctrl + Option + Space   start / stop dictation (text is pasted where your cursor is)"
-info "Ctrl + Option + C       cleanup on / off (raw text)"
-info "Ctrl + Option + H       open the Taipea window (history, settings, models)"
+info "Control + Command        start / stop dictation: press both together (text is pasted where your cursor is)"
+info "Control + Option + Space backup start / stop · Escape while recording = stop & paste"
+info "Control + Option + H     open the Taipea window (history, settings, models) · change shortcuts in Settings › Shortcuts"
 info "Problems? Read the Troubleshooting section: https://github.com/$REPO#troubleshooting"

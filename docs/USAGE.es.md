@@ -8,7 +8,7 @@ tu Mac (o el que elijas en Ajustes), así que en español verás estas mismas pa
 - [1. Primer inicio y permisos](#1-primer-inicio-y-permisos)
 - [2. Dictar: el botón flotante](#2-dictar-el-botón-flotante)
 - [3. La tarjeta de grabación](#3-la-tarjeta-de-grabación)
-- [4. Atajos](#4-atajos)
+- [4. Atajos](#4-atajos) · [Cambiar un atajo](#cambiar-un-atajo) · [Tecla Micrófono (Dictado)](#tecla-microfono)
 - [5. La pestaña Historial](#5-la-pestaña-historial)
 - [6. Ajustes](#6-ajustes)
 - [7. La pestaña Modelos](#7-la-pestaña-modelos)
@@ -19,7 +19,7 @@ tu Mac (o el que elijas en Ajustes), así que en español verás estas mismas pa
 
 Cuando el instalador termina, reinicia Hammerspoon. Taipea muestra entonces un ícono 🎙 en
 la barra de menús y un botón redondo de micrófono flotando en la pantalla. Para abrir la
-ventana de Taipea, presiona **Ctrl + Opción + H**, abre **Taipea.app** desde
+ventana de Taipea, presiona **Control + Opción + H**, abre **Taipea.app** desde
 `~/Applications` (puedes ponerla en el Dock) o elige **Abrir Taipea…** en el menú 🎙.
 
 macOS pide dos permisos una sola vez. Taipea corre dentro de Hammerspoon, así que los dos
@@ -57,7 +57,7 @@ lo dejaste.
   espera tu frase de inicio.
 
 Los colores nunca cambian de significado: verde = parar y pegar, azul = parar y solo
-copiar, rojo = cancelar. Toca **Opción + Comando** para ocultar el botón, y tócalo otra vez
+copiar, rojo = cancelar. Presiona **Opción + Comando** para ocultar el botón, y otra vez
 para mostrarlo (mira [Ocultar el botón flotante](#controles-de-grabación-y-ocultar-el-botón-flotante)).
 
 ## 3. La tarjeta de grabación
@@ -76,17 +76,80 @@ idioma.)
 
 | Atajo | Qué hace |
 |---|---|
-| **Ctrl + Opción + Espacio** | Empieza a dictar. Presiónalo otra vez para parar y pegar en tu cursor. |
-| **Ctrl + Opción + C** | Activa o desactiva la corrección. Desactivada = texto original, tal como lo oyó Whisper. |
-| **Ctrl + Opción + H** | Abre la ventana de Taipea (Historial, Ajustes, Modelos). |
-| **Ctrl + Opción + V** | Pega otra vez el último dictado. |
-| **Opción + Comando** (toque) | Oculta o muestra el botón flotante. Presiona las dos teclas juntas y suéltalas. Los atajos Cmd + Opción + otra tecla siguen funcionando. |
+| **Control + Comando** | Empieza a dictar. Presiónalo otra vez para parar y pegar en tu cursor. Presiona las dos teclas juntas (en el Teclado de accesibilidad, haz clic en Control y luego en Comando para que las dos queden fijas). Actúa apenas las dos están abajo, no cuando las sueltas. |
+| **Control + Opción + Espacio** | El mismo empezar / parar, como respaldo. |
+| **Escape** (mientras grabas) | Para y pega. Solo Escape sola, y solo mientras Taipea graba; el resto del tiempo Escape funciona como siempre. Para descartar una grabación, usa **Cancelar**. |
+| **Control + Opción + C** | Activa o desactiva la corrección. Desactivada = texto original, tal como lo oyó Whisper. |
+| **Control + Opción + H** | Abre la ventana de Taipea (Historial, Ajustes, Modelos). |
+| **Control + Opción + V** | Pega otra vez el último dictado. |
+| **Opción + Comando** | Oculta o muestra el botón flotante. Presiona las dos teclas juntas. |
+| **🎙 Tecla Micrófono (F5)** | Opcional, apagada por defecto: empezar / parar. Mira [Usar la tecla Micrófono (Dictado)](#tecla-microfono). |
 
-Puedes cambiar los cuatro primeros en **Ajustes › Atajos**: escribe un atajo como
-`ctrl+alt+space` y presiona **Guardar**. **Restablecer los atajos de fábrica** los
-devuelve. El toque de Opción + Comando es fijo.
+Control + Comando y Opción + Comando esperan un momento (como un cuarto de segundo) antes de
+actuar. Si presionas otra tecla en ese momento (por ejemplo Control + Comando + Q para
+bloquear la pantalla), Taipea no hace nada, así que los demás atajos siguen funcionando.
+Mantener las teclas presionadas cuenta una sola vez.
 
-<img src="images/settings-shortcuts-es.png" width="570" alt="Ajustes, tarjeta Atajos: cada atajo con sus teclas actuales, un cuadro de texto y un botón azul Guardar, el toque fijo Opción + Comando y un botón naranja Restablecer los atajos de fábrica">
+### Cambiar un atajo
+
+Todos los atajos se pueden cambiar en **Ajustes › Atajos**. No necesitas escribir nada:
+
+1. Haz clic en **⏺ Grabar atajo** en la fila que quieres cambiar.
+2. La fila dice **Presiona tus teclas ahora… (Esc para cancelar)**. Presiona el atajo nuevo:
+   teclas modificadoras con una tecla (como Control + Opción + Espacio), o dos o más teclas
+   modificadoras solas (como Control + Mayúsculas + Comando). En el Teclado de accesibilidad,
+   haz clic en las teclas modificadoras para que queden fijas; Taipea las toma después de un
+   momento.
+3. Revisa las teclas que muestra y haz clic en **Guardar**. **Grabar otra vez** lo intenta de
+   nuevo y **Cancelar** deja el anterior.
+
+<img src="images/settings-shortcuts-es.png" width="570" alt="Ajustes, tarjeta Atajos en tema claro: seis filas (Empezar / parar y pegar con Control + Comando, el respaldo Control + Opción + Espacio, Corrección, Abrir esta ventana, Pegar otra vez el último dictado, Ocultar / mostrar el botón flotante con Opción + Comando), cada una con los símbolos grandes de las teclas, sus nombres, un botón Grabar atajo y un enlace Escribirlo, y al final un botón naranja Restablecer los atajos de fábrica">
+
+<img src="images/shortcuts-listening-es.png" width="570" alt="Una fila de atajo mientras graba: Presiona tus teclas ahora… (Esc para cancelar) y un botón grande Cancelar">
+
+<img src="images/shortcuts-result-es.png" width="570" alt="Una fila de atajo después de presionar las teclas: los símbolos de Control + Mayúsculas + Comando, sus nombres y los botones Guardar, Grabar otra vez y Cancelar">
+
+Taipea rechaza un atajo, y dice por qué, cuando es una sola tecla o Mayúsculas + una tecla
+(también escribiría; F1–F20 solas sí sirven), una sola tecla modificadora, un atajo que macOS
+ya usa (como Comando + Q, Comando + Espacio o Control + Comando + Q), uno que ya tiene otro
+atajo de Taipea, o la tecla Micrófono (tiene su propio interruptor). No aparece el botón
+Guardar hasta que grabes uno que sirva.
+
+<img src="images/shortcuts-refused-es.png" width="570" alt="Un atajo rechazado: Comando + Q con el aviso macOS ya usa este atajo, y solo los botones Grabar otra vez y Cancelar">
+
+¿Prefieres escribirlo? Abre **Escribirlo** debajo de una fila, escríbelo como `ctrl+cmd` o
+`ctrl+alt+space` (teclas: `ctrl`, `alt` = Opción, `shift`, `cmd`, más una tecla opcional) y
+presiona **Guardar**. **Restablecer los atajos de fábrica** los devuelve todos.
+
+**Consejo: un botón de Taipea en el Teclado de accesibilidad.** Puedes agregar tu propio
+botón que empiece y pare Taipea. Abre el **Editor de paneles** (Ajustes del Sistema ›
+Accesibilidad › Teclado › Teclado de accesibilidad › Editor de paneles), haz una copia del
+panel de tu teclado, agrega un botón, pon su **Acción** en **Presionar teclas**, haz clic en
+**Grabar** y presiona **Control + Opción + Espacio** (el atajo de respaldo). Guarda y elige ese
+panel en el Teclado de accesibilidad. Un clic empieza el dictado y otro lo para y pega.
+
+### Escape al grabar
+
+**Ajustes › Atajos › Escape al grabar** está en **Sí** por defecto: Escape para y pega.
+Ponlo en **No** si usas Escape para otra cosa mientras dictas.
+
+<a id="tecla-microfono"></a>
+### Usar la tecla Micrófono (Dictado) 🎙 (F5)
+
+Los teclados Apple recientes tienen una tecla 🎙 en F5. macOS la usa para su propio
+Dictado, así que solo le llega a Taipea después de liberarla. En Taipea está apagada por
+defecto.
+
+1. Abre **Ajustes del Sistema › Teclado**. En la sección **Dictado**, pon **Atajo** en
+   **Desactivada** (o elige otro atajo). También puedes apagar Dictado ahí.
+2. En Taipea, abre **Ajustes › Atajos** y pon **Tecla Micrófono (Dictado) 🎙 (F5)** en **Sí**.
+3. Presiona 🎙 para empezar, y otra vez para parar y pegar.
+
+<img src="images/settings-mic-key-es.png" width="570" alt="Ajustes, tarjeta Atajos, parte de abajo: Escape al grabar Sí o No, y Tecla Micrófono (Dictado) con los dos pasos y cómo deshacerlos, en No">
+
+Para deshacerlo: pon **Tecla Micrófono (Dictado)** en **No** en Taipea y luego, en Ajustes
+del Sistema › Teclado › Dictado, vuelve a poner **Atajo** en **Presionar 🎤** (y vuelve a
+activar Dictado si lo apagaste).
 
 ## 5. La pestaña Historial
 
@@ -94,7 +157,7 @@ Cada dictado se guarda en tu Mac (`~/Library/Application Support/Taipea/history.
 
 <img src="images/history-es.png" width="570" alt="Pestaña Historial con dictados de ejemplo. Cada uno muestra la hora y el estilo, el texto corregido, el texto original, los botones Copiar, Pegar, Copiar original y Borrar, y una fila para convertir el texto original a Ligero, Párrafos, Viñetas o Formal">
 
-- **📋 Pegar otra vez el último dictado** arriba (también Ctrl + Opción + V).
+- **📋 Pegar otra vez el último dictado** arriba (también Control + Opción + V).
 - **Buscar** encuentra palabras en el texto corregido o en el original.
 - En cada dictado: **Copiar**, **Pegar** (en la app que estabas usando), **Copiar
   original** (las palabras antes de la corrección) y **Borrar**.
@@ -143,8 +206,8 @@ Cada tarjeta se explica abajo en el orden en que aparece.
 
 - **Botón flotante:** Sí o No. **Mostrar también la tarjeta de grabación:** muestra
   también la tarjeta grande mientras dictas.
-- **Ocultar el botón flotante:** toca **Opción + Comando** o presiona **Ocultar por
-  ahora**. Vuelve cuando tocas otra vez.
+- **Ocultar el botón flotante:** presiona **Opción + Comando** u **Ocultar por ahora**.
+  Vuelve cuando lo presionas otra vez. Puedes cambiar el atajo en Ajustes › Atajos.
 - **Ocultar cuando una app está en pantalla completa** (activado por defecto) y
   **Ocultar en estas apps** (botones rápidos para TV, VLC, QuickTime Player e IINA, o
   **Añadir una app abierta**).

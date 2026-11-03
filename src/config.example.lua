@@ -3,16 +3,21 @@
 -- Every value below is the DEFAULT that Taipea already uses, so this file is optional.
 -- To change one, copy the line into config.lua, remove the "--" in front, edit it,
 -- then choose Hammerspoon > Reload Config (or restart Hammerspoon).
--- Most of these can also be changed in the Taipea window (Ctrl+Option+H) > Settings;
+-- Most of these can also be changed in the Taipea window (Control+Option+H) > Settings;
 -- choices made there are saved in settings.json and win over this file.
 return {
-  -- Shortcuts (mods: "ctrl", "alt" = Option, "cmd", "shift")
-  -- toggleKey   = { mods = {"ctrl","alt"}, key = "space" },  -- Ctrl+Option+Space: start; press again to stop and paste
-  -- modeKey     = { mods = {"ctrl","alt"}, key = "c" },      -- Ctrl+Option+C: cleanup on / off (raw text)
-  -- historyKey  = { mods = {"ctrl","alt"}, key = "h" },      -- Ctrl+Option+H: open the Taipea window
-  -- pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },     -- Ctrl+Option+V: paste the last dictation again
-  -- Tap Option + Command (press both, let go, no other key) to hide / show the floating button.
-  -- That tap is fixed and needs Accessibility; it is not a setting.
+  -- Shortcuts (mods: "ctrl", "alt" = Option, "cmd", "shift"). The easy way to change them is
+  -- Settings > Shortcuts > Record shortcut. key = "" means modifiers only: press them together
+  -- (or latch them on the Accessibility Keyboard); it acts on press, not on release.
+  -- toggleKey   = { mods = {"ctrl","cmd"}, key = "" },       -- Control+Command: start; press again to stop and paste
+  -- toggleKey2  = { mods = {"ctrl","alt"}, key = "space" },  -- Control+Option+Space: start / stop (backup)
+  -- modeKey     = { mods = {"ctrl","alt"}, key = "c" },      -- Control+Option+C: cleanup on / off (raw text)
+  -- historyKey  = { mods = {"ctrl","alt"}, key = "h" },      -- Control+Option+H: open the Taipea window
+  -- pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },     -- Control+Option+V: paste the last dictation again
+  -- fabHideKey  = { mods = {"alt","cmd"}, key = "" },        -- Option+Command: hide / show the floating button
+  -- escStop     = true,                 -- Escape while recording = stop and paste (Escape alone, no modifiers)
+  -- micKey      = false,                -- true = the Mic (Dictation) key F5 starts / stops Taipea. First set
+  --                                     -- System Settings > Keyboard > Dictation > Shortcut to Off (see docs/USAGE.md)
 
   -- Cleanup (grammar fix with a local Ollama model)
   -- cleanup     = true,                 -- false = always paste the raw transcription

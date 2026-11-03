@@ -14,13 +14,15 @@ hs.timer = setmetatable({ secondsSinceEpoch = function() fake.now = fake.now + 3
 hs.json = { encode = function() return "{}" end, decode = function(s) return { response = s } end }
 hs.http = { asyncPost = function(_, _, _, cb) cb(fake.post and 200 or 0, fake.post and fake.post() or nil) end }
 hs.alert = { show = function(m) fake.lastAlert = m end }
-hs.keycodes = { map = { space = 49, c = 8, h = 4, v = 9, f = 3 } }
+hs.keycodes = { map = { space = 49, c = 8, h = 4, v = 9, f = 3, q = 12, b = 11, k = 40, escape = 53, f6 = 97, ["4"] = 21,
+  [49] = "space", [8] = "c", [4] = "h", [9] = "v", [3] = "f", [12] = "q", [11] = "b", [53] = "escape" } }
 local TY = { flagsChanged = 12, keyDown = 10, leftMouseDown = 1, rightMouseDown = 3, otherMouseDown = 25, scrollWheel = 22, leftMouseUp = 2 }
-hs.eventtap = { event = { types = TY }, keyStroke = function() end, checkMouseButtons = function() return {} end,
+hs.eventtap = { event = { types = TY, properties = { keyboardEventAutorepeat = 8 } }, keyStroke = function() end, checkMouseButtons = function() return {} end,
   new = function(types, fn) local t = { types = types, fn = fn, on = false }
     function t:start() self.on = true; return self end; function t:stop() self.on = false; return self end
     function t:isEnabled() return self.on end
-    if types[1] == TY.flagsChanged then fake.tap = t end; return t end }
+    fake.taps = fake.taps or {}; table.insert(fake.taps, t)
+    if types[1] == TY.flagsChanged and not fake.tap then fake.tap = t end; return t end }
 hs.settings = { get = function() return true end, set = function() end }
 hs.host = { locale = { preferredLanguages = function() return { fake.lang or "en-US" } end, current = function() return "en_US" end } }
 hs.hotkey = { bind = function(mods, key) fake.binds = fake.binds or {}; table.insert(fake.binds, table.concat(mods, "+") .. "+" .. key); return { delete = function() end } end }
@@ -108,20 +110,23 @@ check("preflight mentions sox", (M.preflight() or ""):find("sox", 1, true) ~= ni
 
 -- defaults: shortcuts are bound even with no config.lua / settings.json
 local D = M.DEFAULTS
-check("default toggle key", table.concat(D.toggleKey.mods, "+") .. "+" .. D.toggleKey.key == "ctrl+alt+space")
+check("default toggle key: Control + Command", M.keyStr(D.toggleKey) == "ctrl+cmd" and D.toggleKey.key == "")
+check("backup toggle key", M.keyStr(D.toggleKey2) == "ctrl+alt+space")
+check("hide key: Option + Command", M.keyStr(D.fabHideKey) == "alt+cmd")
 check("default mode key", table.concat(D.modeKey.mods, "+") .. "+" .. D.modeKey.key == "ctrl+alt+c")
 check("default history key", table.concat(D.historyKey.mods, "+") .. "+" .. D.historyKey.key == "ctrl+alt+h")
 local b = table.concat(fake.binds or {}, ",")
 check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v")
-check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey and M.bound.fabHide == nil)
-check("no Ctrl+Option+F any more", D.fabHideKey == nil and not b:find("ctrl+alt+f", 1, true))
+check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey and M.bound.toggle2 == D.toggleKey2 and M.bound.fabHide == D.fabHideKey)
+check("no Ctrl+Option+F any more", not b:find("ctrl+alt+f", 1, true))
 do local seen, dup, cmdAlt = {}, false, false
-  for _, k in ipairs({ "toggleKey", "modeKey", "historyKey", "pasteLastKey" }) do
+  for _, k in ipairs(M.KEY_ACTIONS) do
     local m = {}; for _, x in ipairs(D[k].mods) do m[x] = true end
-    if m.cmd and m.alt then cmdAlt = true end   -- would also be a Cmd+Option press, which the tap ignores anyway
-    local s = table.concat(D[k].mods, "+") .. "+" .. D[k].key; if seen[s] then dup = true end; seen[s] = true end
-  check("default shortcuts don't collide", not dup)
-  check("no default shortcut uses Cmd+Option (the tap)", not cmdAlt) end
+    if m.cmd and m.alt and k ~= "fabHideKey" then cmdAlt = true end
+    local s = M.keyStr(D[k]); if seen[s] then dup = true end; seen[s] = true
+    if M.keyProblem(k, D[k]) then dup = true end end
+  check("default shortcuts don't collide and are all allowed", not dup)
+  check("only the hide key uses Cmd+Option", not cmdAlt) end
 check("default paste-last key", table.concat(D.pasteLastKey.mods, "+") .. "+" .. D.pasteLastKey.key == "ctrl+alt+v")
 check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.cardWithFab == false and D.textSize == "normal" and D.contrast == "auto"
   and D.silenceSeconds == 3 and #D.customWords == 0 and D.startPhrases[1] == "Taipea escribe" and D.stopPhrases[1] == "listo")
@@ -132,10 +137,10 @@ check("default values", D.style == "light" and D.cleanup == true and D.ollamaMod
 -- interface language: auto follows macOS (stubbed as es-CO), and can be forced
 check("auto -> Spanish Mac", M.uiLang() == "es")
 check("Spanish string", M.T("ov_listening") == "Escuchando…")
-check("Spanish key label", M.keyLabel(D.toggleKey) == "Ctrl + Opción + Espacio")
+check("Spanish key label", M.keyLabel(D.toggleKey2) == "Control + Opción + Espacio" and M.keyLabel(D.toggleKey) == "Control + Comando")
 M.cfg.uiLanguage = "en"
 check("forced English", M.uiLang() == "en" and M.T("ov_listening") == "Listening…")
-check("English key label", M.keyLabel(D.toggleKey) == "Ctrl + Option + Space")
+check("English key label", M.keyLabel(D.toggleKey2) == "Control + Option + Space" and M.keyLabel(D.toggleKey) == "Control + Command")
 check("format args", M.T("parts_kept", 2, 5) == "2 of 5 parts kept raw (cleanup removed too much)")
 M.cfg.uiLanguage = "auto"
 
@@ -309,42 +314,136 @@ M.micProblem(M.T("no_speech"))
 check("mic hint shown", M.micWarn == true and (fake.lastAlert or ""):find(M.T("perm_mic_hint"), 1, true) ~= nil)
 check("permission URLs", M.AX_URL:find("Privacy_Accessibility", 1, true) and M.MIC_URL:find("Privacy_Microphone", 1, true))
 
--- ---------- v0.2.3: Option + Command tap ----------
-local function tapSeq(steps)
-  M.FT.seq, M.FT.both, M.FT.dirty = false, false, false
-  local fired = false
-  for _, s in ipairs(steps) do if M.fabTapFeed(s[1], s[2], s[3]) then fired = true end end
-  return fired
-end
+-- ---------- v0.2.5: modifier-only shortcuts act on press (Control + Command, Option + Command) ----------
 local F = "flags"
+local function chordRun(steps, mods)
+  local C = M.newChord("test", mods or { "ctrl", "cmd" }); local n = 0
+  for _, s in ipairs(steps) do if C.feed(s[1], s[2], s[3]) then n = n + 1 end end
+  return n, C
+end
+local CC = { ctrl = true, cmd = true }
 for _, c in ipairs({
-  { "tap, one key then the other", true, { { F, { cmd = true }, 0 }, { F, { cmd = true, alt = true }, 0.1 }, { F, { alt = true }, 0.2 }, { F, {}, 0.25 } } },
-  { "tap, both at once", true, { { F, { cmd = true, alt = true }, 0 }, { F, {}, 0.1 } } },
-  { "Cmd+Option+key does not toggle", false, { { F, { cmd = true }, 0 }, { F, { cmd = true, alt = true }, 0.1 }, { "key", nil, 0.2 }, { F, { cmd = true }, 0.3 }, { F, {}, 0.35 } } },
-  { "Cmd+Option+click does not toggle", false, { { F, { cmd = true, alt = true }, 0 }, { "mouse", nil, 0.1 }, { F, {}, 0.2 } } },
-  { "with Shift does not toggle", false, { { F, { cmd = true, alt = true }, 0 }, { F, { cmd = true, alt = true, shift = true }, 0.1 }, { F, {}, 0.2 } } },
-  { "with Control does not toggle", false, { { F, { ctrl = true, cmd = true, alt = true }, 0 }, { F, {}, 0.2 } } },
-  { "with Fn does not toggle", false, { { F, { fn = true, cmd = true, alt = true }, 0 }, { F, {}, 0.2 } } },
-  { "too slow (1.4 s) does not toggle", false, { { F, { cmd = true }, 0 }, { F, { cmd = true, alt = true }, 0.5 }, { F, {}, 1.4 } } },
-  { "Command alone does not toggle", false, { { F, { cmd = true }, 0 }, { F, {}, 0.1 } } },
-  { "Option alone does not toggle", false, { { F, { alt = true }, 0 }, { F, {}, 0.1 } } },
-  { "Cmd+Tab then Option does not toggle", false, { { F, { cmd = true }, 0 }, { "key", nil, 0.05 }, { F, { cmd = true, alt = true }, 0.1 }, { F, {}, 0.2 } } },
-}) do check("tap: " .. c[1], tapSeq(c[3]) == c[2]) end
-check("tap: a clean tap right after a cancelled one", tapSeq({ { F, { cmd = true, alt = true }, 0 }, { "key", nil, 0.05 }, { F, {}, 0.1 } }) == false
-  and tapSeq({ { F, { cmd = true, alt = true }, 1 }, { F, {}, 1.1 } }) == true)
--- the real event tap: started, watches the right events, never consumes them
+  { "press and hold fires once (on press)", 1, { { F, { ctrl = true }, 0 }, { F, CC, 0.05 }, { "tick", nil, 0.33 }, { "tick", nil, 0.6 }, { F, { cmd = true }, 2 }, { F, {}, 2.1 } } },
+  { "quick tap fires on release", 1, { { F, CC, 0 }, { F, { ctrl = true }, 0.1 } } },
+  { "latched keys (virtual keyboard) fire with no release", 1, { { F, { ctrl = true }, 0 }, { F, CC, 1.5 }, { "tick", nil, 1.8 } } },
+  { "Control+Command+Q does not fire", 0, { { F, CC, 0 }, { "key", nil, 0.1 }, { "tick", nil, 0.3 }, { F, {}, 0.5 } } },
+  { "with Option does not fire", 0, { { F, CC, 0 }, { F, { ctrl = true, cmd = true, alt = true }, 0.1 }, { "tick", nil, 0.3 }, { F, {}, 0.5 } } },
+  { "with Shift held first does not fire", 0, { { F, { shift = true }, 0 }, { F, { shift = true, ctrl = true, cmd = true }, 0.1 }, { "tick", nil, 0.4 }, { F, {}, 0.5 } } },
+  { "Fn is ignored", 1, { { F, { fn = true, ctrl = true, cmd = true }, 0 }, { "tick", nil, 0.3 } } },
+  { "clicks don't cancel it", 1, { { F, CC, 0 }, { "mouse", nil, 0.1 }, { "tick", nil, 0.3 } } },
+  { "Control alone does not fire", 0, { { F, { ctrl = true }, 0 }, { "tick", nil, 0.5 }, { F, {}, 0.6 } } },
+  { "tick too early does not fire", 0, { { F, CC, 0 }, { "tick", nil, 0.1 } } },
+  { "held: no second fire until a key is let go", 1, { { F, CC, 0 }, { "tick", nil, 0.3 }, { F, CC, 0.5 }, { "tick", nil, 0.9 } } },
+  { "two presses, 1 s apart, fire twice", 2, { { F, CC, 0 }, { "tick", nil, 0.3 }, { F, {}, 0.4 }, { F, CC, 1.5 }, { "tick", nil, 1.8 } } },
+  { "a second press within the cooldown is ignored", 1, { { F, CC, 0 }, { F, {}, 0.1 }, { F, CC, 0.3 }, { F, {}, 0.4 } } },
+  { "after a blocked shortcut, a clean press works", 1, { { F, CC, 0 }, { "key", nil, 0.1 }, { F, {}, 0.3 }, { F, CC, 2 }, { "tick", nil, 2.3 } } },
+}) do local n = chordRun(c[3]); check("chord: " .. c[1], n == c[2]) end
+do local n = chordRun({ { F, { alt = true, cmd = true }, 0 }, { "tick", nil, 0.3 } }, { "alt", "cmd" })
+  check("chord: Option + Command works the same", n == 1) end
+do local fired = 0; local C = M.newChord("t", { "ctrl", "cmd" }, function() fired = fired + 1 end)
+  C.feed(F, CC, 0); C.feed("tick", nil, 0.3); check("chord: calls its action", fired == 1 and C.phase == "fired") end
+-- the real key watcher: started, never consumes keys, builds one chord per modifier-only shortcut
 local tap = fake.tap
-check("event tap started", tap ~= nil and tap.on == true and M.fabTapOK == true)
-local function ev(t, fl) return { getType = function() return t end, getFlags = function() return fl or {} end } end
-check("event tap never consumes keys", tap.fn(ev(TY.keyDown)) == false and tap.fn(ev(TY.flagsChanged, { cmd = true })) == false
-  and tap.fn(ev(TY.flagsChanged, { cmd = true, alt = true })) == false and tap.fn(ev(TY.flagsChanged, {})) == false)
-local watches = {}; for _, x in ipairs(tap.types) do watches[x] = true end
-check("event tap watches keys, clicks and scrolls", watches[TY.flagsChanged] and watches[TY.keyDown] and watches[TY.leftMouseDown] and watches[TY.scrollWheel])
+check("key watcher started", tap ~= nil and tap.on == true and M.fabTapOK == true and M.chordTapOK == true)
+local function ev(t, fl, kc, rep) return { getType = function() return t end, getFlags = function() return fl or {} end,
+  getKeyCode = function() return kc or 0 end, getProperty = function() return rep or 0 end } end
+check("key watcher never consumes keys", tap.fn(ev(TY.keyDown)) == false and tap.fn(ev(TY.flagsChanged, { cmd = true })) == false
+  and tap.fn(ev(TY.flagsChanged, CC)) == false and tap.fn(ev(TY.flagsChanged, {})) == false)
+do local w = {}; for _, x in ipairs(tap.types) do w[x] = true end
+  check("key watcher watches modifiers and keys only (not clicks)", w[TY.flagsChanged] and w[TY.keyDown] and not w[TY.leftMouseDown]) end
+check("two chords from the defaults", #M.CHORDS == 2 and M.CHORDS[1].mods[1] == "ctrl" and M.CHORDS[1].mods[2] == "cmd"
+  and M.CHORDS[2].mods[1] == "alt" and M.CHORDS[2].mods[2] == "cmd")
 check("tap label in both languages", M.STR.en.fab_tap_key == "Option + Command" and M.STR.es.fab_tap_key == "Opción + Comando")
-check("hidden alert names the tap", M.T("fab_hidden", M.T("fab_tap_key")):find("Opción + Comando", 1, true) ~= nil)
+check("hidden alert names the keys", M.T("fab_hidden", M.keyLabel(D.fabHideKey)):find("Opción + Comando", 1, true) ~= nil)
 M.cfg.uiLanguage = "en"
-check("hidden alert names the tap (en)", M.T("fab_hidden", M.T("fab_tap_key")) == "Floating button hidden (tap Option + Command to show it again)")
+check("hidden alert names the keys (en)", M.T("fab_hidden", M.keyLabel(D.fabHideKey)) == "Floating button hidden (press Option + Command to show it again)")
+check("modifier-only labels", M.keyLabel(D.toggleKey) == "Control + Command" and M.keySym(D.toggleKey) == "⌃ ⌘" and M.keySym(D.toggleKey2) == "⌃ ⌥ Space")
+check("labels use Apple's order", M.keyLabel({ mods = { "cmd", "shift", "ctrl" }, key = "k" }) == "Control + Shift + Command + K")
+check("key strings sorted", M.keyStr({ mods = { "cmd", "ctrl" }, key = "" }) == "ctrl+cmd" and M.keyStr({ mods = { "alt", "ctrl" }, key = "space" }) == "ctrl+alt+space")
 M.cfg.uiLanguage = "auto"
+-- typed shortcuts: modifiers only are allowed now
+local pk = M.parseKey
+check("parse: modifier-only", pk("Control + Command") and M.keyStr(pk("Control + Command")) == "ctrl+cmd" and pk("cmd+ctrl").key == "")
+check("parse: with a key", M.keyStr(pk("option+ctrl+space")) == "ctrl+alt+space")
+check("parse: bad words", pk("ctrl+banana+c") == nil and pk("ctrl+zz") == nil and pk("") == nil)
+-- refusals
+local kp = function(t, s) return M.keyProblem(t, type(s) == "string" and pk(s) or s) end
+check("refuse: one modifier alone", kp("toggleKey", { mods = { "ctrl" }, key = "" }) == M.T("k_need2"))
+check("refuse: a plain key", kp("toggleKey", { mods = {}, key = "c" }) == M.T("k_single") and kp("toggleKey", { mods = { "shift" }, key = "c" }) == M.T("k_single"))
+check("allow: F-key alone", kp("toggleKey", { mods = {}, key = "f6" }) == nil)
+check("refuse: macOS shortcuts", kp("toggleKey", "cmd+q") == M.T("k_system") and kp("toggleKey", "ctrl+cmd+space") == M.T("k_system")
+  and kp("toggleKey", { mods = { "alt", "cmd" }, key = "escape" }) == M.T("k_system") and kp("toggleKey", { mods = { "cmd", "shift" }, key = "4" }) == M.T("k_system"))
+check("refuse: the Mic key", kp("toggleKey", { mods = {}, key = "mic" }) == M.T("k_mic"))
+check("refuse: unknown key", kp("toggleKey", { mods = { "ctrl" }, key = "?999" }) == M.T("k_unknown"))
+check("refuse: used by another shortcut", kp("modeKey", "ctrl+cmd") == M.T("k_dup", M.T("k_lbl_toggleKey")) and kp("toggleKey2", "ctrl+alt+c") ~= nil)
+check("allow: same as itself", kp("toggleKey", "ctrl+cmd") == nil and kp("toggleKey", "ctrl+shift+cmd") == nil)
+-- recording a shortcut (decision logic)
+local function capRun(steps)
+  M.capBegin("toggleKey", 0); local r
+  for _, s in ipairs(steps) do local x = M.capFeed(s[1], s[2], s[3]); r = r or x end
+  M.CAP = nil; return r
+end
+local r = capRun({ { F, { ctrl = true }, 0.1 }, { F, CC, 0.2 }, { F, { cmd = true }, 0.4 }, { F, {}, 0.5 } })
+check("record: modifier-only on release", r and r.spec and M.keyStr(r.spec) == "ctrl+cmd")
+r = capRun({ { F, { ctrl = true }, 0.1 }, { F, { ctrl = true, alt = true }, 0.2 }, { "key", { kc = 49, fl = { ctrl = true, alt = true } }, 0.3 } })
+check("record: modifiers + key", r and r.spec and M.keyStr(r.spec) == "ctrl+alt+space")
+r = capRun({ { F, CC, 0.1 }, { "tick", nil, 0.5 }, { "tick", nil, 1.0 } })
+check("record: latched modifiers end after a moment", r and r.spec and M.keyStr(r.spec) == "ctrl+cmd")
+check("record: Escape cancels", (capRun({ { "key", { kc = 53, fl = {} }, 0.1 } }) or {}).cancel == true)
+check("record: times out", (capRun({ { "tick", nil, 21 } }) or {}).cancel == true)
+r = capRun({ { "key", { kc = 176, fl = { fn = true } }, 0.1 } })
+check("record: Mic key is seen (and refused later)", r and r.spec.key == "mic" and M.keyProblem("toggleKey", r.spec) == M.T("k_mic"))
+r = capRun({ { "key", { kc = 49, fl = {} }, 0.1 }, { "key", { kc = 8, fl = { ctrl = true, alt = true } }, 0.2 } })
+check("record: only the first result counts", r and M.keyStr(r.spec) == "space")
+-- the window flow: Record, result, Save; refused ones are not saved
+M.handle({ cmd = "capStart", key = "toggleKey" })
+check("record: listening pauses the shortcuts", M._capturing == "toggleKey" and M.cap and M.cap.phase == "listen")
+M.capFinish({ spec = { mods = { "cmd", "ctrl", "shift" }, key = "" } })
+check("record: result shown", M._capturing == nil and M.cap.phase == "result" and M.cap.label == "Control + Mayúsculas + Comando" and M.cap.err == "")
+fake.binds = {}
+M.handle({ cmd = "capSave" })
+check("record: saved and bound", M.keyStr(M.cfg.toggleKey) == "ctrl+shift+cmd" and M.cap == nil and M.CHORDS[1].mods[2] == "shift")
+M.handle({ cmd = "capStart", key = "modeKey" }); M.capFinish({ spec = { mods = { "cmd" }, key = "q" } })
+check("record: refused one shows why", M.cap.err == M.T("k_system"))
+M.handle({ cmd = "capSave" })
+check("record: refused one is not saved", M.keyStr(M.cfg.modeKey) == "ctrl+alt+c")
+M.handle({ cmd = "capCancel" })
+check("record: cancel clears it", M.cap == nil and M._capturing == nil)
+M.handle({ cmd = "set", key = "historyKey", value = "ctrl+cmd+space" })
+check("typed: macOS shortcut refused", M.keyStr(M.cfg.historyKey) == "ctrl+alt+h")
+M.handle({ cmd = "set", key = "fabHideKey", value = "ctrl+alt+b" })
+check("typed: new key saved", M.keyStr(M.cfg.fabHideKey) == "ctrl+alt+b" and M.CHORDS[2] == nil)
+M.handle({ cmd = "resetKeys" })
+check("reset: all six back to defaults", M.keyStr(M.cfg.toggleKey) == "ctrl+cmd" and M.keyStr(M.cfg.fabHideKey) == "alt+cmd" and #M.CHORDS == 2)
+-- old saved settings: an override is kept; a backup equal to it is bound once
+do local saveT = M.cfg.toggleKey
+  M.cfg.toggleKey = { mods = { "ctrl", "alt" }, key = "space" }; fake.binds = {}; M.bindAll()
+  check("migration: typed override kept, no double bind", table.concat(fake.binds, ",") == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v" and #M.CHORDS == 1 and M.bound.toggle2 == nil)
+  M.cfg.toggleKey = saveT; M.bindAll() end
+-- Escape while recording = stop & paste
+local esc = nil; for _, t in ipairs(fake.taps) do if t == M._escTap then esc = t end end
+check("Escape watcher started", esc ~= nil and esc.on and M.escTapOK == true)
+local realStop, stopped = M.stop, nil
+M.stop = function(how) stopped = how end
+check("Escape ignored when not recording", M.escWanted(53, {}) == false and esc.fn(ev(TY.keyDown, {}, 53)) == false)
+M._setState("rec")
+check("Escape wanted while recording", M.escWanted(53, {}) == true and M.escWanted(53, { cmd = true, alt = true }) == false and M.escWanted(12, {}) == false)
+check("Escape swallowed while recording", esc.fn(ev(TY.keyDown, {}, 53)) == true and esc.fn(ev(TY.keyUp, {}, 53)) == true)
+M.cfg.escStop = false
+check("Escape setting off", M.escWanted(53, {}) == false)
+M.cfg.escStop = true
+M._setState("idle"); M.stop = realStop
+check("Escape default on", D.escStop == true)
+-- Mic key: off by default, swallowed and toggles when on
+local mic = M._micTap
+check("Mic key off by default", D.micKey == false and mic.fn(ev(TY.keyDown, { fn = true }, 176)) == false)
+local realToggle = M.toggle; M.toggle = function() end
+M.cfg.micKey = true
+check("Mic key on: swallowed", mic.fn(ev(TY.keyDown, { fn = true }, 176)) == true and mic.fn(ev(TY.keyUp, { fn = true }, 176)) == true
+  and mic.fn(ev(TY.keyDown, {}, 96)) == false)
+M.cfg.micKey = false; M.toggle = realToggle
+-- the overlay hint names Escape
+check("overlay hint mentions Esc", M.T("ov_press_esc", "x"):find("Esc", 1, true) ~= nil)
 -- ---------- v0.2.4: update check ----------
 local vc = M.verCmp
 check("semver: 0.2.10 > 0.2.9", vc("0.2.10", "0.2.9") == 1 and vc("0.2.9", "0.2.10") == -1)

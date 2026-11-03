@@ -4,6 +4,38 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.5] - 2026-11-03
+
+### Added
+- New default start / stop shortcut: **Control + Command**. Press both keys together, or latch
+  both on the Accessibility Keyboard. It acts on press (about 0.28 s after both keys are down),
+  not on release, and works with Sticky Keys, the Accessibility Keyboard and Dwell clicks. If
+  another key is pressed in that moment (Control + Command + Q, …) it does nothing, and holding
+  the keys counts once. Each attempt that didn't count is written to the log with the reason.
+- **Control + Option + Space** stays as a backup start / stop shortcut (`toggleKey2`).
+- **Escape while recording = stop & paste.** Only Escape alone and only while recording;
+  otherwise Escape is untouched. Setting `escStop`, On by default (Settings › Shortcuts).
+- **Record your shortcuts.** Settings › Shortcuts has a big ⏺ Record shortcut button on every
+  row: press the keys (with a key, or two or more modifiers alone), check them, Save. Taipea
+  refuses, with the reason, single keys, Shift + key, a single modifier, macOS shortcuts
+  (Command + Q, Command + Space, Control + Command + Q, …), duplicates and the Mic key. Typing
+  (`ctrl+cmd`, `ctrl+alt+space`) still works under "Type it instead". Reset brings back all six.
+- **Mic (Dictation) key 🎙 (F5)** can start / stop Taipea (`micKey`, **Off by default**). Turn
+  off macOS Dictation's shortcut first (System Settings › Keyboard › Dictation › Shortcut: Off);
+  the steps are in Settings and in docs/USAGE.md.
+- Docs: new Shortcuts guide (recording, refusals, Accessibility Keyboard Panel Editor tip) and a
+  "Use the Mic (Dictation) key" section, in English and Spanish, with new light-theme screenshots.
+
+### Changed
+- Hide / show the floating button is now **Option + Command acting on press** (it used to act
+  when you let go) and can be changed like any other shortcut (`fabHideKey`).
+- Shortcut names use full words: Control, Option, Command (Spanish: Control, Opción, Comando).
+- The recording hint says "Press Control + Command or Esc, or a button, to finish".
+
+### Upgrading
+- Shortcuts you changed (in Settings or `config.lua`) are kept. If you had set start / stop to
+  Control + Option + Space, it is bound once (the backup is skipped as a duplicate).
+
 ## [0.2.4] - 2026-11-03
 
 ### Added
@@ -144,6 +176,7 @@ Internal baseline (not published as a GitHub release).
 - The installer no longer starts or restarts Ollama when it is already running.
 - `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
+[0.2.5]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.5
 [0.2.4]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.4
 [0.2.3]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.3
 [0.2.2]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.2

@@ -21,7 +21,11 @@ end
 
 -- built-in defaults; override any of them in ~/Library/Application Support/Taipea/config.lua
 local DEFAULTS = {
-  toggleKey   = { mods = {"ctrl","alt"}, key = "space" },  -- start / stop dictation
+  toggleKey   = { mods = {"ctrl","cmd"}, key = "" },       -- start / stop dictation: press Control + Command (acts on press)
+  toggleKey2  = { mods = {"ctrl","alt"}, key = "space" },  -- start / stop, backup shortcut
+  fabHideKey  = { mods = {"alt","cmd"}, key = "" },        -- hide / show the floating button: press Option + Command
+  escStop     = true,                        -- Escape while recording = stop & paste
+  micKey      = false,                       -- Mic (Dictation) key 🎙 F5 = start / stop (turn off macOS Dictation's shortcut first)
   modeKey     = { mods = {"ctrl","alt"}, key = "c" },      -- cleanup on / off (raw)
   historyKey  = { mods = {"ctrl","alt"}, key = "h" },      -- open the Taipea window
   cleanup     = true,
@@ -117,7 +121,7 @@ local STR = {
   login_on="Opens at login: ON", login_off="Opens at login: OFF – dictation unavailable until Hammerspoon is opened",
   lang_set="Language: English", note_local="local file", note_custom="custom path (config.lua)", note_installed="installed",
   style_light="Light", style_paragraphs="Paragraph", style_bullets="Bullets", style_formal="Formal",
-  k_ctrl="Ctrl", k_alt="Option", k_cmd="Cmd", k_shift="Shift", k_space="Space",
+  k_ctrl="Control", k_alt="Option", k_cmd="Command", k_shift="Shift", k_space="Space",
  },
  es = {
   cfg_error="Taipea: config.lua tiene un error, se usan los valores por defecto",
@@ -145,7 +149,7 @@ local STR = {
   login_on="Abrir al iniciar sesión: SÍ", login_off="Abrir al iniciar sesión: NO (el dictado no funciona hasta abrir Hammerspoon)",
   lang_set="Idioma: Español", note_local="archivo local", note_custom="ruta propia (config.lua)", note_installed="instalado",
   style_light="Ligero", style_paragraphs="Párrafos", style_bullets="Viñetas", style_formal="Formal",
-  k_ctrl="Ctrl", k_alt="Opción", k_cmd="Cmd", k_shift="Mayús", k_space="Espacio",
+  k_ctrl="Control", k_alt="Opción", k_cmd="Comando", k_shift="Mayúsculas", k_space="Espacio",
  },
 }
 -- ---------- v0.2 interface strings (English / Español) ----------
@@ -164,7 +168,13 @@ local NEWSTR = {
   fab_on="Floating button: ON", card_on="Recording card: shown with the floating button", card_off="Recording card: hidden while the floating button is on", fab_off="Floating button: OFF",
   words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
   look_set="Display updated",
-  fab_hidden="Floating button hidden (tap %s to show it again)", fab_tap_key="Option + Command", fab_shown="Floating button shown", fab_is_off="The floating button is off in Settings",
+  fab_hidden="Floating button hidden (press %s to show it again)", fab_tap_key="Option + Command",
+  k_none="No shortcut", k_need2="Use at least two modifier keys (for example Control + Command)", k_single="Add Control, Option or Command (a single key would type too)",
+  k_system="macOS already uses this shortcut", k_dup="Already used by: %s", k_mic="The Mic key has its own switch below", k_unknown="Taipea doesn't know this key",
+  k_lbl_toggleKey="Start / stop", k_lbl_toggleKey2="Start / stop (backup)", k_lbl_modeKey="Cleanup on / off", k_lbl_historyKey="Open the Taipea window",
+  k_lbl_pasteLastKey="Paste last again", k_lbl_fabHideKey="Hide / show floating button",
+  esc_on="Escape while recording: stop & paste", esc_off="Escape no longer stops recording", mic_on="Mic key 🎙 (F5): start / stop", mic_off="Mic key 🎙 (F5): off",
+  ov_press_esc="Press %s or Esc, or a button, to finish", fab_shown="Floating button shown", fab_is_off="The floating button is off in Settings",
   menu_fab_hide="Hide floating button for now", hide_added="Added: %s", hide_removed="Removed: %s", color_bad="That color is not valid. Use a code like #E8503A",
   perm_ax_paste="⚠️ Accessibility permission is off, so Taipea can't paste.\nThe text is on the clipboard: paste it with Cmd+V. Open Taipea for the settings button.",
   perm_ax_start="⚠️ Taipea needs Accessibility permission (for Hammerspoon) to paste.\nOpen Taipea › Open Accessibility settings.",
@@ -188,7 +198,13 @@ local NEWSTR = {
   fab_on="Botón flotante: SÍ", card_on="Tarjeta de grabación: se muestra con el botón flotante", card_off="Tarjeta de grabación: oculta mientras el botón flotante está activo", fab_off="Botón flotante: NO",
   words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
   look_set="Pantalla actualizada",
-  fab_hidden="Botón flotante oculto (toca %s para mostrarlo otra vez)", fab_tap_key="Opción + Comando", fab_shown="Botón flotante visible", fab_is_off="El botón flotante está apagado en Ajustes",
+  fab_hidden="Botón flotante oculto (presiona %s para mostrarlo otra vez)", fab_tap_key="Opción + Comando",
+  k_none="Sin atajo", k_need2="Usa al menos dos teclas modificadoras (por ejemplo Control + Comando)", k_single="Agrega Control, Opción o Comando (una sola tecla también escribiría)",
+  k_system="macOS ya usa este atajo", k_dup="Ya lo usa: %s", k_mic="La tecla Micrófono tiene su propio interruptor abajo", k_unknown="Taipea no conoce esta tecla",
+  k_lbl_toggleKey="Empezar / detener", k_lbl_toggleKey2="Empezar / detener (respaldo)", k_lbl_modeKey="Corrección sí / no", k_lbl_historyKey="Abrir la ventana de Taipea",
+  k_lbl_pasteLastKey="Pegar el último otra vez", k_lbl_fabHideKey="Ocultar / mostrar el botón flotante",
+  esc_on="Escape al grabar: detener y pegar", esc_off="Escape ya no detiene la grabación", mic_on="Tecla Micrófono 🎙 (F5): empezar / detener", mic_off="Tecla Micrófono 🎙 (F5): apagada",
+  ov_press_esc="Presiona %s o Esc, o un botón, para terminar", fab_shown="Botón flotante visible", fab_is_off="El botón flotante está apagado en Ajustes",
   menu_fab_hide="Ocultar el botón flotante por ahora", hide_added="Añadida: %s", hide_removed="Quitada: %s", color_bad="Ese color no es válido. Usa un código como #E8503A",
   perm_ax_paste="⚠️ El permiso de Accesibilidad está apagado: Taipea no puede pegar.\nEl texto está en el portapapeles: pégalo con Cmd+V. Abre Taipea para el botón de ajustes.",
   perm_ax_start="⚠️ Taipea necesita el permiso de Accesibilidad (para Hammerspoon) para pegar.\nAbre Taipea › Abrir ajustes de Accesibilidad.",
@@ -652,24 +668,76 @@ function setPal(p){var r=document.documentElement;['ovbg','ovtx','ovmut','ovt'].
 
 -- ---------- hotkeys ----------
 local hk = {}
--- "ctrl+alt+space" (editable form) and "Ctrl + Option + Space" (shown to people)
-local function keyStr(k) local m={}; for _,x in ipairs(k.mods) do table.insert(m, x) end; table.insert(m,k.key); return table.concat(m,"+") end
-local function keyLabel(k)
-  local m={}
-  for _,x in ipairs(k.mods) do table.insert(m, T("k_"..x)) end
-  table.insert(m, k.key=="space" and T("k_space") or k.key:upper())
-  return table.concat(m," + ")
+-- A shortcut is { mods = {...}, key = "space" } or modifier-only { mods = {"ctrl","cmd"}, key = "" }.
+-- Modifier-only ones act on press (see "Modifier-only shortcuts" below). Modifiers are listed in
+-- Apple's order: Control, Option, Shift, Command. One local table keeps the main chunk under Lua's
+-- 200-local limit.
+local KD = { ORDER = { "ctrl", "alt", "shift", "cmd" }, SYM = { ctrl = "⌃", alt = "⌥", shift = "⇧", cmd = "⌘" } }
+function KD.sort(list) local set = {}; for _, m in ipairs(list or {}) do set[m] = true end; local o = {}; for _, m in ipairs(KD.ORDER) do if set[m] then o[#o+1] = m end end; return o end
+-- "ctrl+cmd" / "ctrl+alt+space" (the editable form)
+local function keyStr(k) k = k or {}; local m = {}; for _, x in ipairs(KD.sort(k.mods)) do m[#m+1] = x end; if k.key and k.key ~= "" then m[#m+1] = tostring(k.key) end; return table.concat(m, "+") end
+function KD.name(key)
+  key = tostring(key or "")
+  if key == "space" then return T("k_space") elseif key == "mic" then return "🎙" end
+  if key == "escape" then return "Esc" end
+  if key:match("^f%d+$") or #key == 1 then return key:upper() end
+  return key:sub(1,1):upper()..key:sub(2)
 end
-M.keyStr, M.keyLabel = keyStr, keyLabel
+-- "Control + Command" / "Control + Option + Space" (shown to people)
+local function keyLabel(k)
+  if type(k) ~= "table" then return "" end
+  local m = {}
+  for _, x in ipairs(KD.sort(k.mods)) do m[#m+1] = T("k_"..x) end
+  if k.key and k.key ~= "" then m[#m+1] = KD.name(k.key) end
+  return table.concat(m, " + ")
+end
+-- "⌃ ⌘" / "⌃ ⌥ Space" (big symbols in Settings)
+function M.keySym(k)
+  if type(k) ~= "table" then return "" end
+  local m = {}
+  for _, x in ipairs(KD.sort(k.mods)) do m[#m+1] = KD.SYM[x] end
+  if k.key and k.key ~= "" then m[#m+1] = KD.name(k.key) end
+  return table.concat(m, " ")
+end
+M.keyStr, M.keyLabel, M.sortMods = keyStr, keyLabel, KD.sort
+-- typed form: "ctrl+alt+space", or modifiers only ("ctrl+cmd")
 local function parseKey(s)
   local parts = {}; for p in (s or ""):lower():gsub("%s",""):gmatch("[^+]+") do table.insert(parts,p) end
-  if #parts < 2 then return nil end
-  local key = table.remove(parts); local mods={}
+  if #parts == 0 then return nil end
   local map={ctrl="ctrl",control="ctrl",alt="alt",option="alt",opt="alt",cmd="cmd",command="cmd",shift="shift"}
+  local key = ""
+  if not map[parts[#parts]] then key = table.remove(parts) end
+  local mods = {}
   for _,p in ipairs(parts) do if not map[p] then return nil end; table.insert(mods,map[p]) end
-  if not hs.keycodes.map[key] then return nil end
-  return { mods=mods, key=key }
+  if key ~= "" and not hs.keycodes.map[key] then return nil end
+  return { mods=KD.sort(mods), key=key }
 end
+M.parseKey = parseKey
+-- every shortcut that can be changed (Settings › Shortcuts, config.lua or settings.json)
+M.KEY_ACTIONS = { "toggleKey", "toggleKey2", "modeKey", "historyKey", "pasteLastKey", "fabHideKey" }
+KD.BOUND = { toggleKey = "toggle", toggleKey2 = "toggle2", modeKey = "mode", historyKey = "history", pasteLastKey = "pasteLast", fabHideKey = "fabHide" }
+-- macOS shortcuts Taipea refuses to take over
+KD.RES = { ["cmd+q"]=1, ["cmd+w"]=1, ["cmd+c"]=1, ["cmd+v"]=1, ["cmd+x"]=1, ["cmd+z"]=1, ["cmd+a"]=1, ["cmd+tab"]=1, ["cmd+space"]=1,
+  ["ctrl+cmd+q"]=1, ["alt+cmd+escape"]=1, ["ctrl+cmd+space"]=1, ["ctrl+cmd+f"]=1, ["shift+cmd+3"]=1, ["shift+cmd+4"]=1, ["shift+cmd+5"]=1 }
+-- nil = OK to use for `target`, otherwise the reason it can't be used
+function M.keyProblem(target, k)
+  if type(k) ~= "table" then return T("k_none") end
+  local mods, key = KD.sort(k.mods), tostring(k.key or "")
+  if key == "mic" then return T("k_mic") end
+  if key:sub(1,1) == "?" then return T("k_unknown") end
+  if key == "" then
+    if #mods < 2 then return T("k_need2") end
+  else
+    local fkey = key:match("^f%d+$") ~= nil
+    if not fkey and (#mods == 0 or (#mods == 1 and mods[1] == "shift")) then return T("k_single") end
+  end
+  local s = keyStr({ mods = mods, key = key })
+  if KD.RES[s] then return T("k_system") end
+  for _, a in ipairs(M.KEY_ACTIONS) do if a ~= target and type(cfg[a]) == "table" and keyStr(cfg[a]) == s then return T("k_dup", T("k_lbl_"..a)) end end
+  return nil
+end
+-- one value per shortcut for the window, e.g. M.keysMap(keyLabel) or M.keysMap(keyLabel, DEFAULTS)
+function M.keysMap(fn, src) local o = {}; for _, a in ipairs(M.KEY_ACTIONS) do o[a] = fn((src or cfg)[a]) end; return o end
 local bindAll
 -- ---------- app window push ----------
 local pushState
@@ -1250,65 +1318,240 @@ function M.toggleFabHidden()
   if not cfg.floatButton then hs.alert.show(T("fab_is_off")); return end
   M.fabSessionHidden = not M.fabSessionHidden
   M.applyFabVis()
-  hs.alert.show(M.fabSessionHidden and T("fab_hidden", T("fab_tap_key")) or T("fab_shown"), 2)
+  hs.alert.show(M.fabSessionHidden and T("fab_hidden", keyLabel(cfg.fabHideKey)) or T("fab_shown"), 2)
   if pushState then pushState() end
 end
 
--- ---------- Option + Command tap: hide / show the floating button ----------
--- Press Option and Command together and let go, with no other key, click, scroll or modifier
--- (Control, Shift, Fn) in between, within about 1 second. Left or right keys both work. The event
--- tap only watches and never consumes events, so Cmd+Option+<key> shortcuts keep working (and
--- don't toggle). It needs Accessibility; a watchdog restarts the tap if macOS disables it (for
--- example after a timeout). Without it, use the menu item or Settings › Hide for now.
-local FT = { seq = false, both = false, dirty = false, t0 = 0 }
-M.FT = FT
-M.FAB_TAP_MAX = 1.0
--- one step of the decision, separate from the event tap so it can be tested.
--- kind = "flags" (fl = {cmd=,alt=,ctrl=,shift=,fn=}) or "key" / "mouse"; returns true = toggle now
-local function fabTapFeed(kind, fl, now)
-  now = now or hs.timer.secondsSinceEpoch()
-  if kind ~= "flags" then if FT.seq then FT.dirty = true end; return false end
-  fl = fl or {}
-  local any = fl.cmd or fl.alt or fl.ctrl or fl.shift or fl.fn
-  if any and not FT.seq then FT.seq, FT.both, FT.dirty, FT.t0 = true, false, false, now end
-  if not FT.seq then return false end
-  if fl.ctrl or fl.shift or fl.fn then FT.dirty = true end
-  if fl.cmd and fl.alt then FT.both = true end
-  if not any then
-    local fire = FT.both and not FT.dirty and (now - FT.t0) <= M.FAB_TAP_MAX
-    FT.seq, FT.both, FT.dirty = false, false, false
-    return fire and true or false
+-- ---------- Modifier-only shortcuts that act ON PRESS ----------
+-- Defaults: Control + Command = start / stop and paste, Option + Command = hide / show the floating
+-- button. A modifier-only shortcut fires as soon as all its modifiers are down with no other
+-- modifier (Fn is ignored), once CHORD_DEBOUNCE seconds pass with no other key pressed. Letting go
+-- before then, with no other key, fires right away (a quick tap). A key pressed in that window
+-- means a shortcut (Ctrl+Cmd+Q, Ctrl+Cmd+Space, Cmd+Option+Esc…), so it doesn't fire. After firing
+-- it won't fire again until one of its keys is let go (and never twice within CHORD_COOLDOWN), so
+-- one press = one toggle. Clicks are ignored, so it works with the Accessibility Keyboard (click to
+-- latch Control, then Command) and Dwell clicks, where the keys may stay latched. The tap only
+-- watches and never consumes events. It needs Accessibility; a watchdog restarts it if macOS
+-- disables it. Each attempt that didn't fire is written to the log with the reason.
+M.CHORD_DEBOUNCE = 0.28
+M.CHORD_COOLDOWN = 0.8
+KD.MODN = { alt = "Option", shift = "Shift", ctrl = "Control", cmd = "Command" }
+function M.newChord(name, mods, onFire)
+  local need = {}; for _, m in ipairs(mods) do need[m] = true end
+  local C = { name = name, mods = mods, phase = "idle", t0 = 0, gen = 0, lastFire = -1e9 }
+  local function forbidden(fl) for _, k in ipairs(KD.ORDER) do if fl[k] and not need[k] then return k end end end
+  local function all(fl) for _, m in ipairs(mods) do if not fl[m] then return false end end; return true end
+  local function fire(how, now) C.phase, C.lastFire = "fired", now; log(name.." ("..how.."): fire"); if onFire then onFire() end; return true end
+  -- one step of the decision; kind = "flags" (fl = {cmd=,alt=,ctrl=,shift=,fn=}), "key", "mouse" or
+  -- "tick" (the debounce time is up). Returns true = fire now. now is for tests.
+  function C.feed(kind, fl, now)
+    now = now or hs.timer.secondsSinceEpoch()
+    if kind == "mouse" then return false end
+    if kind == "key" then
+      if C.phase == "pending" then C.phase = "blocked"; log(name..": not counted – a key was pressed with it (a shortcut)") end
+      return false
+    end
+    if kind == "tick" then
+      if C.phase == "pending" and (now - C.t0) >= M.CHORD_DEBOUNCE - 0.005 then return fire("press", now) end
+      return false
+    end
+    fl = fl or {}
+    local both, bad = all(fl), forbidden(fl)
+    if C.phase == "idle" then
+      if both and not bad and (now - C.lastFire) < M.CHORD_COOLDOWN then C.phase = "blocked"; log(name..": not counted – too soon after the last one"); return false end
+      if both and not bad then C.phase, C.t0 = "pending", now; C.gen = C.gen + 1; return false end
+      if both and bad then C.phase = "blocked"; log(name..": not counted – "..KD.MODN[bad].." was held too") end
+      return false
+    end
+    if C.phase == "pending" then
+      if bad then C.phase = "blocked"; log(name..": not counted – "..KD.MODN[bad].." was held too"); return false end
+      if not both then local r = fire("quick tap", now); C.phase = "idle"; return r end
+      return false
+    end
+    -- fired / blocked: ready again once one of its keys is let go
+    if not both then C.phase = "idle" end
+    return false
   end
-  return false
+  function C.reset(ph) C.phase = ph or "idle" end
+  return C
 end
-M.fabTapFeed = fabTapFeed
-local function fabTapStart()
-  if M._fabTap then M._fabTap:stop() end
+M.CHORDS = {}   -- filled by bindAll() from the modifier-only shortcuts
+function M.chordTapStart()
+  if M._chordTap then M._chordTap:stop() end
   local ty = hs.eventtap.event.types
-  M._fabTap = hs.eventtap.new({ ty.flagsChanged, ty.keyDown, ty.leftMouseDown, ty.rightMouseDown, ty.otherMouseDown, ty.scrollWheel }, function(ev)
-    local ok, fire = pcall(function()
-      local t = ev:getType()
-      if t == ty.flagsChanged then return fabTapFeed("flags", ev:getFlags()) end
-      return fabTapFeed(t == ty.keyDown and "key" or "mouse")
+  M._chordTap = hs.eventtap.new({ ty.flagsChanged, ty.keyDown }, function(ev)
+    local ok, err = pcall(function()
+      if M._capturing then return end
+      local isKey = ev:getType() == ty.keyDown
+      local fl = (not isKey) and ev:getFlags() or nil
+      for _, C in ipairs(M.CHORDS) do
+        if isKey then C.feed("key") else
+          local before = C.gen
+          C.feed("flags", fl)
+          if C.phase == "pending" and C.gen ~= before then
+            local g = C.gen
+            after(M.CHORD_DEBOUNCE, function() if C.gen == g then C.feed("tick") end end)
+          end
+        end
+      end
     end)
-    if ok and fire then log("Option+Command tap: toggle floating button"); after(0, function() M.toggleFabHidden() end) end
+    if not ok then log("shortcuts: error "..tostring(err)) end
     return false   -- never consume: other apps still get every key
   end)
-  M._fabTap:start()
-  M.fabTapOK = M._fabTap:isEnabled() and true or false
-  if not M.fabTapOK then log("Option+Command tap: could not start (Accessibility off?); use the menu or Settings") end
+  M._chordTap:start()
+  M.chordTapOK = M._chordTap:isEnabled() and true or false
+  M.fabTapOK = M.chordTapOK
+  if not M.chordTapOK then log("shortcuts: could not start the key watcher (Accessibility off?); use Control + Option + Space or the menu") end
 end
-M.fabTapStart = fabTapStart
-fabTapStart()
+M.chordTapStart()
+
+-- ---------- Escape while recording = Stop & Paste ----------
+-- Only while recording and only plain Escape (no modifier, so Cmd+Option+Esc etc. are untouched);
+-- that Escape is swallowed. When not recording, Escape passes through. Setting escStop (default on).
+-- Escape is not Cancel: the Cancel button is the only way to throw a recording away.
+function M.escWanted(kc, fl)
+  fl = fl or {}
+  return kc == 53 and state == "rec" and cfg.escStop ~= false and not M._capturing and not (fl.cmd or fl.alt or fl.ctrl or fl.shift) and true or false
+end
+function M._setState(s) state = s end   -- tests only
+function M.escTapStart()
+  if M._escTap then M._escTap:stop() end
+  local ty = hs.eventtap.event.types
+  M._escTap = hs.eventtap.new({ ty.keyDown, ty.keyUp }, function(ev)
+    if ev:getKeyCode() ~= 53 then return false end
+    local ok, eat = pcall(function()
+      if ev:getType() == ty.keyUp then if M._escEat then M._escEat = false; return true end; return false end
+      if M._escEat and ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0 then return true end
+      if not M.escWanted(53, ev:getFlags()) then return false end
+      M._escEat = true; log("Escape: stop and paste"); after(0, function() M.stop("paste") end)
+      return true
+    end)
+    return ok and eat or false
+  end)
+  M._escTap:start()
+  M.escTapOK = M._escTap:isEnabled() and true or false
+end
+M.escTapStart()
+
+-- ---------- Mic (Dictation) key: F5 🎙 on recent Apple keyboards ----------
+-- Off by default (setting micKey). The key reaches Taipea only when macOS isn't using it: System
+-- Settings › Keyboard › Dictation, turn Dictation off or set Shortcut to Off. It arrives as keycode
+-- 176; Taipea starts / stops on key down and swallows the key so macOS doesn't react too.
+M.MIC_KEYCODES = { [176] = true }
+function M.micTapStart()
+  if M._micTap then M._micTap:stop() end
+  local ty = hs.eventtap.event.types
+  M._micTap = hs.eventtap.new({ ty.keyDown, ty.keyUp }, function(ev)
+    local ok, eat = pcall(function()
+      if M._capturing or cfg.micKey ~= true or not M.MIC_KEYCODES[ev:getKeyCode()] then return false end
+      if ev:getType() == ty.keyDown and ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) == 0 then
+        log("Mic key: start/stop (state="..tostring(state)..")"); after(0, function() M.toggle() end)
+      end
+      return true
+    end)
+    return ok and eat or false
+  end)
+  M._micTap:start()
+  M.micTapOK = M._micTap:isEnabled() and true or false
+end
+M.micTapStart()
+
+-- ---------- Recording a shortcut (Settings › Shortcuts › Record shortcut) ----------
+-- Click Record shortcut, then press the keys. It ends on a key press (modifiers + key, e.g.
+-- Control + Option + Space), when all held modifiers are let go (modifier-only, e.g. Control +
+-- Command), or after CAP_STABLE seconds of the same 2+ modifiers held with no key (Accessibility
+-- Keyboard: latched modifiers). Plain Escape cancels. While listening, Taipea's shortcuts are
+-- paused and key presses are swallowed, so nothing else reacts.
+M.CAP_STABLE = 0.8
+M.CAP_TIMEOUT = 20
+function M.modsOf(fl) local o = {}; for _, m in ipairs(KD.ORDER) do if fl and fl[m] then o[#o+1] = m end end; return o end
+function M.capBegin(target, now) M.CAP = { target = target, cur = {}, max = {}, seen = false, t0 = now or hs.timer.secondsSinceEpoch(), tStable = 0 }; return M.CAP end
+-- one step; kind "flags" (a = flags), "key" (a = {kc=, fl=}) or "tick". Returns nil (keep
+-- listening), { spec = {mods=, key=} } or { cancel = true }. Only the first result counts.
+function M.capFeed(kind, a, now)
+  local P = M.CAP; if not P or P.done then return nil end
+  now = now or hs.timer.secondsSinceEpoch()
+  local r
+  if kind == "flags" then
+    local cur = M.modsOf(a)
+    if #cur > 0 then
+      if #cur >= #P.max then P.max = cur end
+      P.cur, P.tStable, P.seen = cur, now, true
+    else
+      P.cur = {}
+      if P.seen and #P.max > 0 then r = { spec = { mods = P.max, key = "" } } end
+    end
+  elseif kind == "key" then
+    local kc, mods = a.kc, M.modsOf(a.fl)
+    if kc == 53 and #mods == 0 then r = { cancel = true }
+    elseif M.MIC_KEYCODES[kc] then r = { spec = { mods = mods, key = "mic" } }
+    else r = { spec = { mods = mods, key = hs.keycodes.map[kc] or ("?"..tostring(kc)) } } end
+  elseif kind == "tick" then
+    if now - P.t0 > M.CAP_TIMEOUT then r = { cancel = true, timeout = true }
+    elseif #P.cur >= 2 and now - P.tStable >= M.CAP_STABLE then r = { spec = { mods = P.cur, key = "" } } end
+  end
+  if r then P.done = true end
+  return r
+end
+function M.capStop()
+  if M._capTap then M._capTap:stop(); M._capTap = nil end
+  if M._capTimer then M._capTimer:stop(); M._capTimer = nil end
+  local was = M._capturing
+  M._capturing = nil; M.CAP = nil
+  if was then
+    for _, h in ipairs(hk) do if h.enable then h:enable() end end
+    for _, C in ipairs(M.CHORDS) do C.reset("blocked") end   -- keys still held from recording don't fire it
+  end
+end
+function M.capFinish(r)
+  local target = M.CAP and M.CAP.target or (M.cap and M.cap.target)
+  M.capStop()
+  if r.cancel then M.cap = nil; log("record shortcut: cancelled"..(r.timeout and " (timeout)" or ""))
+  else
+    local spec = { mods = KD.sort(r.spec.mods), key = r.spec.key or "" }
+    M.cap = { target = target, phase = "result", spec = spec, sym = M.keySym(spec), label = keyLabel(spec), err = M.keyProblem(target, spec) or "" }
+    log("record shortcut "..tostring(target)..": "..keyStr(spec)..(M.cap.err ~= "" and (" – refused: "..M.cap.err) or ""))
+  end
+  if pushState then pushState() end
+end
+function M.captureStart(target)
+  if not KD.BOUND[target] then return end
+  M.capStop()
+  M.capBegin(target); M._capturing = target
+  for _, h in ipairs(hk) do if h.disable then h:disable() end end
+  local ty = hs.eventtap.event.types
+  M._capTap = hs.eventtap.new({ ty.flagsChanged, ty.keyDown, ty.keyUp }, function(ev)
+    local ok, eat = pcall(function()
+      local t = ev:getType()
+      if t == ty.keyUp then return true end
+      local r
+      if t == ty.flagsChanged then r = M.capFeed("flags", ev:getFlags())
+      else r = M.capFeed("key", { kc = ev:getKeyCode(), fl = ev:getFlags() }) end
+      if r then after(0, function() M.capFinish(r) end) end
+      return t ~= ty.flagsChanged
+    end)
+    return ok and eat or false
+  end)
+  M._capTap:start()
+  M._capTimer = hs.timer.doEvery(0.1, function() local r = M.capFeed("tick"); if r then M.capFinish(r) end end)
+  M.cap = { target = target, phase = "listen" }
+  log("record shortcut "..target..": listening")
+  if pushState then pushState() end
+end
+function M.captureCancel() M.capStop(); M.cap = nil; if pushState then pushState() end end
+
+-- keep the key watchers running if macOS disables them (for example after a timeout)
 if M._fabTapDog then M._fabTapDog:stop() end
 M._fabTapDog = hs.timer.doEvery(5, function()
-  if not M._fabTap then return end
-  if not M._fabTap:isEnabled() then
-    M._fabTap:start()
-    M.fabTapOK = M._fabTap:isEnabled() and true or false
-    log("Option+Command tap: was disabled, restart "..(M.fabTapOK and "OK" or "failed"))
-    if pushState then pushState() end
-  else M.fabTapOK = true end
+  for _, p in ipairs({ { "_chordTap", "chordTapOK" }, { "_escTap", "escTapOK" }, { "_micTap", "micTapOK" } }) do
+    local tap = M[p[1]]
+    if tap and not tap:isEnabled() then
+      tap:start(); M[p[2]] = tap:isEnabled() and true or false
+      log("key watcher "..p[1]..": was disabled, restart "..(M[p[2]] and "OK" or "failed"))
+      if pushState then pushState() end
+    elseif tap then M[p[2]] = true end
+  end
+  M.fabTapOK = M.chordTapOK
 end)
 -- react when you switch apps, plus a light check every second for full screen changes
 if M._fabAppW then M._fabAppW:stop() end
@@ -1389,7 +1632,7 @@ refresh = function()
     { title = T("menu_autostop", tostring(cfg.silenceSeconds)), checked = cfg.autoStop, fn = function() M.toggleAutoStop() end },
     { title = T("menu_voice", (cfg.startPhrases or {})[1] or ""), checked = cfg.voiceControl, fn = function() M.handle({cmd="set", key="voiceControl", value=not cfg.voiceControl}) end },
     { title = T("menu_fab"), checked = cfg.floatButton, fn = function() M.handle({cmd="set", key="floatButton", value=not cfg.floatButton}) end },
-    { title = T("menu_fab_hide").."  ("..T("fab_tap_key")..")", checked = M.fabSessionHidden, disabled = not cfg.floatButton, fn = function() M.toggleFabHidden() end },
+    { title = T("menu_fab_hide").."  ("..keyLabel(cfg.fabHideKey)..")", checked = M.fabSessionHidden, disabled = not cfg.floatButton, fn = function() M.toggleFabHidden() end },
     { title = "-" },
     { title = T("menu_paste_last").."  ("..keyText(cfg.pasteLastKey)..")", disabled = #history==0, fn = function() M.pasteLast() end },
   }
@@ -1762,7 +2005,7 @@ function M.start()
   recTask:start(); state="rec"; recStart=hs.timer.secondsSinceEpoch()
   sound("Tink")
   if cfg.cleanup then after(0.5, function() M.warmModel() end) end
-  local sub = cfg.autoStop and T("ov_autostop", tostring(cfg.silenceSeconds)) or T("ov_press", keyLabel(cfg.toggleKey))
+  local sub = cfg.autoStop and T("ov_autostop", tostring(cfg.silenceSeconds)) or T(cfg.escStop ~= false and "ov_press_esc" or "ov_press", keyLabel(cfg.toggleKey))
   if M.voiceActive() and (cfg.stopPhrases or {})[1] then sub = T("ov_say_stop", cfg.stopPhrases[1]) end
   after(0.3, function() setOverlay(T("ov_listening"), sub, false) end)
   tick = hs.timer.doEvery(1, function() if state=="rec" then setOverlay(T("ov_listening"), sub, false) end end)
@@ -1853,16 +2096,15 @@ pushState = function()
   local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ checkForUpdates=(cfg.checkForUpdates~=false), openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
      autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay,
      voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords,
-     hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id,
+     hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id, escStop=(cfg.escStop~=false), micKey=(cfg.micKey==true),
      customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
      look=look, perm={ ax=M.permAx, mic=M.micWarn },
      upd={ cur=M.VERSION, latest=M.upd.latest or "", banner=M.updWanted(), on=(cfg.checkForUpdates~=false), checking=M.upd.checking, result=M.upd.result or "",
        last=(tonumber(saved.updLastCheck) and os.date("%Y-%m-%d %H:%M", tonumber(saved.updLastCheck)) or "") }, pal=M.palette(), fabThemes=FAB_THEMES, fabHidden=(fab and M._fabHidR or ""), fabSessionHidden=M.fabSessionHidden, runApps=M._runApps,
      recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
      voice={ active=M.voiceActive(), model=(vlModel():match("[^/]+$") or ""):gsub("^ggml%-",""):gsub("%.bin$","") },
-     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey) },
-     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey), pasteLastKey=keyLabel(cfg.pasteLastKey), fabHideKey=T("fab_tap_key") }, fabTapOK=(M.fabTapOK==true),
-     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey), pasteLastKey=keyLabel(DEFAULTS.pasteLastKey), fabHideKey=T("fab_tap_key") },
+     keys=M.keysMap(keyStr), keyLabels=M.keysMap(keyLabel), keySyms=M.keysMap(M.keySym), fabTapOK=(M.fabTapOK==true), micTapOK=(M.micTapOK==true),
+     defaultKeys=M.keysMap(keyLabel, DEFAULTS), defaultSyms=M.keysMap(M.keySym, DEFAULTS), cap=(M.cap or false),
      lang=uiLang(), sysLang=sysLang,
      whisperModels=wm, llmModels=lm, dl=downloads, ollama=(cfg.ollama~=nil), activeModel=M.activeModel() or "", missing=preflight() or "" }
   local js = hs.json.encode(data)
@@ -1926,17 +2168,30 @@ function M.handle(a)
     elseif c=="addWord" then list[#list+1] = { heard=h, replace=r }
     elseif i and list[i] then list[i] = { heard=h, replace=r } end
     setOpt("customWords", list); hs.alert.show(T("words_saved"))
+  elseif c=="capStart" then M.captureStart(a.key)
+  elseif c=="capCancel" then M.captureCancel()
+  elseif c=="capSave" then
+    local cp = M.cap
+    if not (cp and cp.phase=="result" and cp.spec and KD.BOUND[cp.target]) then return end
+    local err = M.keyProblem(cp.target, cp.spec)
+    if err then hs.alert.show(err); M.cap.err = err; pushState(); return end
+    M.cap = nil; setOpt(cp.target, cp.spec); bindAll(); refresh(); hs.alert.show(T("shortcut_set", keyLabel(cp.spec))); pushState()
   elseif c=="resetKeys" then
-    for _,k in ipairs({"toggleKey","modeKey","historyKey","pasteLastKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
+    M.capStop(); M.cap = nil
+    for _,k in ipairs(M.KEY_ACTIONS) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
     saveSettings(); bindAll(); refresh(); hs.alert.show(T("shortcuts_reset"))
   elseif c=="dlWhisper" then dlWhisper(a.file)
   elseif c=="dlLLM" then dlLLM(a.name)
   elseif c=="set" then
     local k, v = a.key, a.value
-    if k=="toggleKey" or k=="modeKey" or k=="historyKey" or k=="pasteLastKey" then
+    if KD.BOUND[k] then
       local pk = parseKey(v)
       if not pk then hs.alert.show(T("bad_shortcut", tostring(v))); pushState(); return end
-      setOpt(k, pk); bindAll(); hs.alert.show(T("shortcut_set", keyLabel(pk)))
+      local err = M.keyProblem(k, pk)
+      if err then hs.alert.show(err); pushState(); return end
+      setOpt(k, pk); bindAll(); refresh(); hs.alert.show(T("shortcut_set", keyLabel(pk)))
+    elseif k=="escStop" then setOpt(k, v and true or false); hs.alert.show(cfg.escStop and T("esc_on") or T("esc_off"))
+    elseif k=="micKey" then setOpt(k, v and true or false); hs.alert.show(cfg.micKey and T("mic_on") or T("mic_off"))
     elseif k=="modelName" or k=="ollamaModel" then setOpt(k, v); hs.alert.show(T("using", v))
       if k=="ollamaModel" then M.warmModel(v) end
     elseif k=="openAtLogin" then setOpt(k, v); hs.autoLaunch(v and true or false)
@@ -2006,13 +2261,28 @@ function M.js(s) if appWin then appWin:evaluateJavaScript(s) end end
 
 bindAll = function()
   for _,h in ipairs(hk) do h:delete() end; hk = {}
-  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey, pasteLast=cfg.pasteLastKey }
-  table.insert(hk, hs.hotkey.bind(cfg.toggleKey.mods, cfg.toggleKey.key, M.toggle))
-  table.insert(hk, hs.hotkey.bind(cfg.modeKey.mods, cfg.modeKey.key, M.toggleMode))
-  table.insert(hk, hs.hotkey.bind(cfg.historyKey.mods, cfg.historyKey.key, M.openApp))
-  table.insert(hk, hs.hotkey.bind(cfg.pasteLastKey.mods, cfg.pasteLastKey.key, function() M.pasteLast() end))
+  local acts = { toggleKey = M.toggle, toggleKey2 = M.toggle, modeKey = M.toggleMode, historyKey = M.openApp,
+    pasteLastKey = function() M.pasteLast() end, fabHideKey = function() M.toggleFabHidden() end }
+  M.bound, M.CHORDS = {}, {}
+  local seen = {}
+  for _, a in ipairs(M.KEY_ACTIONS) do
+    local k = cfg[a]
+    if type(k) == "table" and type(k.mods) == "table" then
+      local s = keyStr(k)
+      if seen[s] then log("shortcut "..a.." ("..s..") is the same as "..seen[s]..": bound once")
+      elseif (k.key or "") == "" then
+        if #KD.sort(k.mods) >= 2 then seen[s] = a; M.bound[KD.BOUND[a]] = k; M.CHORDS[#M.CHORDS+1] = M.newChord(keyLabel(k), KD.sort(k.mods), acts[a])
+        else log("shortcut "..a.." ("..s.."): a single modifier can't be a shortcut, skipped") end
+      else
+        local ok, h = pcall(hs.hotkey.bind, k.mods, k.key, acts[a])
+        if ok and h then seen[s] = a; M.bound[KD.BOUND[a]] = k; table.insert(hk, h) else log("shortcut "..a.." ("..s.."): could not bind") end
+      end
+    end
+  end
+  if M._capturing then for _, h in ipairs(hk) do if h.disable then h:disable() end end end
 end
 bindAll()
+M.bindAll = bindAll
 hs.urlevent.bind("taipea", function() M.openApp() end)
 if hs.autoLaunch() ~= (cfg.openAtLogin and true or false) then hs.autoLaunch(cfg.openAtLogin and true or false) end
 -- show window at startup only on a fresh launch shortly after login (not on config reload)
@@ -2058,7 +2328,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.4"
+local VERSION = "0.2.5"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end
