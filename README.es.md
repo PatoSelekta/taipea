@@ -491,6 +491,15 @@ Lo que está hecho solo para inglés y español:
 - **Las frases para empezar / parar con la voz** están en inglés y español (puedes
   cambiarlas).
 
+Si pones **Idioma del dictado** en **English** o **Español**, Taipea descarta el texto que
+sale casi todo en otro alfabeto (japonés, cirílico…), que es lo que Whisper a veces inventa
+cuando hay silencio; antes lo intenta una vez más con el otro idioma. Para dictar en japonés,
+ruso, árabe u otro alfabeto, deja **Automático**.
+
+**No se escuchó nada.** Si la grabación está en silencio, o Whisper solo devuelve una frase
+que inventa con el silencio ("Thanks for watching", "Subtítulos realizados por la comunidad
+de Amara.org"…), Taipea muestra "No se escuchó nada · no se pegó nada" y no pega nada.
+
 ## Modelos
 
 Puedes cambiar los modelos en la pestaña **Modelos** de la ventana.

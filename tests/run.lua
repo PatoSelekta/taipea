@@ -530,5 +530,119 @@ check("update strings in both languages", M.STR.es.upd_menu:find("Nueva versión
 hs.json.decode, hs.notify, hs.http.asyncGet = realDecode, realNotify, realAsyncGet
 reset(); for k, v in pairs(savedCopy) do S[k] = v end
 M.cfg.uiLanguage = "auto"
+-- ---------- v0.2.6: silence and hallucination guard ----------
+do
+  local SIL = "Pk lev dB       -inf\nRMS lev dB      -inf\nRMS Pk dB       -inf\nRMS Tr dB       -inf\nLength s       2.000\n"
+  local ROOM = "Pk lev dB     -24.10\nRMS lev dB    -31.50\nRMS Pk dB     -29.80\nRMS Tr dB     -33.20\nLength s       4.100\n"
+  local SPEECH = "Pk lev dB      -3.20\nRMS lev dB    -19.00\nRMS Pk dB     -14.50\nRMS Tr dB     -41.00\nLength s      12.400\n"
+  local QUIETSPEECH = "Pk lev dB     -20.00\nRMS lev dB    -33.00\nRMS Pk dB     -31.00\nRMS Tr dB     -48.00\nLength s       3.000\n"
+  local lvS, lvR, lvP, lvQ = M.parseStats(SIL), M.parseStats(ROOM), M.parseStats(SPEECH), M.parseStats(QUIETSPEECH)
+  check("stats: -inf read as -200", lvS.rmsPk == -200 and lvS.len == 2)
+  check("stats: numbers read", lvP.pk == -3.2 and lvP.rms == -19 and lvP.rmsPk == -14.5 and lvP.rmsTr == -41 and lvP.len == 12.4)
+  check("stats: garbage gives nils", M.parseStats("sox FAIL").rmsPk == nil)
+  check("silent: digital silence", M.isSilent(lvS) == true)
+  check("silent: below -40 dB", M.isSilent({ rmsPk = -45, rmsTr = -60, len = 3 }) == true)
+  check("silent: flat room noise", M.isSilent(lvR) == true)
+  check("not silent: speech", M.isSilent(lvP) == false)
+  check("not silent: quiet speech that rises above the room", M.isSilent(lvQ) == false)
+  check("not silent: unknown levels", M.isSilent(nil) == false and M.isSilent({}) == false)
+  check("silent: under 0.3 s", M.isSilent({ rmsPk = -15, len = 0.2 }) == true)
+  -- scripts
+  local JA, RU = "ご視聴ありがとうございました", "Продолжение следует..."
+  check("non-Latin: Japanese", M.mostlyNonLatin(JA) == true and M.mostlyNonLatin(RU) == true)
+  check("Latin: Spanish with accents", M.mostlyNonLatin("¿Mañana vamos a la reunión?") == false)
+  check("Latin: Vietnamese counts as Latin", M.mostlyNonLatin("Tiếng Việt rất đẹp") == false)
+  check("Latin: a Japanese word inside Spanish", M.mostlyNonLatin("La palabra arigato es ありがとう en japonés") == false)
+  check("letters: punctuation only has none", M.hasLetters(" ... !? ") == false and M.hasLetters("ok") == true and M.hasLetters(JA) == true)
+  check("script filter only for en / es", M.scriptFilterOn("en") and M.scriptFilterOn("es") and not M.scriptFilterOn("auto"))
+  -- judge
+  check("judge: empty", M.judgeRaw("  . . ", lvP, "auto") == "empty" and M.judgeRaw("", lvP, "en") == "empty")
+  check("judge: Japanese with English set -> retry", M.judgeRaw(JA .. " 日本語", lvP, "en") == "script")
+  check("judge: Japanese with Español set -> retry", M.judgeRaw("こんにちは世界", lvP, "es") == "script")
+  check("judge: Japanese in Auto is a real dictation", M.judgeRaw("こんにちは、今日は良い天気です", lvP, "auto") == "ok")
+  check("judge: Russian in Auto is a real dictation", M.judgeRaw("Привет, как дела?", lvP, "auto") == "ok")
+  check("judge: Auto silence phrase in Japanese when quiet", M.judgeRaw(JA .. "。", lvQ, "auto") == "hallucination")
+  check("judge: Auto Japanese phrase when loud is kept", M.judgeRaw(JA, lvP, "auto") == "ok")
+  check("judge: Thanks for watching, short clip", M.judgeRaw("Thanks for watching!", { rmsPk = -18, len = 3 }, "auto") == "hallucination")
+  check("judge: Amara subtitles, quiet", M.judgeRaw("Subtítulos realizados por la comunidad de Amara.org", lvQ, "es") == "hallucination")
+  check("judge: Thanks for watching inside a long loud dictation is kept", M.judgeRaw("Thanks for watching", lvP, "en") == "ok")
+  check("judge: Gracias alone when quiet is dropped", M.judgeRaw("Gracias.", lvQ, "auto") == "hallucination")
+  check("judge: Gracias alone when loud is kept", M.judgeRaw("Gracias.", { rmsPk = -16, len = 1.5 }, "auto") == "ok")
+  check("judge: phrase only as the whole output", M.judgeRaw("Gracias por ver el informe de ventas", lvQ, "es") == "ok")
+  check("judge: normal text", M.judgeRaw("Hola, necesito the report", nil, "auto") == "ok")
+  -- retries
+  check("retry langs skip the one used", table.concat(M.retryLangs("en"), ",") == "es" and table.concat(M.retryLangs("es"), ",") == "en")
+  local b = M.pickRetry({ { lang = "es", text = "Hola, cómo estás, yo creo que está bien" }, { lang = "en", text = "Hola como estas yo creo" } }, lvP)
+  check("retry: better fit kept", b and b.lang == "es")
+  check("retry: nothing usable", M.pickRetry({ { lang = "en", text = JA }, { lang = "es", text = "..." } }, lvP) == nil)
+  -- afterRaw flow
+  local realAW, got = M.afterWhisper, nil
+  M.afterWhisper = function(t) got = t end
+  local oldLang, oldWhisper = M.cfg.language, M.cfg.whisper
+  M.cfg.whisper = "/usr/local/bin/whisper-cli"
+  M.cfg.uiLanguage = "en"
+  M._lv = lvP
+  M.cfg.language = "auto"; got = nil; local nt = #fake.tasks
+  M.afterRaw("こんにちは、今日は良い天気です", "/tmp/x.wav")
+  check("afterRaw Auto: non-Latin pasted, no retry", got == "こんにちは、今日は良い天気です" and #fake.tasks == nt)
+  M.cfg.language = "en"; got = nil; nt = #fake.tasks
+  M.afterRaw("Hello there, how are you", "/tmp/x.wav")
+  check("afterRaw: normal text passes", got == "Hello there, how are you" and #fake.tasks == nt)
+  got = nil; nt = #fake.tasks; fake.lastAlert = nil
+  M.afterRaw(JA, "/tmp/x.wav")
+  local tk = fake.tasks[#fake.tasks]
+  local function argOf(t, flag) for i, a in ipairs(t.args or {}) do if a == flag then return t.args[i + 1] end end end
+  check("afterRaw English: one retry with -l es", #fake.tasks == nt + 1 and argOf(tk, "-l") == "es" and got == nil)
+  tk.cb(0, "Hola, ¿cómo estás? Yo creo que está bien.\n")
+  check("afterRaw English: usable retry pasted", got == "Hola, ¿cómo estás? Yo creo que está bien. ")
+  got = nil; nt = #fake.tasks; fake.lastAlert = nil
+  M.cfg.language = "es"
+  M.afterRaw(RU, "/tmp/x.wav")
+  tk = fake.tasks[#fake.tasks]
+  check("afterRaw Español: retry with -l en", #fake.tasks == nt + 1 and argOf(tk, "-l") == "en")
+  tk.cb(0, "Продолжение следует")
+  check("afterRaw: unusable retry -> nothing heard", got == nil and fake.lastAlert == M.T("nothing_heard"))
+  fake.lastAlert = nil
+  M.afterRaw(" ... ", "/tmp/x.wav")
+  check("afterRaw: no letters -> nothing heard", got == nil and fake.lastAlert == "Nothing heard · nothing was pasted")
+  M.cfg.uiLanguage = "es"; fake.lastAlert = nil; M._lv = lvQ
+  M.afterRaw("Thank you.", "/tmp/x.wav")
+  check("afterRaw: silence phrase -> nothing heard (Spanish UI)", got == nil and fake.lastAlert == "No se escuchó nada · no se pegó nada")
+  M._voicePrefix = "hola"; M._lv = lvQ
+  M.afterRaw("Thank you.", "/tmp/x.wav")
+  check("afterRaw: voice start phrase session is never dropped", got == "Thank you.")
+  M._voicePrefix = nil
+  -- transcribe measures the recording with sox first
+  local base = os.tmpname()
+  for _, n in ipairs({ "_rec", "_sox", "_whisper" }) do local f = io.open(base .. n, "w"); f:write("x"); f:close() end
+  local oldRec, oldAttr = M.cfg.rec, hs.fs.attributes
+  M.cfg.rec, M.cfg.whisper = base .. "_rec", base .. "_whisper"
+  hs.fs.attributes = function(p, a) if p == "/tmp/x.wav" then return a and nil or { size = 200000 } end; return oldAttr(p, a) end
+  M.cfg.uiLanguage = "en"; M.cfg.language = "auto"
+  nt = #fake.tasks; fake.lastAlert = nil
+  M.transcribeFile("/tmp/x.wav")
+  tk = fake.tasks[#fake.tasks]
+  check("transcribe: sox stats runs first", #fake.tasks == nt + 1 and tk.cmd == base .. "_sox" and tk.args[1] == "/tmp/x.wav" and tk.args[3] == "stats")
+  tk.cb(0, "", SIL)
+  check("transcribe: silent recording skips Whisper", #fake.tasks == nt + 1 and fake.lastAlert == M.T("nothing_heard"))
+  nt = #fake.tasks; fake.lastAlert = nil
+  M.transcribeFile("/tmp/x.wav")
+  fake.tasks[#fake.tasks].cb(0, "", SPEECH)
+  tk = fake.tasks[#fake.tasks]
+  check("transcribe: speech goes on to Whisper", #fake.tasks == nt + 2 and tk.cmd == base .. "_whisper" and argOf(tk, "-l") == "auto" and fake.lastAlert == nil)
+  check("transcribe: levels kept for the checks", M._lv and M._lv.rmsPk == -14.5)
+  got = nil; tk.cb(0, "Hola equipo, mañana a las nueve.\n")
+  check("transcribe: Whisper text reaches cleanup", got == "Hola equipo, mañana a las nueve. ")
+  nt = #fake.tasks
+  M.transcribeFile("/tmp/x.wav")
+  fake.tasks[#fake.tasks].cb(1, "", "sox FAIL formats")
+  check("transcribe: unreadable levels still transcribe", fake.tasks[#fake.tasks].cmd == base .. "_whisper" and #fake.tasks == nt + 2)
+  for _, n in ipairs({ "_rec", "_sox", "_whisper" }) do os.remove(base .. n) end
+  os.remove(base)
+  hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
+  M.afterWhisper, M._lv = realAW, nil
+  M.cfg.uiLanguage = "auto"
+  check("version 0.2.6", M.VERSION == "0.2.6")
+end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

@@ -4,7 +4,33 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.2.5] - 2026-11-03
+## [0.2.6] - 2026-11-03
+
+### Fixed
+- **No more made-up text on silence.** Whisper sometimes "heard" Japanese, Cyrillic or phrases
+  like "Thanks for watching" / "Subtítulos realizados por la comunidad de Amara.org" when you
+  said nothing, and Taipea pasted it. Now:
+  - Before Whisper, the recording is measured with sox. A silent one (loudest moment below
+    -40 dB, or steady room noise: below -28 dB and less than 6 dB between loudest and quietest)
+    is not transcribed.
+  - Text with no letters is dropped.
+  - With Dictation language set to **English** or **Español**, text that is mostly in another
+    alphabet is retried once with the other language (es / en) and dropped if that is not
+    usable. In **Auto** nothing is filtered by alphabet, so the ~99 languages keep working.
+  - A known silence phrase is dropped only when it is the whole output and the audio was quiet
+    or short.
+  - You see "Nothing heard · nothing was pasted" ("No se escuchó nada · no se pegó nada") and
+    nothing is pasted. The levels and the reason are written to the log.
+
+### Changed
+- Dictation language **Auto** is now labelled "Auto (any language; EN/ES mix)" / "Automático
+  (cualquier idioma; mezcla ES/EN)". Option buttons grow taller (never below 60 px) when a
+  label needs two lines.
+- The recording hint is shorter: "Press Control + Command or Esc to finish", so it fits on one
+  line; new recording-card screenshots.
+- Docs: README "Other languages" section: speech recognition works in about 99 languages;
+  the interface and cleanup are made for English and Spanish.
+
 
 ### Added
 - New default start / stop shortcut: **Control + Command**. Press both keys together, or latch

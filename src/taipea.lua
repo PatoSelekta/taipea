@@ -46,7 +46,7 @@ local DEFAULTS = {
   openAtLogin = true, showAtLogin = false,
   showOverlay = true,                        -- floating panel with big buttons while recording
   style = "light",                           -- light | paragraphs | bullets | formal
-  language = "auto",                         -- dictation language: auto (EN/ES mix) | en | es
+  language = "auto",                         -- dictation language: auto (detects ~99 languages, incl. the EN/ES mix) | en | es
   uiLanguage = "auto",                       -- interface language: auto (macOS language) | en | es
   defaultAction = "paste",                   -- after stopping: paste | copy
   uiSize = "normal",                         -- normal | compact
@@ -104,6 +104,7 @@ local STR = {
   ov_transcribing="Transcribing…", ov_still="Transcribing… (still working)",
   ov_cleaning="Cleaning up…", ov_cleaning_part="Cleaning up… part %d of %d", ov_fixing="Fixing grammar with %s",
   copied="Copied", copied_clip="Copied to clipboard", copied_raw="Copied raw", no_speech="No speech detected",
+  nothing_heard="Nothing heard · nothing was pasted", ov_check_lang="checking the language",
   nothing_convert="Nothing to convert", converted="Converted to %s · copied to clipboard", parts_raw=" (%d part(s) kept raw)",
   styles_need_model="Styles need a cleanup model – install Ollama and a model (see README)",
   conv_failed="Conversion failed – is Ollama running? (see log)",
@@ -132,6 +133,7 @@ local STR = {
   ov_transcribing="Transcribiendo…", ov_still="Transcribiendo… (sigue trabajando)",
   ov_cleaning="Corrigiendo…", ov_cleaning_part="Corrigiendo… parte %d de %d", ov_fixing="Corrigiendo con %s",
   copied="Copiado", copied_clip="Copiado al portapapeles", copied_raw="Texto original copiado", no_speech="No se detectó voz",
+  nothing_heard="No se escuchó nada · no se pegó nada", ov_check_lang="revisando el idioma",
   nothing_convert="No hay nada que convertir", converted="Convertido a %s · copiado al portapapeles", parts_raw=" (%d parte(s) sin corregir)",
   styles_need_model="Los estilos necesitan un modelo de corrección: instala Ollama y un modelo (mira el README)",
   conv_failed="La conversión falló: ¿está corriendo Ollama? (mira el registro)",
@@ -1910,8 +1912,115 @@ local function cleanup(raw)
   end)
 end
 
-local function whisperArgs(f)
-  local a = { "-m", modelPath(), "-l", cfg.language, "-nt", "-np" }
+-- ---------- silence and hallucination guard ----------
+-- On silence Whisper can invent text: "Thanks for watching", "Subtítulos realizados por la
+-- comunidad de Amara.org", Japanese "ご視聴ありがとうございました", Cyrillic… Nothing is pasted then.
+-- 1. Before Whisper the recording is measured with sox "stats" (a few ms). It is skipped when
+--    its loudest 50 ms ("RMS Pk dB") is below SILENT_RMSPK, or when it is quiet (below
+--    FLAT_MAX_RMSPK) and flat (loudest minus quietest under FLAT_RANGE_DB: room noise only).
+-- 2. After Whisper: text with no letters is dropped. When the dictation language is English or
+--    Español, text that is mostly non-Latin script is retried once with the other one (es / en)
+--    and dropped if that is not usable. In Auto nothing is filtered by script: Auto works in
+--    about 99 languages (Japanese, Russian, Arabic… are real dictations there).
+-- 3. Output that is only a known silence phrase is dropped when the audio was quiet / short.
+M.SILENT_RMSPK = -40     -- dBFS; normal speech measures about -14 to -20, a quiet room about -32
+M.QUIET_RMSPK = -30      -- below this, "Thank you." / "Gracias." alone count as silence phrases
+M.SHORT_SECS = 8
+M.FLAT_MAX_RMSPK = -28; M.FLAT_RANGE_DB = 6
+function M.parseStats(txt)
+  local function num(label) local v = (txt or ""):match(label.."%s+(%-?[%w%.]+)"); if v == "-inf" then return -200 end; return tonumber(v) end
+  return { pk = num("Pk lev dB"), rms = num("RMS lev dB"), rmsPk = num("RMS Pk dB"), rmsTr = num("RMS Tr dB"), len = num("Length s") }
+end
+function M.levelsText(lv) lv = lv or {}
+  return string.format("len %.1fs, peak %s dB, RMS %s dB, loudest %s dB, quietest %s dB", lv.len or 0, tostring(lv.pk), tostring(lv.rms), tostring(lv.rmsPk), tostring(lv.rmsTr)) end
+-- true when the recording is effectively silent (unknown levels = not silent)
+function M.isSilent(lv)
+  if not lv or not lv.rmsPk then return false end
+  if lv.len and lv.len < 0.3 then return true end
+  if lv.rmsPk < M.SILENT_RMSPK then return true end
+  if lv.rmsTr and lv.rmsPk < M.FLAT_MAX_RMSPK and (lv.rmsPk - lv.rmsTr) < M.FLAT_RANGE_DB then return true end
+  return false
+end
+-- letters in Latin script vs other scripts (Greek, Cyrillic, Arabic, Hebrew, Indic, Thai, CJK, kana, hangul…)
+function M.scriptCounts(s)
+  local lat, other = 0, 0
+  pcall(function()
+    for _, c in utf8.codes(s or "") do
+      if (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or (c >= 0xC0 and c <= 0x24F and c ~= 0xD7 and c ~= 0xF7) or (c >= 0x1E00 and c <= 0x1EFF) then lat = lat + 1
+      elseif (c >= 0x370 and c <= 0x1DFF) or (c >= 0x3040 and c <= 0x9FFF) or (c >= 0xAC00 and c <= 0xD7AF) or (c >= 0xF900 and c <= 0xFAFF) or (c >= 0xFF66 and c <= 0xFF9F) then other = other + 1 end
+    end
+  end)
+  return lat, other
+end
+function M.mostlyNonLatin(s) local lat, other = M.scriptCounts(s); return other > 0 and other >= lat end
+function M.hasLetters(s) local lat, other = M.scriptCounts(s); return (lat + other) > 0 end
+-- the script filter only applies when the dictation language is English or Español
+function M.scriptFilterOn(lang) lang = lang or cfg.language or "auto"; return lang == "en" or lang == "es" end
+-- whole output is only a phrase Whisper makes up on silence
+M.HALLU_STRONG = { "thanks for watching", "thank you for watching", "thanks for watching and see you next time", "please subscribe",
+  "gracias por ver", "gracias por ver el video", "gracias por su atencion", "subtitulos realizados por la comunidad de amara org",
+  "subtitulos por la comunidad de amara org", "subtitles by the amara org community", "amara org", "subtitulado por la comunidad de amara org" }
+M.HALLU_WEAK = { "thank you", "thanks", "gracias", "you", "bye", "adios", "chau", "hasta luego", "muchas gracias", "ok", "okay", "hmm", "mm" }
+-- the same in other scripts (Auto mode), compared without spaces and punctuation; only when quiet
+M.HALLU_OTHER = { "ご視聴ありがとうございました", "ご清聴ありがとうございました", "продолжениеследует", "спасибозапросмотр",
+  "字幕由amaraorg社区提供", "请不吝点赞订阅转发打赏支持明镜与点点栏目" }
+local function squash(s)
+  s = (s or ""):lower():gsub("[%s%p]", "")
+  for _, p in ipairs({ "。", "、", "！", "？", "…", "「", "」", "，" }) do s = s:gsub(p, "") end
+  return s
+end
+function M.isHallucination(text, lv)
+  local quiet = lv and lv.rmsPk and lv.rmsPk < M.QUIET_RMSPK
+  local short = lv and lv.len and lv.len < M.SHORT_SECS
+  local w = table.concat(wordsOf(text), " ")
+  if w ~= "" then
+    for _, p in ipairs(M.HALLU_STRONG) do if w == p and (quiet or short) then return true end end
+    for _, p in ipairs(M.HALLU_WEAK) do if w == p and quiet then return true end end
+  end
+  if quiet then local q = squash(text); for _, p in ipairs(M.HALLU_OTHER) do if q == p then return true end end end
+  return false
+end
+-- "ok", "empty", "hallucination" or "script" (mostly non-Latin while the language is English / Español)
+function M.judgeRaw(text, lv, lang)
+  text = text or ""
+  if not M.hasLetters(text) then return "empty" end
+  if M.scriptFilterOn(lang) and M.mostlyNonLatin(text) then return "script" end
+  if M.isHallucination(text, lv) then return "hallucination" end
+  return "ok"
+end
+-- share of a text's words that are common words of the language (0..1)
+function M.langFit(text, lang)
+  local set = lang == "en" and EN_W or ES_W
+  local w = wordsOf(text); if #w == 0 then return 0 end
+  local n = 0; for _, x in ipairs(w) do if set[x] then n = n + 1 end end
+  return n / #w
+end
+-- languages to retry with when the output was mostly non-Latin (the one already used is skipped)
+function M.retryLangs(lang)
+  local out = {}
+  for _, l in ipairs({ "es", "en" }) do if l ~= lang then out[#out+1] = l end end
+  return out
+end
+-- best of the forced-language retries, or nil
+function M.pickRetry(cands, lv)
+  local best, bestScore
+  for _, c in ipairs(cands) do
+    if M.judgeRaw(c.text, lv, c.lang) == "ok" then
+      local sc = M.langFit(c.text, c.lang) + #wordsOf(c.text) * 0.001
+      if not bestScore or sc > bestScore then best, bestScore = c, sc end
+    end
+  end
+  return best
+end
+function M.nothingHeard(why)
+  log("nothing heard ("..why.."): nothing pasted")
+  state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false
+  M._voiceStopped, M._voicePrefix, M._voiceSession = false, nil, false
+  if M._dry then M._dryResult = "" end
+  refresh(); hs.alert.show(T("nothing_heard"), 2)
+end
+local function whisperArgs(f, lang)
+  local a = { "-m", modelPath(), "-l", lang or cfg.language, "-nt", "-np" }
   local hint = whisperHint(); if hint then a[#a+1] = "--prompt"; a[#a+1] = hint end
   a[#a+1] = "-f"; a[#a+1] = f
   return a
@@ -1937,6 +2046,39 @@ local function afterWhisper(out)
   if cfg.cleanup and not out:match("^%s*$") then cleanup(out) else finish(out, nil) end
 end
 M.afterWhisper = afterWhisper
+-- Whisper's raw text: paste it, retry with the language forced, or drop it (silence)
+function M.afterRaw(out, file)
+  local lv = M._lv
+  if M._voicePrefix then M.afterWhisper(out); return end
+  local lang = cfg.language or "auto"
+  local j = M.judgeRaw(out, lv, lang)
+  if j == "ok" then M.afterWhisper(out); return end
+  if j == "script" and file then
+    local langs = M.retryLangs(lang)
+    log("whisper gave mostly non-Latin text with -l "..lang..", retrying with -l "..table.concat(langs, ", -l "))
+    setOverlay(T("ov_transcribing"), T("ov_check_lang"), true)
+    local cands = {}
+    local function run(i)
+      local l = langs[i]
+      if not l then
+        local b = M.pickRetry(cands, lv)
+        if b then log("retry kept -l "..b.lang..": "..b.text); M.afterWhisper(b.text) else M.nothingHeard("non-Latin text, retry gave nothing usable") end
+        return
+      end
+      M.wTask = hs.task.new(cfg.whisper, function(code, o)
+        M.wTask = nil
+        if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+        o = (o or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
+        log(string.format("whisper retry -l %s exit %d RAW: %s", l, code, o))
+        if code == 0 then cands[#cands+1] = { lang = l, text = o } end
+        run(i + 1)
+      end, whisperArgs(file, l))
+      if not M.wTask:start() then M.wTask = nil; run(i + 1) end
+    end
+    run(1); return
+  end
+  M.nothingHeard(j == "script" and "non-Latin text" or j)
+end
 transcribe = function(file)
   file = file or wav; M._sessWav = file
   M._wdKick = true
@@ -1955,16 +2097,37 @@ transcribe = function(file)
   if tick then tick:stop() end
   tick = hs.timer.doEvery(1, function() if M.wTask then setOverlay(T("ov_still"), tsub, true) elseif state=="busy" then
     if overlay then local e=math.floor(hs.timer.secondsSinceEpoch()-recStart); overlay:evaluateJavaScript(string.format("document.getElementById('t').textContent=%q", string.format("%d:%02d",e//60,e%60))) end end end)
+  local function go()
   M.wTask = hs.task.new(cfg.whisper, function(code, out, err)
     M.wTask = nil
     if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
     log(string.format("whisper %s exit %d %.1fs RAW: %s", cfg.modelName, code, hs.timer.secondsSinceEpoch()-t0, out or ""))
     if code ~= 0 then state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh(); hs.alert.show(T("trans_failed")); return end
     out = (out or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
-    afterWhisper(out)
+    M.afterRaw(out, file)
   end, whisperArgs(file))
   if not M.wTask:start() then M.wTask = nil; M.watchdogReset("whisper-cli did not start", T("wd_reset")) end
+  end
+  -- measure the recording first (sox stats, a few ms); a silent one is not sent to Whisper
+  M._lv = nil
+  local sox = (cfg.rec or ""):gsub("rec$", "sox")
+  if sox ~= "" and fileExists(sox) and not M._voicePrefix then
+    local done = false
+    local function next_(lv)
+      if done then return end; done = true
+      if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+      M._lv = lv
+      if lv then log("levels: "..M.levelsText(lv)) end
+      if M.isSilent(lv) then M.nothingHeard("silent recording, "..M.levelsText(lv)); return end
+      go()
+    end
+    M.lvTask = hs.task.new(sox, function(_, so, se) M.lvTask = nil; next_(M.parseStats((se or "")..(so or ""))) end, { file, "-n", "stats" })
+    if not M.lvTask:start() then M.lvTask = nil; next_(nil) end
+    after(5, function() if not done then if M.lvTask then M.lvTask:terminate(); M.lvTask = nil end; log("levels: sox timed out"); next_(nil) end end)
+  else go() end
 end
+
+M.transcribeFile = function(f) return transcribe(f) end   -- test hook
 
 -- load the cleanup model in the background (same num_ctx as cleanup, or Ollama reloads it)
 function M.warmModel(model)
@@ -2328,7 +2491,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.5"
+local VERSION = "0.2.6"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

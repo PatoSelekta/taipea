@@ -466,6 +466,15 @@ What is made for English and Spanish only:
   Whisper heard.
 - **Voice start / stop** phrases are in English and Spanish (you can edit them).
 
+If you set **Dictation language** to **English** or **Español**, Taipea drops text that comes
+back mostly in another alphabet (Japanese, Cyrillic…), which is what Whisper sometimes makes up
+on silence; it first tries once more with the other language. To dictate in Japanese, Russian,
+Arabic or another alphabet, keep **Auto**.
+
+**Nothing heard.** When a recording is silent, or Whisper only returns a phrase it invents on
+silence ("Thanks for watching", "Subtítulos realizados por la comunidad de Amara.org"…),
+Taipea shows "Nothing heard · nothing was pasted" and pastes nothing.
+
 ## Models
 
 You can change models in the window's **Models** tab.

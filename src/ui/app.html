@@ -25,7 +25,7 @@ input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:
 .e.busy .sty .opt{opacity:.4;pointer-events:none}.conv{color:var(--warn);font-weight:700;font-size:18px}.raw{color:var(--mut2);font-size:15px;margin-bottom:8px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
-.opt{flex:1;min-width:130px}.opt.on{background:var(--acc);color:var(--acctx);outline:3px solid var(--ring)}
+.opt{flex:1;min-width:130px;height:auto;min-height:60px;padding:8px 18px}.opt.on{background:var(--acc);color:var(--acctx);outline:3px solid var(--ring)}
 .m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--inner);border-radius:10px;padding:12px 16px;margin:8px 0}
 .m small{color:var(--mut2);display:block;font-size:14px}.prog{color:var(--warn);font-weight:700}
 /* Size: compact scales the whole UI via one variable; the Size card stays full size */
@@ -85,7 +85,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
 
  kToggle:'Start / stop and paste',kMode:'Cleanup on / off (raw)',kHist:'Open this window',def:'Default: %s',save:'Save',resetKeys:'Reset shortcuts to defaults',
  cleanup:'Cleanup (grammar fix)',offRaw:'Off (raw)',style:'Style',sLight:'Light fix',sPar:'Paragraphs',sBul:'Bullet points',sFor:'Formal',
- dlang:'Dictation language',dAuto:'Auto (EN/ES mix)',after:'After stopping',pasteCur:'Paste at cursor',copyOnly:'Copy only',
+ dlang:'Dictation language',dAuto:'Auto (any language; EN/ES mix)',after:'After stopping',pasteCur:'Paste at cursor',copyOnly:'Copy only',
  auto:'Auto-stop on silence',silSec:'Silence seconds',sens:'Sensitivity threshold',sensHint:'Higher threshold = treats more background noise as silence.',
  overlay:'Recording panel',overlayHint:'The floating panel with big Stop & Paste, Copy only and Cancel buttons.',resetOv:'Reset panel position',
  setup:'⚠ Setup needed',wTitle:'Speech model (Whisper)',wHint:'Saved in ~/Library/Application Support/Taipea/models',lTitle:'Cleanup model (Ollama)',
@@ -130,7 +130,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
 
  kToggle:'Empezar / parar y pegar',kMode:'Corrección sí / no (original)',kHist:'Abrir esta ventana',def:'De fábrica: %s',save:'Guardar',resetKeys:'Restablecer los atajos de fábrica',
  cleanup:'Corrección (gramática)',offRaw:'No (original)',style:'Estilo',sLight:'Ligero',sPar:'Párrafos',sBul:'Viñetas',sFor:'Formal',
- dlang:'Idioma del dictado',dAuto:'Automático (mezcla EN/ES)',after:'Al parar',pasteCur:'Pegar en el cursor',copyOnly:'Solo copiar',
+ dlang:'Idioma del dictado',dAuto:'Automático (cualquier idioma; mezcla ES/EN)',after:'Al parar',pasteCur:'Pegar en el cursor',copyOnly:'Solo copiar',
  auto:'Parar solo con el silencio',silSec:'Segundos de silencio',sens:'Sensibilidad',sensHint:'Un valor más alto toma más ruido de fondo como silencio.',
  overlay:'Panel de grabación',overlayHint:'El panel flotante con los botones grandes Parar y pegar, Solo copiar y Cancelar.',resetOv:'Restablecer la posición del panel',
  setup:'⚠ Falta configurar algo',wTitle:'Modelo de voz (Whisper)',wHint:'Se guarda en ~/Library/Application Support/Taipea/models',lTitle:'Modelo de corrección (Ollama)',

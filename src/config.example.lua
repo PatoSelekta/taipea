@@ -29,7 +29,7 @@ return {
 
   -- Speech recognition (whisper.cpp)
   -- modelName   = "ggml-large-v3-turbo.bin",  -- file in .../Taipea/models, or a full path
-  -- language    = "auto",               -- dictation language: "auto" (English/Spanish mix), "en" or "es"
+  -- language    = "auto",               -- dictation language: "auto" (detects ~99 languages, incl. the English/Spanish mix), "en" or "es"
   -- maxSeconds  = 1800,                 -- longest dictation: 30 minutes
   -- autoStop    = false,                -- true = stop by itself after a pause
   -- silenceSeconds = 3,                 -- length of that pause, in seconds (Settings offers 2, 3, 5, 8)
