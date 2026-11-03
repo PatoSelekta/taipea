@@ -68,7 +68,7 @@ copiar** y **Cancelar**. Muestra un contador y cómo terminar. Arrástrala a don
 (Las capturas de la tarjeta y del botón flotante están en inglés; en tu Mac salen en tu
 idioma.)
 
-<img src="images/recording-card-classic.png" width="450" alt="Tarjeta de grabación en Azul clásico (captura en inglés): Listening con un contador 0:03, la ayuda Press Ctrl + Option + Space or a button to finish, y tres botones grandes: verde Stop and Paste, azul Stop and Copy only, rojo Cancel">
+<img src="images/recording-card-classic.png" width="450" alt="Tarjeta de grabación en Azul clásico (captura en inglés): Listening con un contador 0:03, la ayuda Press Control + Command or Esc to finish, y tres botones grandes: verde Stop and Paste, azul Stop and Copy only, rojo Cancel">
 
 <img src="images/recording-card-studio.png" width="450" alt="La misma tarjeta de grabación con los colores Estudio, con fondo oscuro (captura en inglés)">
 

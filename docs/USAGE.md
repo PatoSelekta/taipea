@@ -65,7 +65,7 @@ If you turn the floating button off, or turn on **Show the recording card too**,
 with three big buttons appears while you dictate: **Stop & Paste**, **Stop & Copy only**
 and **Cancel**. It shows a timer and how to finish. Drag it wherever you like.
 
-<img src="images/recording-card-classic.png" width="450" alt="Recording card in Classic Blue: Listening with a 0:03 timer, the hint Press Control + Option + Space or a button to finish, and three big buttons: green Stop and Paste, blue Stop and Copy only, red Cancel">
+<img src="images/recording-card-classic.png" width="450" alt="Recording card in Classic Blue: Listening with a 0:03 timer, the hint Press Control + Command or Esc to finish, and three big buttons: green Stop and Paste, blue Stop and Copy only, red Cancel">
 
 <img src="images/recording-card-studio.png" width="450" alt="The same recording card in the Studio colors, with a dark background">
 
