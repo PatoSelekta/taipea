@@ -5,6 +5,8 @@ Hands-free, private, and made for English, Spanish, and a mix of both.
 
 [Leer en español](README.es.md) · Made by [selektdev](https://selektdev.com)
 
+**New here? Read [How to use Taipea](docs/USAGE.md), a step-by-step guide with screenshots of every screen.**
+
 ---
 
 ## Vision
@@ -138,13 +140,34 @@ The installer explains each step, asks before anything big, and can be run again
 safely (it skips what is already done). It:
 
 1. checks your Mac (macOS version, chip, memory, disk space),
-2. installs Homebrew if you don't have it (it asks first),
-3. installs Hammerspoon, whisper.cpp, SoX and Ollama with Homebrew,
-4. downloads the speech model `ggml-large-v3-turbo` (1.6 GB) from Hugging Face,
-5. downloads the cleanup model `gemma4:e4b` from Ollama (falls back to `qwen2.5:7b`),
-6. adds one line to `~/.hammerspoon/init.lua` (it makes a backup first and keeps
+2. offers to install Homebrew if you don't have it (it asks first, and Homebrew asks for
+   your Mac password),
+3. installs Hammerspoon, whisper.cpp and SoX with Homebrew, but only the ones that are
+   missing,
+4. sets up Ollama for grammar cleanup: it reuses the Ollama you already have (from Homebrew
+   or the Ollama app), or installs it with Homebrew if there is none,
+5. downloads the speech model `ggml-large-v3-turbo` (1.6 GB) from Hugging Face. On Macs with
+   less than 16 GB of memory it asks whether you want the smaller `large-v3-turbo-q5_0`
+   (0.6 GB) instead,
+6. downloads the cleanup model `gemma4:e4b` with Ollama. On Macs with less than 16 GB it
+   suggests the lighter `qwen2.5:7b`, and if `gemma4:e4b` can't be downloaded it tries
+   `qwen2.5:7b`,
+7. adds one line to `~/.hammerspoon/init.lua` (it makes a backup first and keeps
    everything else),
-7. creates `~/Applications/Taipea.app` and starts Taipea.
+8. creates `~/Applications/Taipea.app` and starts Taipea.
+
+**Disk space.** Before downloading anything, the installer checks that there is enough
+free space: about 14 GB with cleanup (13 GB with `--small`), or about 4 GB with
+`--no-cleanup` (3 GB with `--small --no-cleanup`). If there is less, it asks before going
+on. Models that are already downloaded are never downloaded again.
+
+**No cleanup model? You still get your text.** If Ollama is not installed
+(`--no-cleanup`), is not running, or no cleanup model could be downloaded, dictation still
+works: Taipea pastes the raw transcription and shows "Cleanup unavailable". When Ollama is
+there, you can download a cleanup model later in the Models tab.
+
+**Updating.** Run the same installer line again. It replaces the program files and keeps
+your settings, history and models. See [Updates](#updates).
 
 **Options.** Add them after `bash -s --`, for example
 `curl -fsSL .../install.sh | bash -s -- --small`:
@@ -254,6 +277,9 @@ macOS permissions and prompts say **Hammerspoon**, not Taipea. A native Taipea a
 come later, once the features settle.
 
 ## How to use it
+
+📖 **Step-by-step guide with screenshots:** [docs/USAGE.md](docs/USAGE.md) (first launch,
+floating button, recording card, History, every Settings card, Models and Updates).
 
 These are the default shortcuts. They work as soon as Taipea is installed, even with no
 config file.

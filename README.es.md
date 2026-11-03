@@ -5,6 +5,8 @@ Sin manos, privado, y hecho para español, inglés y la mezcla de los dos.
 
 [Read in English](README.md) · Hecho por [selektdev](https://selektdev.com)
 
+**¿Primera vez? Lee [Cómo usar Taipea](docs/USAGE.es.md), una guía paso a paso con capturas de cada pantalla.**
+
 ---
 
 ## Visión
@@ -150,13 +152,35 @@ El instalador explica cada paso, pregunta antes de algo grande y se puede volver
 ejecutar sin problema (se salta lo que ya está hecho). El instalador:
 
 1. revisa tu Mac (versión de macOS, chip, memoria, espacio en disco),
-2. instala Homebrew si no lo tienes (pregunta antes),
-3. instala Hammerspoon, whisper.cpp, SoX y Ollama con Homebrew,
-4. descarga el modelo de voz `ggml-large-v3-turbo` (1,6 GB) de Hugging Face,
-5. descarga el modelo de corrección `gemma4:e4b` de Ollama (si falla, usa `qwen2.5:7b`),
-6. agrega una línea a `~/.hammerspoon/init.lua` (primero hace una copia de seguridad y
+2. ofrece instalar Homebrew si no lo tienes (pregunta antes, y Homebrew pide la
+   contraseña de tu Mac),
+3. instala Hammerspoon, whisper.cpp y SoX con Homebrew, pero solo los que faltan,
+4. prepara Ollama para la corrección gramatical: usa el Ollama que ya tengas (de Homebrew
+   o la app de Ollama), o lo instala con Homebrew si no hay ninguno,
+5. descarga el modelo de voz `ggml-large-v3-turbo` (1,6 GB) de Hugging Face. En Mac con
+   menos de 16 GB de memoria pregunta si prefieres el más pequeño `large-v3-turbo-q5_0`
+   (0,6 GB),
+6. descarga el modelo de corrección `gemma4:e4b` con Ollama. En Mac con menos de 16 GB
+   sugiere el más ligero `qwen2.5:7b`, y si `gemma4:e4b` no se puede descargar, prueba con
+   `qwen2.5:7b`,
+7. agrega una línea a `~/.hammerspoon/init.lua` (primero hace una copia de seguridad y
    no toca lo demás),
-7. crea `~/Applications/Taipea.app` e inicia Taipea.
+8. crea `~/Applications/Taipea.app` e inicia Taipea.
+
+**Espacio en disco.** Antes de descargar nada, el instalador revisa que haya espacio libre
+suficiente: unos 14 GB con corrección (13 GB con `--small`), o unos 4 GB con
+`--no-cleanup` (3 GB con `--small --no-cleanup`). Si hay menos, pregunta antes de seguir.
+Los modelos que ya están descargados nunca se vuelven a descargar.
+
+**¿Sin modelo de corrección? Igual tienes tu texto.** Si Ollama no está instalado
+(`--no-cleanup`), no está corriendo o no se pudo descargar ningún modelo de corrección, el
+dictado sigue funcionando: Taipea pega la transcripción original y muestra "Corrección no
+disponible". Cuando Ollama está, puedes descargar un modelo de corrección después en la
+pestaña Modelos.
+
+**Actualizar.** Ejecuta otra vez la misma línea del instalador. Reemplaza los archivos del
+programa y conserva tus ajustes, tu historial y tus modelos. Mira
+[Actualizaciones](#actualizaciones).
 
 **Opciones.** Agrégalas después de `bash -s --`, por ejemplo
 `curl -fsSL .../install.sh | bash -s -- --small`:
@@ -269,6 +293,10 @@ ti), y los permisos y avisos de macOS dicen **Hammerspoon**, no Taipea. Más ade
 llegar una app nativa de Taipea, cuando las funciones se estabilicen.
 
 ## Cómo usarlo
+
+📖 **Guía paso a paso con capturas:** [docs/USAGE.es.md](docs/USAGE.es.md) (primer inicio,
+botón flotante, tarjeta de grabación, Historial, cada tarjeta de Ajustes, Modelos y
+Actualizaciones).
 
 Estos son los atajos por defecto. Funcionan apenas se instala Taipea, incluso sin archivo
 de configuración.
