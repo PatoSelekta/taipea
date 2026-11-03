@@ -61,7 +61,7 @@ body.rm *{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style></head><body class=cl><div id=panel>
 <div id=bar><div class=t>🎙 Taipea<small id=s_drag></small></div><button id=b_hide onclick="send({cmd:'mini'})">—</button><button id=b_close class=r onclick="send({cmd:'close'})">✕</button></div>
-<div id=scroll><div id=inner><div id=perm></div>
+<div id=scroll><div id=inner><div id=perm></div><div id=upd></div>
 <div id=tabs><button class="tab on" data-t=hist id=t_hist></button><button class=tab data-t=set id=t_set></button><button class=tab data-t=mod id=t_mod></button><button class="tab g" id=t_dict onclick="send({cmd:'dictate'})" style="flex:.8"></button></div>
 <section id=hist class=on>
  <div id=htop></div>
@@ -114,6 +114,8 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  words:'Custom words',wordsHint:'Fixes words Whisper gets wrong, after transcription and again after cleanup. Whole words only; capitals and accents don\'t matter. The cleanup model is told never to change the "Replace with" words. Changes save when you leave a box.',
  heard:'Heard',replace:'Replace with',add:'Add',wordsNone:'No custom words yet.',
  pasteLast:'📋 Paste last dictation again',kPaste:'Paste last dictation again',
+ updTitle:'⬆️ New version available: v%s',updInfo:'You have v%s. Nothing is downloaded or installed by itself: the button opens the release page on GitHub.',updSee:'See what\'s new',updLater:'Remind me later',updSkip:'Skip this version',
+ updCard:'Updates',updAuto:'Check for updates automatically',updAutoHint:'30 seconds after start and then once a day, Taipea asks GitHub for the latest release. Nothing else is sent. To update, run the installer again: your settings, history and models are kept.',updCur:'Current version: v%s',updLast:'Last checked: %s',updNever:'never',updNow:'Check now',updChecking:'⏳ Checking…',updOk:'✓ You have the latest version',updNewR:'⬆️ New version available: v%s',updErr:'⚠ Couldn\'t check (offline or GitHub not answering). Try again later.',
  recTitle:'♻️ A recording was interrupted',recInfo:'The audio was kept (%s). Recover it to get the text in History and on the clipboard.',recover:'Recover last recording',discard:'Discard'},
 es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventana',hist:'Historial',set:'Ajustes',mod:'Modelos',dict:'🎙 Dictar',
  search:'Buscar…',searchLbl:'Buscar en el historial',clear:'Borrar todo',clearSure:'Toca otra vez para BORRAR TODO',none:'Aún no hay dictados.',noneMatch:'Ningún dictado coincide.',
@@ -156,6 +158,8 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  words:'Palabras propias',wordsHint:'Corrige palabras que Whisper entiende mal, después de transcribir y otra vez después de la corrección. Solo palabras completas; no importan mayúsculas ni tildes. Al modelo de corrección se le pide no cambiar nunca las palabras de «Reemplazar por». Los cambios se guardan al salir de cada casilla.',
  heard:'Se oye',replace:'Reemplazar por',add:'Añadir',wordsNone:'Aún no hay palabras propias.',
  pasteLast:'📋 Pegar otra vez el último dictado',kPaste:'Pegar otra vez el último dictado',
+ updTitle:'⬆️ Nueva versión disponible: v%s',updInfo:'Tienes la v%s. No se descarga ni se instala nada solo: el botón abre la página de la versión en GitHub.',updSee:'Ver las novedades',updLater:'Recordármelo después',updSkip:'Omitir esta versión',
+ updCard:'Actualizaciones',updAuto:'Buscar actualizaciones automáticamente',updAutoHint:'30 segundos después de iniciar y luego una vez al día, Taipea le pregunta a GitHub por la última versión. No se envía nada más. Para actualizar, vuelve a ejecutar el instalador: se conservan tus ajustes, tu historial y tus modelos.',updCur:'Versión actual: v%s',updLast:'Última revisión: %s',updNever:'nunca',updNow:'Buscar ahora',updChecking:'⏳ Buscando…',updOk:'✓ Tienes la última versión',updNewR:'⬆️ Nueva versión disponible: v%s',updErr:'⚠ No se pudo revisar (sin internet o GitHub no responde). Inténtalo más tarde.',
  recTitle:'♻️ Se interrumpió una grabación',recInfo:'Se guardó el audio (%s). Recupéralo para tener el texto en el Historial y en el portapapeles.',recover:'Recuperar la última grabación',discard:'Descartar'}};
 var S={},LANG='en';
 function t(k,a){var s=(L[LANG]&&L[LANG][k])||L.en[k]||k;return a!==undefined?s.replace('%s',a):s}
@@ -226,6 +230,17 @@ function hideSection(){var c=S.cfg,list=c.hideApps||[],why={shortcut:t('whyShort
   '</div><div class=row><button class=y style="flex:1" onclick="send({cmd:\'closeApps\'})">'+t('closeList')+'</button></div>'}
  else h+='<div class=row style="margin-top:10px"><button class=g style="flex:1" onclick="send({cmd:\'listApps\'})">'+t('addRunning')+'</button></div>';
  return h+'</div>'}
+function renderUpd(){var u=S.upd||{},h='';
+ if(u.banner)h='<div class=card role=status style="border:4px solid var(--acc)"><h3 style="font-size:22px">'+esc(t('updTitle',u.latest))+'</h3><p>'+esc(t('updInfo',u.cur))+'</p>'+
+  '<div class=row><button class="b pm" onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button><button class=pm onclick="send({cmd:\'updLater\'})">'+esc(t('updLater'))+'</button>'+
+  '<button class=pm onclick="send({cmd:\'updSkip\'})">'+esc(t('updSkip'))+'</button></div></div>';
+ document.getElementById('upd').innerHTML=h}
+function updCard(){var u=S.upd||{},r=u.checking?t('updChecking'):u.result=='new'?t('updNewR',u.latest):u.result=='ok'?t('updOk'):u.result=='err'?t('updErr'):'';
+ return '<div class=card id=updcard><h3>'+t('updCard')+'</h3><p class=big style="font-size:19px">'+esc(t('updCur',u.cur||''))+'</p><p class=h>'+esc(t('updLast',u.last||t('updNever')))+'</p>'+
+ '<h3 style="margin-top:14px">'+t('updAuto')+'</h3><p class=h>'+t('updAutoHint')+'</p>'+opts('checkForUpdates',[[true,t('on')],[false,t('off')]])+
+ '<div class=row style="margin-top:10px"><button class=b style="flex:1"'+(u.checking?' disabled':'')+' onclick="send({cmd:\'updCheck\'})">'+t('updNow')+'</button></div>'+
+ (r?'<p class=big role=status style="font-size:18px;'+(u.result=='err'?'color:var(--warn)':'')+'">'+esc(r)+'</p>':'')+
+ (u.result=='new'&&!u.banner?'<div class=row><button class=b style="flex:1" onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button></div>':'')+'</div>'}
 function renderPerm(){var p=S.perm||{},h='';
  if(p.ax===false)h+='<div class=card role=alert style="border:4px solid #ff453a"><h3>'+esc(t('axTitle'))+'</h3><p>'+esc(t('axInfo'))+'</p><p class=h>'+esc(t('axPath'))+'</p>'+
   '<div class=row><button class="r pm" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button></div></div>';
@@ -276,7 +291,7 @@ function set(k,v){send({cmd:'set',key:k,value:v})}
 function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
- h+=colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard();
+ h+=colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard()+updCard();
  h+='<div class=card><h3>'+t('keys')+'</h3>'+
  [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
   (S.keyLabels[k[0]]!=S.defaultKeys[k[0]]?'<p class=h>'+esc(t('def',S.defaultKeys[k[0]]))+'</p>':'')+
@@ -302,7 +317,7 @@ function renderMod(){var h='';
  (S.dl[m.name]?'<span class=prog>'+esc(S.dl[m.name])+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">'+t('download')+'</button>'))+'</div>'});
  h+='</div><button onclick="send({cmd:\'refresh\'})">'+t('refresh')+'</button>';document.getElementById('ml').innerHTML=h}
 function clr(){var b=document.getElementById('clr');if(b.dataset.a){send({cmd:'clearHistory'});b.dataset.a='';b.textContent=t('clear')}else{b.dataset.a=1;b.textContent=t('clearSure');setTimeout(()=>{b.dataset.a='';b.textContent=t('clear')},4000)}}
-function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();renderPerm();histTop();renderHist();var ae=document.activeElement;if(!(ae&&ae.type=='color'))keepInputs(renderSet);renderMod()}
+function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();renderPerm();renderUpd();histTop();renderHist();var ae=document.activeElement;if(!(ae&&ae.type=='color'))keepInputs(renderSet);renderMod()}
 staticText();
 if(window.webkit)send({cmd:'refresh'});
 </script></body></html>

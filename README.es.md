@@ -118,6 +118,10 @@ Taipea es para ti si:
   recuperarlo si algo falla. El audio recuperado o descartado se borra.
 - Empezar / parar con la voz (apagado por defecto) también corre solo en tu Mac. Mira más
   abajo.
+- La única conexión a internet además de las descargas de modelos es la búsqueda de
+  actualizaciones: una vez al día Taipea le pregunta a GitHub cuál es la última versión. No
+  se envía audio, texto ni ajustes. Apágala en Ajustes › Actualizaciones. Mira
+  [Actualizaciones](#actualizaciones).
 
 ## Requisitos
 
@@ -140,7 +144,7 @@ Abre la app **Terminal**, pega esta línea y presiona Enter:
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
-El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.3, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
+El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.4, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
 
 El instalador explica cada paso, pregunta antes de algo grande y se puede volver a
 ejecutar sin problema (se salta lo que ya está hecho). El instalador:
@@ -179,6 +183,37 @@ bash uninstall.sh --purge    # borra todo lo que creó Taipea
 
 Las herramientas compartidas (Homebrew, Hammerspoon, Ollama…) se conservan, y el script
 muestra los comandos para quitarlas también.
+
+## Actualizaciones
+
+**Cómo busca.** 30 segundos después de que inicia Hammerspoon y luego una vez al día, Taipea
+le pregunta a GitHub por la última versión
+(`api.github.com/repos/PatoSelekta/taipea/releases/latest`). Si hay una versión más nueva, ves:
+
+- un aviso **Nueva versión disponible** arriba en la ventana de Taipea, con tres botones
+  grandes: **Ver las novedades** (abre la página de la versión en GitHub),
+  **Recordármelo después** (7 días) y **Omitir esta versión**,
+- una opción en la barra de menús y una notificación de macOS por cada versión nueva.
+
+No se descarga ni se instala nada solo, y los enlaces solo se abren en `github.com`.
+**Ajustes › Actualizaciones** muestra tu versión y la última búsqueda, y tiene un botón
+**Buscar ahora**.
+
+**Privacidad.** Es la única conexión a internet de Taipea además de las descargas de
+modelos. No envía audio, texto, historial ni ajustes, solo un agente de usuario
+`Taipea/<versión>` (GitHub ve tu dirección IP, como cualquier sitio web). Para apagarla,
+elige **No** en Ajustes › Actualizaciones, o agrega `checkForUpdates = false,` a
+`config.lua`. **Buscar ahora** sigue funcionando aunque esté apagada.
+
+**Cómo actualizar.** Ejecuta otra vez la misma línea del instalador:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
+```
+
+Reemplaza los archivos del programa (`~/.hammerspoon/taipea.lua`, la ventana y
+`~/Applications/Taipea.app`), reinicia Hammerspoon y conserva tus ajustes (`settings.json`,
+`config.lua`), tu historial y tus modelos descargados. No vuelve a descargar lo que ya está.
 
 ## Permisos (una sola vez)
 

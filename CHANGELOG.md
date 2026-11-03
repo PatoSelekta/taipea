@@ -4,6 +4,23 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-11-03
+
+### Added
+- Update check. 30 seconds after start and then once a day, Taipea asks GitHub for the latest
+  release (`updateRepo`, default `PatoSelekta/taipea`). This is the only network request besides
+  the model downloads; no audio, text or settings are sent. On by default (`checkForUpdates`); turn
+  it off in Settings › Updates or with `checkForUpdates = false` in `config.lua`.
+- When a newer version exists: a "New version available" banner in the Taipea window with three
+  large buttons (See what's new, Remind me later = 7 days, Skip this version), a menu bar item and
+  one macOS notification per version. Nothing is downloaded or installed automatically, and only
+  `https://github.com/<owner>/<repo>/releases/…` links are opened (anything else falls back to the
+  repo's releases page).
+- Settings › Updates / Actualizaciones: on/off, current version, last check and a Check now button.
+  All texts follow Taipea's language setting (English / Spanish).
+- README: a new Updates section (how it checks, privacy, and how to update by running the
+  installer again, which keeps settings, history and models).
+
 ## [0.2.3] - 2026-11-03
 
 ### Changed
@@ -127,6 +144,7 @@ Internal baseline (not published as a GitHub release).
 - The installer no longer starts or restarts Ollama when it is already running.
 - `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
+[0.2.4]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.4
 [0.2.3]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.3
 [0.2.2]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.2
 [0.2.1]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.1

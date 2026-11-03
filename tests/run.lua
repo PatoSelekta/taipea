@@ -345,5 +345,91 @@ check("hidden alert names the tap", M.T("fab_hidden", M.T("fab_tap_key")):find("
 M.cfg.uiLanguage = "en"
 check("hidden alert names the tap (en)", M.T("fab_hidden", M.T("fab_tap_key")) == "Floating button hidden (tap Option + Command to show it again)")
 M.cfg.uiLanguage = "auto"
+-- ---------- v0.2.4: update check ----------
+local vc = M.verCmp
+check("semver: 0.2.10 > 0.2.9", vc("0.2.10", "0.2.9") == 1 and vc("0.2.9", "0.2.10") == -1)
+check("semver: 0.10.0 > 0.9.12", vc("0.10.0", "0.9.12") == 1)
+check("semver: 1.0.0 > 0.99.99", vc("1.0.0", "0.99.99") == 1)
+check("semver: v prefix and same", vc("v0.2.4", "0.2.4") == 0 and vc("V0.2.5", "0.2.4") == 1)
+check("semver: -beta suffix and missing patch", vc("0.2.5-beta", "0.2.4") == 1 and vc("0.3", "0.2.9") == 1 and vc("0.2", "0.2.0") == 0)
+check("semver: garbage gives nil", vc("latest", "0.2.4") == nil and vc(nil, "0.2.4") == nil and vc("", "0.2.4") == nil)
+check("version matches install.sh", (function()
+  local f = io.open((arg[0]:match("^(.*)/") or ".") .. "/../install.sh"); if not f then return false end
+  local v = f:read("a"):match('TAIPEA_VERSION="([^"]+)"'); f:close(); return v == M.VERSION end)())
+check("update check on by default", M.cfg.checkForUpdates == true and M.cfg.updateRepo == "PatoSelekta/taipea")
+-- link safety: only github.com release pages are opened
+local repo, rel = "PatoSelekta/taipea", "https://github.com/PatoSelekta/taipea/releases/latest"
+check("link: GitHub release page kept", M.safeURL("https://github.com/PatoSelekta/taipea/releases/tag/v0.2.5", repo) == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.5")
+for _, u in ipairs({ "https://evil.example/PatoSelekta/taipea/releases/tag/v1", "http://github.com/PatoSelekta/taipea/releases/tag/v1",
+  "https://github.com.evil.example/a/b/releases/x", "https://github.com/a/b/releases/x\" onclick=\"x", "https://github.com/a/b/releases/x y",
+  "https://github.com/PatoSelekta/taipea/archive/main.zip", "javascript:alert(1)", 42 }) do
+  check("link: rejected " .. tostring(u), M.safeURL(u, repo) == rel)
+end
+check("link: nil falls back", M.safeURL(nil, repo) == rel)
+-- GitHub answers: a tiny JSON decoder that fails on anything that is not an object
+local realDecode, realNotify, realAsyncGet = hs.json.decode, hs.notify, hs.http.asyncGet
+hs.json.decode = function(b)
+  if not b:match("^%s*{") then error("bad json") end
+  return { tag_name = b:match('"tag_name"%s*:%s*"([^"]*)"'), html_url = b:match('"html_url"%s*:%s*"([^"]*)"') }
+end
+local notes = 0
+hs.notify = { new = function() return { send = function() notes = notes + 1 end } end }
+local U, S = M.upd, M.updSaved
+local function reset() U.latest, U.url, U.result = nil, nil, nil; S.updSkip, S.updRemindUntil, S.updNotified, S.updLatest, S.updUrl = nil, nil, nil, nil, nil end
+local function gh(tag, url) return '{"tag_name":"' .. tag .. '","html_url":"' .. (url or ("https://github.com/PatoSelekta/taipea/releases/tag/" .. tag)) .. '"}' end
+local savedCopy = {}; for k, v in pairs(S) do savedCopy[k] = v end
+reset()
+M.cfg.uiLanguage = "en"
+M.updResult(200, gh("v0.2.3"), true)
+check("older release: no banner", U.result == "ok" and M.updWanted() == false and notes == 0)
+check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
+M.updResult(200, gh(M.VERSION), false)
+check("same release: no banner", U.result == "ok" and M.updWanted() == false)
+M.updResult(200, gh("v0.2.10"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.10" and S.updLatest == "0.2.10" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.10" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.2.10")
+M.updResult(200, gh("v0.2.10"), false)
+check("same new release again: no second notification", notes == 1)
+M.updResult(200, gh("v0.2.11", "https://evil.example/x"), false)
+check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
+-- remind me later (7 days) / skip this version
+local now = os.time()
+M.updLater()
+check("remind later: hidden now and for 6 days", M.updWanted(now) == false and M.updWanted(now + 6 * 86400) == false)
+check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == true)
+check("remind later: alert", fake.lastAlert == M.T("upd_later"))
+S.updRemindUntil = nil
+M.updSkip()
+check("skip: this version hidden", S.updSkip == "0.2.11" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.11"))
+M.updResult(200, gh("v0.2.12"), false)
+check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
+-- errors are only logged; the last good answer is kept
+for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
+  { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
+  fake.lastAlert = nil
+  local okc = pcall(M.updResult, c[1], c[2], false)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.12" and notes == 3)
+end
+M.updResult(-1, nil, true)
+check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
+-- the request itself
+local got = {}
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.12")) end
+check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
+check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
+  and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
+M.cfg.checkForUpdates = false
+check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
+fake.lastAlert = nil
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.12"))
+U.checking = true
+check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
+U.checking = false
+M.cfg.checkForUpdates = true
+check("update strings in both languages", M.STR.es.upd_menu:find("Nueva versión", 1, true) and M.STR.en.upd_menu:find("New version", 1, true))
+hs.json.decode, hs.notify, hs.http.asyncGet = realDecode, realNotify, realAsyncGet
+reset(); for k, v in pairs(savedCopy) do S[k] = v end
+M.cfg.uiLanguage = "auto"
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.3
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.4
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -56,6 +56,8 @@ local DEFAULTS = {
   customBg = "#1A1A1A", customMic = "#FFFFFF", customAccent = "#E8503A",  -- the 3 colours of the Custom set (#RRGGBB)
   hideFullscreen = true,                     -- hide the floating button while the app in front is full screen
   hideApps = {},                             -- hide it while one of these apps is in front: { {name="VLC", id="org.videolan.vlc"}, ... }
+  checkForUpdates = true,                    -- once a day, ask GitHub for the latest release (nothing is downloaded)
+  updateRepo = "PatoSelekta/taipea",         -- where releases are published
   customWords = {},                          -- { {heard="select dev", replace="selektdev"}, ... } (edit in Settings)
   voiceControl = false,                      -- voice start/stop (listens for the phrases below; all on this Mac)
   startPhrases = { "Taipea escribe", "Taipea write" },
@@ -169,6 +171,8 @@ local NEWSTR = {
   perm_ax_back="✅ Accessibility is on: pasting works again.",
   perm_mic_hint="\n\n🎤 If this keeps happening, Hammerspoon may not have Microphone permission.\nOpen Taipea › Open Microphone settings.",
   menu_open_ax="⚠️ Open Accessibility settings", menu_open_mic="🎤 Open Microphone settings",
+  upd_menu="⬆️ New version available: v%s", upd_new="New version available: v%s", upd_none="You have the latest version (v%s)", upd_err="Couldn't check for updates. Try again later.",
+  upd_later="OK, I'll remind you in 7 days", upd_skipped="Skipped v%s", upd_note_t="Taipea v%s is available", upd_note_b="Open Taipea to see what's new.", upd_on="Update check: ON", upd_off="Update check: OFF",
  },
  es = {
   menu_voice="Empezar/parar con la voz (di «%s»)", menu_fab="Botón flotante", menu_paste_last="Pegar otra vez el último dictado",
@@ -191,6 +195,8 @@ local NEWSTR = {
   perm_ax_back="✅ Accesibilidad activada: ya se puede pegar.",
   perm_mic_hint="\n\n🎤 Si se repite, puede que Hammerspoon no tenga permiso de Micrófono.\nAbre Taipea › Abrir ajustes de Micrófono.",
   menu_open_ax="⚠️ Abrir ajustes de Accesibilidad", menu_open_mic="🎤 Abrir ajustes de Micrófono",
+  upd_menu="⬆️ Nueva versión disponible: v%s", upd_new="Nueva versión disponible: v%s", upd_none="Tienes la última versión (v%s)", upd_err="No se pudo buscar actualizaciones. Inténtalo más tarde.",
+  upd_later="Listo, te lo recuerdo en 7 días", upd_skipped="Se omitió la v%s", upd_note_t="Taipea v%s está disponible", upd_note_b="Abre Taipea para ver las novedades.", upd_on="Buscar actualizaciones: SÍ", upd_off="Buscar actualizaciones: NO",
  },
 }
 for l, t in pairs(NEWSTR) do for k, v in pairs(t) do STR[l][k] = v end end
@@ -1392,6 +1398,10 @@ refresh = function()
     table.insert(items, 2, { title = "-" })
   end
   if M.micWarn then table.insert(items, { title = T("menu_open_mic"), fn = function() M.openPerm(MIC_URL) end }) end
+  if M.updWanted and M.updWanted() then
+    table.insert(items, 1, { title = T("upd_menu", M.upd.latest), fn = function() M.updOpen() end })
+    table.insert(items, 2, { title = "-" })
+  end
   if M.recoverable then
     table.insert(items, { title = "♻️ "..T("menu_recover", fmtSecs(M.recoverable.secs)), fn = function() M.recover() end })
     table.insert(items, { title = T("menu_discard"), fn = function() M.discardRecovery() end })
@@ -1840,12 +1850,14 @@ pushState = function()
   for n,_ in pairs(inst) do if not knownL[n] and not n:match(":latest$") and not n:match("embed") then table.insert(lm,{name=n,size="",note=T("note_installed"),installed=true}) end end
   local conv = {}
   for i,e in ipairs(history) do if M.converting[e] then conv[tostring(i)] = M.converting[e] end end
-  local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
+  local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ checkForUpdates=(cfg.checkForUpdates~=false), openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
      autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay,
      voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords,
      hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id,
      customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
-     look=look, perm={ ax=M.permAx, mic=M.micWarn }, pal=M.palette(), fabThemes=FAB_THEMES, fabHidden=(fab and M._fabHidR or ""), fabSessionHidden=M.fabSessionHidden, runApps=M._runApps,
+     look=look, perm={ ax=M.permAx, mic=M.micWarn },
+     upd={ cur=M.VERSION, latest=M.upd.latest or "", banner=M.updWanted(), on=(cfg.checkForUpdates~=false), checking=M.upd.checking, result=M.upd.result or "",
+       last=(tonumber(saved.updLastCheck) and os.date("%Y-%m-%d %H:%M", tonumber(saved.updLastCheck)) or "") }, pal=M.palette(), fabThemes=FAB_THEMES, fabHidden=(fab and M._fabHidR or ""), fabSessionHidden=M.fabSessionHidden, runApps=M._runApps,
      recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
      voice={ active=M.voiceActive(), model=(vlModel():match("[^/]+$") or ""):gsub("^ggml%-",""):gsub("%.bin$","") },
      keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey) },
@@ -1868,6 +1880,10 @@ function M.handle(a)
   elseif c=="openAx" then M.openPerm(AX_URL)
   elseif c=="openMic" then M.openPerm(MIC_URL)
   elseif c=="hideMic" then M.micWarn = false; refresh()
+  elseif c=="updCheck" then M.checkUpdates(true)
+  elseif c=="updOpen" then M.updOpen()
+  elseif c=="updLater" then M.updLater()
+  elseif c=="updSkip" then M.updSkip()
   elseif c=="close" then appWin:hide(); if M.lastApp then M.lastApp:activate() end
   elseif c=="mini" then appWin:hide(); hs.alert.show(T("hidden", keyLabel(cfg.historyKey)))
   elseif c=="dictate" then if appWin then appWin:hide() end; after(0.3, function() if M.lastApp then M.lastApp:activate() end; after(0.3, M.start) end)
@@ -1938,6 +1954,7 @@ function M.handle(a)
       if not col then hs.alert.show(T("color_bad")); pushState(); return end
       setOpt(k, col); M.fabUpdate(); M.overlayPal(); pushState()
     elseif k=="hideFullscreen" then setOpt(k, v and true or false); M.applyFabVis(); pushState()
+    elseif k=="checkForUpdates" then setOpt(k, v and true or false); hs.alert.show(v and T("upd_on") or T("upd_off")); if v then M.checkUpdates(false) end; pushState()
     elseif k=="startPhrases" or k=="stopPhrases" then
       local list = type(v)=="table" and v or splitPhrases(v)
       if #list==0 then hs.alert.show(T("voice_need_phrase")); pushState(); return end
@@ -2034,6 +2051,89 @@ M._watchdog = hs.timer.doEvery(5, function()
   end
   if (age > 60 and not M.wTask) or age > 180 then M.watchdogReset(string.format("processing for %.0f s", age)) end
 end)
+
+-- ---------- update check (GitHub latest release) ----------
+-- The only network request Taipea makes besides model downloads. At startup (after 30 s) and every
+-- 24 h it asks https://api.github.com/repos/<updateRepo>/releases/latest for the newest release and,
+-- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
+-- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
+-- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
+local VERSION = "0.2.4"
+M.VERSION = VERSION
+local function parseVer(s)
+  if type(s) ~= "string" then return nil end
+  local a, b, c = s:match("^%s*[vV]?(%d+)%.(%d+)%.?(%d*)")
+  if not a then return nil end
+  return { tonumber(a), tonumber(b), tonumber(c ~= "" and c or "0") }
+end
+-- 1 = a newer than b, -1 = older, 0 = same, nil = a version can't be read
+local function verCmp(a, b)
+  local x, y = parseVer(a), parseVer(b)
+  if not x or not y then return nil end
+  for i = 1, 3 do if x[i] ~= y[i] then return x[i] > y[i] and 1 or -1 end end
+  return 0
+end
+-- only github.com links are opened; anything else becomes the repo's releases page
+local function relURL(repo) return "https://github.com/"..tostring(repo).."/releases/latest" end
+local function safeURL(u, repo)
+  if type(u) == "string" and u:match("^https://github%.com/[%w%-%._]+/[%w%-%._]+/releases/") and not u:find("[%s\"'<>]") then return u end
+  return relURL(repo)
+end
+M.parseVer, M.verCmp, M.safeURL = parseVer, verCmp, safeURL
+local U = { latest = saved.updLatest, url = saved.updUrl, result = nil, checking = false }
+M.upd, M.updSaved = U, saved
+-- show the banner / menu item? (newer, not skipped, not in a "remind me later" pause)
+function M.updWanted(now)
+  now = now or os.time()
+  if not U.latest or (verCmp(U.latest, VERSION) or 0) <= 0 then return false end
+  if saved.updSkip == U.latest then return false end
+  if tonumber(saved.updRemindUntil) and now < tonumber(saved.updRemindUntil) then return false end
+  return true
+end
+-- handle GitHub's answer (separate from the request so it can be tested)
+function M.updResult(code, body, manual)
+  U.checking = false
+  saved.updLastCheck = os.time()
+  local ok, j = false, nil
+  if code == 200 and type(body) == "string" then ok, j = pcall(hs.json.decode, body) end
+  local tag = ok and type(j) == "table" and type(j.tag_name) == "string" and j.tag_name or nil
+  local cmp = tag and verCmp(tag, VERSION)
+  if cmp == nil then
+    U.result = "err"; log("update check: couldn't check (HTTP "..tostring(code)..")")
+  else
+    local v = tag:gsub("^%s*[vV]", "")
+    U.latest, U.url = v, safeURL(j.html_url, cfg.updateRepo)
+    saved.updLatest, saved.updUrl = U.latest, U.url
+    U.result = cmp > 0 and "new" or "ok"
+    log("update check: latest v"..v..", this is v"..VERSION..(cmp > 0 and " → update available" or " → up to date"))
+    if cmp > 0 and M.updWanted() and saved.updNotified ~= v then
+      saved.updNotified = v
+      pcall(function() hs.notify.new(function() M.openApp() end, { title = T("upd_note_t", v), informativeText = T("upd_note_b") }):send() end)
+    end
+  end
+  saveSettings()
+  if manual then
+    hs.alert.show(U.result == "new" and T("upd_new", U.latest) or U.result == "ok" and T("upd_none", VERSION) or T("upd_err"), 4)
+  end
+  if refresh then refresh() end
+end
+function M.checkUpdates(manual)
+  if not manual and cfg.checkForUpdates == false then return false end
+  if U.checking then return false end
+  U.checking = true
+  if manual and pushState then pushState() end
+  local url = "https://api.github.com/repos/"..tostring(cfg.updateRepo).."/releases/latest"
+  hs.http.asyncGet(url, { ["User-Agent"] = "Taipea/"..VERSION.." (update check)", ["Accept"] = "application/vnd.github+json" },
+    function(code, body) M.updResult(code, body, manual) end)
+  return true
+end
+function M.updOpen() hs.urlevent.openURL(safeURL(U.url, cfg.updateRepo)) end
+function M.updLater() saved.updRemindUntil = os.time() + 7*24*3600; saveSettings(); hs.alert.show(T("upd_later")); refresh() end
+function M.updSkip() if U.latest then saved.updSkip = U.latest; saveSettings(); hs.alert.show(T("upd_skipped", U.latest)) end; refresh() end
+if M._updT0 then M._updT0:stop() end
+if M._updT then M._updT:stop() end
+M._updT0 = hs.timer.doAfter(30, function() M.checkUpdates(false) end)
+M._updT = hs.timer.doEvery(24*3600, function() M.checkUpdates(false) end)
 showFab()
 M.permSync()
 if not M.permAx then log("permission: Accessibility OFF at startup"); after(2.5, function() if not M.permAx then hs.alert.show(T("perm_ax_start"), 10) end end) end

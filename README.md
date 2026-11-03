@@ -107,6 +107,9 @@ Taipea is for you if:
 - The audio of the dictation in progress stays in `…/Taipea/tmp/` until it is pasted, so
   it can be recovered after a crash. Recovered or discarded audio is deleted.
 - Voice start / stop (off by default) also runs only on your Mac. See below.
+- The only network request besides the model downloads is the update check: once a day
+  Taipea asks GitHub for the latest release version. No audio, text or settings are sent.
+  Turn it off in Settings › Updates. See [Updates](#updates).
 
 ## Requirements
 
@@ -129,7 +132,7 @@ Open the **Terminal** app, paste this line, and press Return:
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
-The one-line installer installs from `main`. To install exactly v0.2.3, download the release source zip, unzip it, and run `./install.sh` from that folder.
+The one-line installer installs from `main`. To install exactly v0.2.4, download the release source zip, unzip it, and run `./install.sh` from that folder.
 
 The installer explains each step, asks before anything big, and can be run again
 safely (it skips what is already done). It:
@@ -167,6 +170,36 @@ bash uninstall.sh --purge    # deletes everything Taipea created
 
 The shared tools (Homebrew, Hammerspoon, Ollama…) are kept, and the script shows the
 commands to remove them too.
+
+## Updates
+
+**How it checks.** 30 seconds after Hammerspoon starts and then once a day, Taipea asks
+GitHub for the latest release (`api.github.com/repos/PatoSelekta/taipea/releases/latest`).
+When there is a newer version, you see:
+
+- a **New version available** banner at the top of the Taipea window, with three big
+  buttons: **See what's new** (opens the release page on GitHub), **Remind me later**
+  (7 days) and **Skip this version**,
+- a menu bar item and one macOS notification per new version.
+
+Nothing is downloaded or installed by itself, and links only open on `github.com`.
+**Settings › Updates** shows your version and the last check, and has a **Check now** button.
+
+**Privacy.** This is Taipea's only network request besides the model downloads. It sends no
+audio, text, history or settings, only a `Taipea/<version>` user agent (GitHub sees your IP
+address, like any website). To turn it off, choose **Off** in Settings › Updates, or add
+`checkForUpdates = false,` to `config.lua`. **Check now** still works when it is off.
+
+**How to update.** Run the same installer line again:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
+```
+
+It replaces the program files (`~/.hammerspoon/taipea.lua`, the window and
+`~/Applications/Taipea.app`), restarts Hammerspoon, and keeps your settings
+(`settings.json`, `config.lua`), your history and your downloaded models. Nothing is
+downloaded again if it is already there.
 
 ## Permissions (one time)
 

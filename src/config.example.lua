@@ -44,6 +44,14 @@ return {
   -- hideApps    = {},                   -- hide it while these apps are in front, e.g. { { name = "VLC", id = "org.videolan.vlc" } }
   --                                        (it never hides while recording or working)
 
+  -- Updates. 30 seconds after start and then once a day, Taipea asks GitHub (api.github.com) for the
+  -- latest release. This is its only network request besides the model downloads. It sends no data
+  -- about you or your dictations (only "Taipea/<version>" as the user agent). Nothing is downloaded
+  -- or installed by itself: a "New version" banner links to the release page on GitHub.
+  -- Turn it off here or in Settings › Updates ("Check now" still works when it is off).
+  -- checkForUpdates = true,
+  -- updateRepo  = "PatoSelekta/taipea", -- GitHub owner/repo to check (links only open on github.com)
+
   -- Colors for the whole app (window, recording card, floating button). Easier in Settings › Colors.
   -- floatingTheme = "classic",          -- "classic" | "studio" | "midnight" | "forest" | "sunset" | "contrast" | "paper" | "custom"
   -- customBg     = "#1A1A1A",           -- Custom set: background
