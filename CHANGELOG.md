@@ -4,6 +4,34 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-11-03
+
+### Added
+- App-wide color themes (Settings › Colors / Colores): Classic Blue, Studio, Midnight, Forest,
+  Sunset, High Contrast, Paper and Custom (background, microphone/text and accent pickers, or a
+  #RRGGBB code). They theme the window, the recording card and the floating button. Any text
+  below 4.5:1 contrast is adjusted automatically (Custom included). Action colors stay fixed in
+  every set: green = stop and paste, blue = stop and copy only (also History › Copy), red =
+  cancel; warnings stay orange / red. High contrast keeps the black/white/yellow look on Classic
+  Blue and adds thick borders on the other sets.
+- Hide the floating button: Ctrl + Option + F (and a menu item) hides / shows it until pressed
+  again; "Hide when an app is full screen" (on by default, also detects borderless full-screen
+  windows); "Hide in these apps" with quick-add (TV, VLC, QuickTime Player, IINA) or a list of
+  open apps. It never hides while recording or processing. New settings: `fabHideKey`,
+  `hideFullscreen`, `hideApps`.
+- Permission checks: Taipea checks Accessibility at startup, before every paste and when the
+  window opens, shows a red banner and menu item with an **Open Accessibility settings** button,
+  and says when it is back on. An empty or no-speech recording shows a Microphone permission
+  hint with an **Open Microphone settings** button. All messages in English and Spanish.
+
+### Changed
+- Classic Blue accent is darker (#0A6CD6) so white text on it reaches 5.09:1; the focus ring
+  stays #0A84FF.
+
+### Fixed
+- When pasting is blocked (no Accessibility), the dictation stays on the clipboard instead of
+  the previous clipboard being restored over it.
+
 ## [0.2.1] - 2026-11-02
 
 ### Fixed
@@ -85,5 +113,6 @@ Internal baseline (not published as a GitHub release).
 - The installer no longer starts or restarts Ollama when it is already running.
 - `build-app.sh` no longer prints osacompile's "replacing existing signature" note.
 
+[0.2.2]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.2
 [0.2.1]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.1
 [0.2.0]: https://github.com/PatoSelekta/taipea/releases/tag/v0.2.0

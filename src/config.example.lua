@@ -11,6 +11,7 @@ return {
   -- modeKey     = { mods = {"ctrl","alt"}, key = "c" },      -- Ctrl+Option+C: cleanup on / off (raw text)
   -- historyKey  = { mods = {"ctrl","alt"}, key = "h" },      -- Ctrl+Option+H: open the Taipea window
   -- pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },     -- Ctrl+Option+V: paste the last dictation again
+  -- fabHideKey  = { mods = {"ctrl","alt"}, key = "f" },      -- Ctrl+Option+F: hide / show the floating button
 
   -- Cleanup (grammar fix with a local Ollama model)
   -- cleanup     = true,                 -- false = always paste the raw transcription
@@ -38,6 +39,15 @@ return {
   -- contrast    = "auto",               -- high contrast: "auto" (follows macOS Increase Contrast), "on" or "off"
   -- floatButton = true,                 -- round always-on-top mic button: click to start; green while recording = stop and paste
   -- cardWithFab = false,                -- with floatButton on: also show the full recording card (three big buttons)
+  -- hideFullscreen = true,              -- hide the floating button while the app in front is full screen
+  -- hideApps    = {},                   -- hide it while these apps are in front, e.g. { { name = "VLC", id = "org.videolan.vlc" } }
+  --                                        (it never hides while recording or working)
+
+  -- Colors for the whole app (window, recording card, floating button). Easier in Settings › Colors.
+  -- floatingTheme = "classic",          -- "classic" | "studio" | "midnight" | "forest" | "sunset" | "contrast" | "paper" | "custom"
+  -- customBg     = "#1A1A1A",           -- Custom set: background
+  -- customMic    = "#FFFFFF",           -- Custom set: microphone and text
+  -- customAccent = "#E8503A",           -- Custom set: accent (buttons, ring); hard-to-read text is fixed automatically
 
   -- Custom words: fixed after transcription and after cleanup (whole words, any case/accents).
   -- Easier to edit in Settings › Custom words.

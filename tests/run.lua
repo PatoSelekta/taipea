@@ -14,7 +14,7 @@ hs.timer = setmetatable({ secondsSinceEpoch = function() fake.now = fake.now + 3
 hs.json = { encode = function() return "{}" end, decode = function(s) return { response = s } end }
 hs.http = { asyncPost = function(_, _, _, cb) cb(fake.post and 200 or 0, fake.post and fake.post() or nil) end }
 hs.alert = { show = function(m) fake.lastAlert = m end }
-hs.keycodes = { map = { space = 49, c = 8, h = 4, v = 9 } }
+hs.keycodes = { map = { space = 49, c = 8, h = 4, v = 9, f = 3 } }
 hs.settings = { get = function() return true end, set = function() end }
 hs.host = { locale = { preferredLanguages = function() return { fake.lang or "en-US" } end, current = function() return "en_US" end } }
 hs.hotkey = { bind = function(mods, key) fake.binds = fake.binds or {}; table.insert(fake.binds, table.concat(mods, "+") .. "+" .. key); return { delete = function() end } end }
@@ -106,8 +106,13 @@ check("default toggle key", table.concat(D.toggleKey.mods, "+") .. "+" .. D.togg
 check("default mode key", table.concat(D.modeKey.mods, "+") .. "+" .. D.modeKey.key == "ctrl+alt+c")
 check("default history key", table.concat(D.historyKey.mods, "+") .. "+" .. D.historyKey.key == "ctrl+alt+h")
 local b = table.concat(fake.binds or {}, ",")
-check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v")
-check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey)
+check("hotkeys bound at load", b == "ctrl+alt+space,ctrl+alt+c,ctrl+alt+h,ctrl+alt+v,ctrl+alt+f")
+check("bound uses defaults", M.bound.toggle == D.toggleKey and M.bound.mode == D.modeKey and M.bound.history == D.historyKey and M.bound.pasteLast == D.pasteLastKey and M.bound.fabHide == D.fabHideKey)
+check("default hide key", table.concat(D.fabHideKey.mods, "+") .. "+" .. D.fabHideKey.key == "ctrl+alt+f")
+do local seen, dup = {}, false
+  for _, k in ipairs({ "toggleKey", "modeKey", "historyKey", "pasteLastKey", "fabHideKey" }) do
+    local s = table.concat(D[k].mods, "+") .. "+" .. D[k].key; if seen[s] then dup = true end; seen[s] = true end
+  check("default shortcuts don't collide", not dup) end
 check("default paste-last key", table.concat(D.pasteLastKey.mods, "+") .. "+" .. D.pasteLastKey.key == "ctrl+alt+v")
 check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.cardWithFab == false and D.textSize == "normal" and D.contrast == "auto"
   and D.silenceSeconds == 3 and #D.customWords == 0 and D.startPhrases[1] == "Taipea escribe" and D.stopPhrases[1] == "listo")
@@ -217,6 +222,83 @@ check("icons", M.ICON.paste:find("<svg", 1, true) and M.ICON.copy:find("<svg", 1
 
 check("watchdog present", type(M.watchdogReset) == "function" and type(M._timers) == "table")
 check("watchdog strings", M.STR.en.wd_reset ~= nil and M.STR.es.wd_reset ~= nil and M.STR.es.wd_empty ~= nil)
+
+-- ---------- v0.2.2: colour sets ----------
+check("v0.2.2 defaults", D.floatingTheme == "classic" and D.hideFullscreen == true and #D.hideApps == 0
+  and M.isHex(D.customBg) and M.isHex(D.customMic) and M.isHex(D.customAccent))
+check("8 colour sets", #M.FAB_THEMES == 8 and M.FAB_THEMES[1].id == "classic" and M.FAB_THEMES[2].id == "studio" and M.FAB_THEMES[8].id == "custom")
+check("isHex", M.isHex("#0A6CD6") and M.isHex("#abcdef") and not M.isHex("0A6CD6") and not M.isHex("#0A6CD") and not M.isHex("#GGGGGG") and not M.isHex(nil))
+check("normHex", M.normHex(" e8503a ") == "#E8503A" and M.normHex("#0f0") == "#00FF00" and M.normHex("#12345") == nil and M.normHex("red") == nil and M.normHex(5) == nil)
+local function withTheme(id, bg, mic, acc) M.cfg.floatingTheme, M.cfg.customBg, M.cfg.customMic, M.cfg.customAccent = id, bg, mic, acc; return M.fabTheme() end
+check("unknown set -> Classic", withTheme("nope").id == "classic")
+check("custom with bad colour -> Classic", withTheme("custom", "#12", "#FFFFFF", "#E8503A").id == "classic")
+check("custom kept", withTheme("custom", "#1A1A1A", "#FFFFFF", "#E8503A").id == "custom")
+local cl = M.buildPalette(M.FAB_THEMES[1])
+check("Classic keeps the original colours", cl.cl == true and cl.panel == "#1C1C20" and cl.focus == "#0A84FF" and cl.acc == "#0A6CD6" and cl.acctx == "#FFFFFF")
+check("Classic accent contrast 5.09", M.palReport(cl).accent == 5.09)
+for _, th in ipairs(M.FAB_THEMES) do if th.id ~= "custom" then
+  local r = M.palReport(M.buildPalette(th))
+  check("contrast " .. th.id, r.text >= 4.5 and r.accent >= 4.5 and r.muted >= 4.5 and r.warn >= 4.5)
+end end
+local stp = M.buildPalette(M.FAB_THEMES[2])
+check("Studio: accent fill stays coral", stp.acc == "#E8503A" and M.palReport(stp).accent >= 4.5)
+check("Paper is a light set", M.buildPalette(M.FAB_THEMES[7]).light == true)
+-- unreadable Custom combinations are fixed automatically
+for _, c in ipairs({ { "#808080", "#888888", "#7F7F7F" }, { "#FFFFFF", "#FFFF00", "#FFFFFF" }, { "#000000", "#111111", "#000000" }, { "#3366CC", "#3366CC", "#3366CC" } }) do
+  local r = M.palReport(M.buildPalette({ id = "custom", bg = c[1], mic = c[2], acc = c[3] }))
+  check("custom fixed " .. table.concat(c, "/"), r.text >= 4.5 and r.accent >= 4.5 and r.muted >= 4.5)
+end
+withTheme("classic", D.customBg, D.customMic, D.customAccent)
+check("palette is Classic again", M.palette().cl == true)
+
+-- ---------- v0.2.2: hiding the floating button ----------
+local H = M.hideDecision
+check("hide: nothing -> show", H({ state = "idle" }) == "")
+check("hide: shortcut", H({ state = "idle", session = true }) == "shortcut")
+check("hide: app in list", H({ state = "idle", inList = true }) == "app")
+check("hide: full screen", H({ state = "idle", hideFullscreen = true, fullscreen = true }) == "fullscreen")
+check("hide: full screen setting off", H({ state = "idle", hideFullscreen = false, fullscreen = true }) == "")
+for _, st in ipairs({ "rec", "busy" }) do
+  check("never hide while " .. st, H({ state = st, session = true, inList = true, hideFullscreen = true, fullscreen = true }) == "")
+end
+local L2 = { { name = "VLC", id = "org.videolan.vlc" }, { name = "TV", id = "" } }
+local function app(n, id) return { name = function() return n end, bundleID = function() return id end } end
+check("app match by id", M.appMatches(app("Other name", "org.videolan.vlc"), L2))
+check("app match by name, any case", M.appMatches(app("tv", "com.apple.TV"), L2))
+check("app no match", not M.appMatches(app("TextEdit", "com.apple.TextEdit"), L2) and not M.appMatches(nil, L2))
+check("app match table form", M.appMatches({ name = "VLC", id = "x" }, L2))
+local SF = { x = 0, y = 0, w = 1440, h = 900 }
+local function win(o) return { isFullScreen = function() return o.fs end, role = function() return o.role or "AXWindow" end,
+  frame = function() return o.f end, screen = function() return { fullFrame = function() return SF end } end } end
+check("native full screen", M.isFullscreenWin(win({ fs = true, f = { x = 100, y = 100, w = 10, h = 10 } })))
+check("borderless window covering the screen", M.isFullscreenWin(win({ f = { x = 0, y = 0, w = 1440, h = 900 } })))
+check("normal window is not full screen", not M.isFullscreenWin(win({ f = { x = 0, y = 25, w = 1440, h = 875 } })))
+check("desktop is not full screen", not M.isFullscreenWin(win({ role = "AXScrollArea", f = SF })) and not M.isFullscreenWin(nil))
+check("idle by default: hide reason uses the session flag", (function() M.fabSessionHidden = true; local r = M.fabHideReason(); M.fabSessionHidden = false; return r end)() == "shortcut")
+check("TextEdit in front, nothing listed -> show", M.fabHideReason() == "")
+
+-- ---------- v0.2.2: permissions ----------
+local pb = { set = nil, read = 0, write = 0 }
+local realPB = hs.pasteboard
+hs.pasteboard = { setContents = function(t) pb.set = t end, readAllData = function() pb.read = pb.read + 1; return { old = 1 } end,
+  writeAllData = function() pb.write = pb.write + 1 end }
+local realAx = M.axCheck
+M.axCheck = function() return false end
+local activated = false
+local r = M.doPaste("hola mundo", { activate = function() activated = true end })
+check("paste blocked returns false", r == false)
+check("paste blocked: text left on the clipboard", pb.set == "hola mundo")
+check("paste blocked: old clipboard not read or restored", pb.read == 0 and pb.write == 0)
+check("paste blocked: app brought back", activated)
+check("paste blocked: alert shown", fake.lastAlert == M.T("perm_ax_paste"))
+check("permission state off", M.permAx == false)
+M.axCheck = function() return true end
+check("paste allowed returns true", M.doPaste("hola", nil) == true and pb.read == 1)
+check("permission state back on", M.permAx == true and fake.lastAlert == M.T("perm_ax_back"))
+M.axCheck, hs.pasteboard = realAx, realPB
+M.micProblem(M.T("no_speech"))
+check("mic hint shown", M.micWarn == true and (fake.lastAlert or ""):find(M.T("perm_mic_hint"), 1, true) ~= nil)
+check("permission URLs", M.AX_URL:find("Privacy_Accessibility", 1, true) and M.MIC_URL:find("Privacy_Microphone", 1, true))
 
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

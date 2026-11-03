@@ -1,46 +1,67 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Taipea</title><style>
-*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important;overflow:hidden}body{font:17px -apple-system;color:#eee}
-#panel{width:100%;height:100%;background:#1c1c20;border:2px solid #3a3a40;border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important;overflow:hidden}
+/* Colours come from the palette Taipea sends (Settings › Colors); these are the Classic Blue values */
+body{--panel:#1C1C20;--bar:#2A2A30;--tabs:#111;--tab:#333;--tabtx:#fff;--btn:#3A3A40;--btntx:#fff;--acc:#0A6CD6;--acctx:#fff;--input:#2A2A30;--inbd:#555;--card:#2C2C32;--inner:#24242A;--tx:#EEE;--mut:#999;--mut2:#AAA;--bd:#3A3A40;--bd2:#444;--ring:#fff;--focus:#0A84FF;--warn:#FFCC00;--sb:#55555A}
+body{font:17px -apple-system;color:var(--tx)}
+#scroll::-webkit-scrollbar{width:14px}#scroll::-webkit-scrollbar-track{background:transparent}#scroll::-webkit-scrollbar-thumb{background:var(--sb);border-radius:7px;border:3px solid var(--panel)}
+#panel{width:100%;height:100%;background:var(--panel);border:2px solid var(--bd);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
 #scroll{flex:1;min-height:0;overflow-y:auto}
-#bar{flex:none;height:68px;display:flex;align-items:center;gap:10px;padding:0 12px 0 18px;background:#2a2a30;border-bottom:1px solid #444;cursor:grab;-webkit-user-select:none;z-index:3}
-#bar .t{flex:1;font:700 20px -apple-system;padding:4px 0}#bar .t small{font:400 14px -apple-system;color:#999;margin-left:10px}
+#bar{flex:none;height:68px;display:flex;align-items:center;gap:10px;padding:0 12px 0 18px;background:var(--bar);border-bottom:1px solid var(--bd2);cursor:grab;-webkit-user-select:none;z-index:3}
+#bar .t{flex:1;font:700 20px -apple-system;padding:4px 0}#bar .t small{font:400 14px -apple-system;color:var(--mut);margin-left:10px}
 #bar button{height:60px;min-width:72px;padding:0 14px;font-size:22px}
-#tabs{display:flex;gap:8px;padding:12px;background:#111;position:sticky;top:0;z-index:2}
-.tab{flex:1;height:64px;border:0;border-radius:12px;background:#333;color:#fff;font:700 20px -apple-system;cursor:pointer}
-.tab.on{background:#0a84ff}
+#tabs{display:flex;gap:8px;padding:12px;background:var(--tabs);position:sticky;top:0;z-index:2}
+.tab{flex:1;height:64px;border:0;border-radius:12px;background:var(--tab);color:var(--tabtx);font:700 20px -apple-system;cursor:pointer}
+.tab.on{background:var(--acc);color:var(--acctx)}.tab.g{background:#34c759;color:#fff}
 section{display:none;padding:14px}section.on{display:block}
-button{height:60px;min-width:120px;padding:0 18px;border:0;border-radius:12px;font:700 18px -apple-system;color:#fff;cursor:pointer;background:#3a3a40}
-button:hover{filter:brightness(1.25)}.b{background:#0a84ff}.g{background:#34c759}.r{background:#ff453a}.y{background:#ff9f0a}
-input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:60px;padding:14px;border-radius:10px;border:1px solid #555;background:#2a2a30;color:#fff}
-.e{background:#2c2c32;border-radius:12px;padding:14px;margin-bottom:12px}.h{color:#999;font-size:14px}
+button{height:60px;min-width:120px;padding:0 18px;border:0;border-radius:12px;font:700 18px -apple-system;color:var(--btntx);cursor:pointer;background:var(--btn)}
+button:hover{filter:brightness(1.25)}body.lt button:hover{filter:brightness(.92)}.b{background:var(--acc);color:var(--acctx)}.g{background:#34c759;color:#fff}.r{background:#ff453a;color:#fff}.y{background:#ff9f0a;color:#fff}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+/* History Copy keeps the fixed copy blue in every colour set (blue = copy) */body:not(.cl) .cpy{background:#0A6CD6;color:#fff}
+input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:60px;padding:14px;border-radius:10px;border:1px solid var(--inbd);background:var(--input);color:var(--tx)}
+.e{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}.h{color:var(--mut);font-size:14px}
 .x{font-size:19px;margin:8px 0;white-space:pre-wrap}
-.sty{margin-top:10px}.sty .opt{min-width:110px}.sty .lbl{width:100%;color:#999;font-size:14px}
-.e.busy .sty .opt{opacity:.4;pointer-events:none}.conv{color:#ffcc00;font-weight:700;font-size:18px}.raw{color:#aaa;font-size:15px;margin-bottom:8px}
+.sty{margin-top:10px}.sty .opt{min-width:110px}.sty .lbl{width:100%;color:var(--mut);font-size:14px}
+.e.busy .sty .opt{opacity:.4;pointer-events:none}.conv{color:var(--warn);font-weight:700;font-size:18px}.raw{color:var(--mut2);font-size:15px;margin-bottom:8px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.card{background:#2c2c32;border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
-.opt{flex:1;min-width:130px}.opt.on{background:#0a84ff;outline:3px solid #fff}
-.m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#24242a;border-radius:10px;padding:12px 16px;margin:8px 0}
-.m small{color:#aaa;display:block;font-size:14px}.prog{color:#ffcc00;font-weight:700}
+.card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
+.opt{flex:1;min-width:130px}.opt.on{background:var(--acc);color:var(--acctx);outline:3px solid var(--ring)}
+.m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--inner);border-radius:10px;padding:12px 16px;margin:8px 0}
+.m small{color:var(--mut2);display:block;font-size:14px}.prog{color:var(--warn);font-weight:700}
 /* Size: compact scales the whole UI via one variable; the Size card stays full size */
 body{--z:1}#bar,#inner{zoom:var(--z)}
 body.compact #sizecard,body.compact #langcard{zoom:calc(1/var(--z))}
-.big{font:700 22px -apple-system;margin:4px 0}.kd{background:#24242a;border-radius:10px;padding:14px 16px;margin:8px 0}
-.wr{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:8px 0;align-items:center}.wr input{width:100%}.wh span{color:#999;font-size:14px}
+.big{font:700 22px -apple-system;margin:4px 0}.kd{background:var(--inner);border-radius:10px;padding:14px 16px;margin:8px 0}
+.wr{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:8px 0;align-items:center}.wr input{width:100%}.wh span{color:var(--mut);font-size:14px}
 button:disabled{opacity:.45;pointer-events:none}
-body.hc #panel{background:#000;border:3px solid #fff}body.hc{color:#fff}
-body.hc .h,body.hc small,body.hc .raw,body.hc .wh span,body.hc .lbl{color:#fff!important}
-body.hc .card,body.hc .e,body.hc .m,body.hc .kd{background:#000;border:2px solid #fff}
-body.hc #bar,body.hc #tabs{background:#000;border-bottom:3px solid #fff}
-body.hc button{border:3px solid #fff;background:#1a1a1a}body.hc .b{background:#003f8a}body.hc .g{background:#006b1f}body.hc .r{background:#a00000}body.hc .y{background:#7a4a00}
-body.hc .tab.on,body.hc .opt.on{background:#ffd60a!important;color:#000;outline:4px solid #fff}
-body.hc input[type=text]{background:#000;border:3px solid #fff;color:#fff}
-body.hc :focus-visible{outline:4px solid #ffd60a;outline-offset:2px}
+.sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;margin:8px 0}
+.sw{height:128px;min-width:0;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--inner);border:3px solid transparent;font:700 16px -apple-system;line-height:1.15}
+.sw.on{background:var(--acc);color:var(--acctx);border-color:var(--ring);outline:3px solid var(--ring)}
+.pv{width:64px;height:64px;flex:none;border-radius:50%;box-sizing:border-box;border:4px solid;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+.pv svg{width:52%;height:52%}
+.cc{display:grid;grid-template-columns:1fr auto 170px auto;gap:10px;align-items:center;margin:8px 0}
+.cc input[type=color]{width:110px;height:64px;padding:2px;border:2px solid var(--inbd);border-radius:12px;background:var(--input);cursor:pointer}
+.cc input[type=text]{width:170px}
+.pm{flex:1;height:auto;min-height:72px;padding:12px 18px;white-space:normal}
+/* High contrast: Classic Blue keeps the black / white / yellow look; other colour sets get thick borders in their own text colour */
+body.hc.cl .sw{background:#000;border:3px solid #fff}body.hc.cl .sw.on{background:#ffd60a!important;color:#000;outline:4px solid #fff}body.hc.cl .cc input[type=color]{border:3px solid #fff}
+body.hc.cl #panel{background:#000;border:3px solid #fff}body.hc.cl{color:#fff}
+body.hc.cl .h,body.hc.cl small,body.hc.cl .raw,body.hc.cl .wh span,body.hc.cl .lbl{color:#fff!important}
+body.hc.cl .card,body.hc.cl .e,body.hc.cl .m,body.hc.cl .kd{background:#000;border:2px solid #fff}
+body.hc.cl #bar,body.hc.cl #tabs{background:#000;border-bottom:3px solid #fff}
+body.hc.cl button{border:3px solid #fff;background:#1a1a1a}body.hc.cl .b{background:#003f8a}body.hc.cl .g{background:#006b1f}body.hc.cl .r{background:#a00000}body.hc.cl .y{background:#7a4a00}
+body.hc.cl .tab.on,body.hc.cl .opt.on{background:#ffd60a!important;color:#000;outline:4px solid #fff}
+body.hc.cl input[type=text]{background:#000;border:3px solid #fff;color:#fff}
+body.hc.cl :focus-visible{outline:4px solid #ffd60a;outline-offset:2px}
+body.hc:not(.cl) #panel{border:3px solid var(--tx)}body.hc:not(.cl) #bar,body.hc:not(.cl) #tabs{border-bottom:3px solid var(--tx)}
+body.hc:not(.cl) .card,body.hc:not(.cl) .e,body.hc:not(.cl) .m,body.hc:not(.cl) .kd{border:2px solid var(--tx)}
+body.hc:not(.cl) button,body.hc:not(.cl) .sw{border:3px solid var(--tx)}body.hc:not(.cl) .tab.on,body.hc:not(.cl) .opt.on,body.hc:not(.cl) .sw.on{outline:4px solid var(--ring)}
+body.hc:not(.cl) input[type=text],body.hc:not(.cl) .cc input[type=color]{border:3px solid var(--tx)}body.hc:not(.cl) :focus-visible{outline:4px solid var(--focus);outline-offset:2px}
 body.rm *{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
-</style></head><body><div id=panel>
+</style></head><body class=cl><div id=panel>
 <div id=bar><div class=t>🎙 Taipea<small id=s_drag></small></div><button id=b_hide onclick="send({cmd:'mini'})">—</button><button id=b_close class=r onclick="send({cmd:'close'})">✕</button></div>
-<div id=scroll><div id=inner>
+<div id=scroll><div id=inner><div id=perm></div>
 <div id=tabs><button class="tab on" data-t=hist id=t_hist></button><button class=tab data-t=set id=t_set></button><button class=tab data-t=mod id=t_mod></button><button class="tab g" id=t_dict onclick="send({cmd:'dictate'})" style="flex:.8"></button></div>
 <section id=hist class=on>
  <div id=htop></div>
@@ -78,6 +99,17 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  startP:'Start phrases',stopP:'Stop phrases',phrasesFmt:'Separate phrases with commas. Say a stop phrase alone, after a short pause.',
  voicePrivacy:'Privacy: everything stays on this Mac. A small recorder waits for sound; only short bursts (up to 4 seconds) are transcribed by Whisper here, and each burst is deleted right after it is checked. Nothing is saved or sent. macOS shows the orange microphone dot while this is on.',
  recCtl:'Recording controls',fab:'Floating button',fabHint:'A round mic button that stays on top of other windows. Click it to start. While you dictate it turns green: click it to stop and paste into the app you were using. Two smaller buttons appear next to it: blue = stop and copy only, red = cancel. Drag it to move it.',resetFab:'Reset button position',
+ fabColors:'Colors',fabColorsHint:'Applies to the whole app: this window, the recording card and the floating button. In every color set, green = Stop & Paste, blue = Stop & Copy only and red = Cancel, and warnings stay orange or red.',
+ thclassic:'Classic Blue',thstudio:'Studio',thmidnight:'Midnight',thforest:'Forest',thsunset:'Sunset',thcontrast:'High Contrast',thpaper:'Paper',thcustom:'Custom',
+ ccBg:'Background',ccMic:'Microphone and text',ccAcc:'Accent (buttons, ring)',ccHint:'Click a color square to open the color picker; the colors change as you pick. Text that would be hard to read is adjusted automatically. Or type a code like #E8503A and press Save.',
+ hideT:'Hide the floating button',hideHint:'Hiding only happens while you are not dictating. While you record, the button and its Stop buttons always show. Your shortcuts keep working while it is hidden.',
+ hideKeyInfo:'Press %s to hide or show it until you press it again.',hideNow:'Hide for now',showNow:'Show it again',hiddenNow:'Hidden right now: %s',whyShortcut:'by the shortcut',whyFull:'an app is full screen',whyApp:'this app is in the list',
+ hideFull:'Hide when an app is full screen',hideFullHint:'Hides it while the app in front is full screen (for example a full-screen video) and brings it back when you leave full screen.',
+ hideApps:'Hide in these apps',hideAppsHint:'The button hides while one of these apps is in front.',hideNone:'No apps yet.',remove:'Remove',quick:'Quick add',addRunning:'Add an open app',closeList:'Close list',pickApp:'Click an open app to add it:',kFabHide:'Hide / show floating button',
+ axTitle:'⚠️ Accessibility permission is off',axInfo:'Hammerspoon needs it to paste your text. Until it is on, each dictation is copied: paste it with Cmd+V.',
+ axPath:'System Settings › Privacy & Security › Accessibility › Hammerspoon. If it is already on, turn it off and on again.',axOpen:'Open Accessibility settings',
+ micTitle:'🎤 The last recording was empty',micInfo:'If this keeps happening, Hammerspoon may not have Microphone permission, or the wrong microphone is selected (System Settings › Sound › Input).',
+ micPath:'System Settings › Privacy & Security › Microphone › Hammerspoon',micOpen:'Open Microphone settings',hideBanner:'Hide',
  cardToo:'Show the recording card too',cardTooHint:'Off: while you dictate, only the floating button and its two small buttons show. On: the recording card shows as well.',cardFabOff:'With the floating button off, the recording card with its three buttons is used while you dictate.',resetCard:'Reset card position',
  words:'Custom words',wordsHint:'Fixes words Whisper gets wrong, after transcription and again after cleanup. Whole words only; capitals and accents don\'t matter. The cleanup model is told never to change the "Replace with" words. Changes save when you leave a box.',
  heard:'Heard',replace:'Replace with',add:'Add',wordsNone:'No custom words yet.',
@@ -109,6 +141,17 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  startP:'Frases de inicio',stopP:'Frases de parada',phrasesFmt:'Separa las frases con comas. Di la frase de parada sola, después de una pausa corta.',
  voicePrivacy:'Privacidad: todo se queda en este Mac. Una grabadora pequeña espera sonido; solo los fragmentos cortos (hasta 4 segundos) los transcribe Whisper aquí, y cada fragmento se borra apenas se revisa. No se guarda ni se envía nada. macOS muestra el punto naranja del micrófono mientras esto está activo.',
  recCtl:'Controles de grabación',fab:'Botón flotante',fabHint:'Un botón redondo con micrófono que queda encima de las demás ventanas. Haz clic para empezar. Mientras dictas se pone verde: haz clic para parar y pegar en la app que estabas usando. Al lado aparecen dos botones más pequeños: azul = parar y solo copiar, rojo = cancelar. Arrástralo para moverlo.',resetFab:'Restablecer la posición del botón',
+ fabColors:'Colores',fabColorsHint:'Se aplica a toda la app: esta ventana, la tarjeta de grabación y el botón flotante. En todos los juegos de colores, verde = Parar y pegar, azul = Parar y solo copiar y rojo = Cancelar, y los avisos siguen en naranja o rojo.',
+ thclassic:'Azul clásico',thstudio:'Estudio',thmidnight:'Medianoche',thforest:'Bosque',thsunset:'Atardecer',thcontrast:'Alto contraste',thpaper:'Papel',thcustom:'Personalizado',
+ ccBg:'Fondo',ccMic:'Micrófono y texto',ccAcc:'Acento (botones, aro)',ccHint:'Haz clic en un cuadro de color para abrir el selector; los colores cambian mientras eliges. El texto difícil de leer se ajusta solo. O escribe un código como #E8503A y presiona Guardar.',
+ hideT:'Ocultar el botón flotante',hideHint:'Solo se oculta cuando no estás dictando. Mientras grabas, el botón y sus botones de parar siempre se ven. Tus atajos siguen funcionando aunque esté oculto.',
+ hideKeyInfo:'Presiona %s para ocultarlo o mostrarlo hasta que lo vuelvas a presionar.',hideNow:'Ocultar por ahora',showNow:'Mostrar otra vez',hiddenNow:'Oculto ahora: %s',whyShortcut:'por el atajo',whyFull:'hay una app en pantalla completa',whyApp:'esta app está en la lista',
+ hideFull:'Ocultar cuando una app está en pantalla completa',hideFullHint:'Lo oculta mientras la app de adelante está en pantalla completa (por ejemplo un video) y lo vuelve a mostrar al salir.',
+ hideApps:'Ocultar en estas apps',hideAppsHint:'El botón se oculta mientras una de estas apps está adelante.',hideNone:'Aún no hay apps.',remove:'Quitar',quick:'Añadir rápido',addRunning:'Añadir una app abierta',closeList:'Cerrar la lista',pickApp:'Haz clic en una app abierta para añadirla:',kFabHide:'Ocultar / mostrar el botón flotante',
+ axTitle:'⚠️ El permiso de Accesibilidad está apagado',axInfo:'Hammerspoon lo necesita para pegar tu texto. Mientras esté apagado, cada dictado se copia: pégalo con Cmd+V.',
+ axPath:'Ajustes del Sistema › Privacidad y seguridad › Accesibilidad › Hammerspoon. Si ya está activado, apágalo y vuelve a encenderlo.',axOpen:'Abrir ajustes de Accesibilidad',
+ micTitle:'🎤 La última grabación quedó vacía',micInfo:'Si se repite, puede que Hammerspoon no tenga permiso de Micrófono, o que esté elegido otro micrófono (Ajustes del Sistema › Sonido › Entrada).',
+ micPath:'Ajustes del Sistema › Privacidad y seguridad › Micrófono › Hammerspoon',micOpen:'Abrir ajustes de Micrófono',hideBanner:'Ocultar',
  cardToo:'Mostrar también la tarjeta de grabación',cardTooHint:'No: mientras dictas solo se ven el botón flotante y sus dos botones pequeños. Sí: también se muestra la tarjeta de grabación.',cardFabOff:'Con el botón flotante apagado, mientras dictas se usa la tarjeta de grabación con sus tres botones.',resetCard:'Restablecer la posición de la tarjeta',
  words:'Palabras propias',wordsHint:'Corrige palabras que Whisper entiende mal, después de transcribir y otra vez después de la corrección. Solo palabras completas; no importan mayúsculas ni tildes. Al modelo de corrección se le pide no cambiar nunca las palabras de «Reemplazar por». Los cambios se guardan al salir de cada casilla.',
  heard:'Se oye',replace:'Reemplazar por',add:'Añadir',wordsNone:'Aún no hay palabras propias.',
@@ -118,7 +161,8 @@ var S={},LANG='en';
 function t(k,a){var s=(L[LANG]&&L[LANG][k])||L.en[k]||k;return a!==undefined?s.replace('%s',a):s}
 function send(o){webkit.messageHandlers.taipea.postMessage(o)}
 // ---- v0.2 settings cards ----
-function lookApply(){var lk=S.look||{};var z=((S.cfg&&S.cfg.uiSize)=='compact'?.65:1)*(lk.scale||1);
+function palApply(){var p=S.pal;if(!p)return;var b=document.body;for(var k in p){if(typeof p[k]=='string')b.style.setProperty('--'+k,p[k])}b.classList.toggle('cl',!!p.cl);b.classList.toggle('lt',!!p.light);document.documentElement.style.colorScheme=p.light?'light':'dark'}
+function lookApply(){var lk=S.look||{};palApply();var z=((S.cfg&&S.cfg.uiSize)=='compact'?.65:1)*(lk.scale||1);
  document.body.style.setProperty('--z',z);document.body.classList.toggle('hc',!!lk.hc);document.body.classList.toggle('rm',!!lk.rm)}
 // keep what you typed (and the focus) when the window refreshes
 function keepInputs(fn){var ae=document.activeElement,id=ae&&ae.id,ss=ae&&ae.selectionStart,dirty={};
@@ -140,10 +184,54 @@ function voiceCard(){var c=S.cfg,v=S.voice||{};
  (c.voiceControl?'<p class=big style="font-size:18px">'+esc(v.active?t('voiceNow',v.model):t('voicePaused'))+'</p>':'')+
  row('startPhrases','sp_start','startP')+row('stopPhrases','sp_stop','stopP')+'<p class=h>'+t('phrasesFmt')+'</p><p class=h>'+t('voicePrivacy')+'</p></div>'}
 function recCard(){var c=S.cfg,h='<div class=card id=reccard><h3>'+t('recCtl')+'</h3><h3 style="margin-top:6px">'+t('fab')+'</h3><p class=h>'+t('fabHint')+'</p>'+opts('floatButton',[[true,t('on')],[false,t('off')]]);
- if(c.floatButton)h+='<h3 style="margin-top:14px">'+t('cardToo')+'</h3><p class=h>'+t('cardTooHint')+'</p>'+opts('cardWithFab',[[true,t('on')],[false,t('off')]]);
+ if(c.floatButton)h+='<h3 style="margin-top:14px">'+t('cardToo')+'</h3><p class=h>'+t('cardTooHint')+'</p>'+opts('cardWithFab',[[true,t('on')],[false,t('off')]])+hideSection();
  else if(c.showOverlay!==undefined)h+='<h3 style="margin-top:14px">'+t('overlay')+'</h3><p class=h>'+t('overlayHint')+'</p>'+opts('showOverlay',[[true,t('on')],[false,t('off')]]);
  else h+='<p class=h style="margin-top:14px">'+t('cardFabOff')+'</p>';
  return h+'<div class=row style="margin-top:10px"><button class=y onclick="send({cmd:\'resetFab\'})">'+t('resetFab')+'</button><button class=y onclick="send({cmd:\'resetOverlay\'})">'+t('resetCard')+'</button></div></div>'}
+var MICSVG=function(ol){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="'+(ol?'butt':'round')+'" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11.5" rx="3" fill="'+(ol?'none':'currentColor')+'"/><path class=arc d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21.5"/><path d="M8.5 21.5h7"/></svg>'};
+function thCols(th){var c=S.cfg;if(th.id=='custom')return {bg:c.customBg,mic:c.customMic,acc:c.customAccent};return th}
+function pv(th){var k=thCols(th),cl=th.id=='classic';
+ return '<span class=pv style="background:'+k.bg+';color:'+k.mic+';border-color:'+(cl?'rgba(255,255,255,.9)':k.acc)+'">'+MICSVG(th.outline).replace('class=arc','stroke="'+(cl?k.mic:k.acc)+'"')+'</span>'}
+function thKey(th){return 'th'+th.id}
+var CCT={};
+function ccLive(k,el){var v=el.value;document.getElementById('cx_'+k).value=v.toUpperCase();clearTimeout(CCT[k]);CCT[k]=setTimeout(function(){set(k,v)},250)}
+function ccSave(k){var el=document.getElementById('cx_'+k);delete el.dataset.dirty;var v=el.value.trim();if(v&&v[0]!='#')v='#'+v;set(k,v)}
+function colorCard(){var c=S.cfg,ths=S.fabThemes||[];
+ var h='<div class=card id=colorcard><h3>🎨 '+t('fabColors')+'</h3><p class=h>'+t('fabColorsHint')+'</p><div class=sws role=radiogroup aria-label="'+esc(t('fabColors'))+'">';
+ ths.forEach(function(th){var on=c.floatingTheme==th.id;
+  h+='<button class="sw'+(on?' on':'')+'" role=radio aria-checked='+(on?'true':'false')+' onclick="set(\'floatingTheme\',\''+th.id+'\')">'+pv(th)+'<span>'+(on?'✓ ':'')+esc(t(thKey(th)))+'</span></button>'});
+ h+='</div>';
+ if(c.floatingTheme=='custom'){
+  [['customBg','ccBg'],['customMic','ccMic'],['customAccent','ccAcc']].forEach(function(r){var v=c[r[0]]||'#000000';
+   h+='<div class=cc><span class=big style="font-size:19px">'+t(r[1])+'</span><input type=color id="cc_'+r[0]+'" aria-label="'+esc(t(r[1]))+'" value="'+v.toLowerCase()+'" oninput="ccLive(\''+r[0]+'\',this)" onchange="ccLive(\''+r[0]+'\',this)">'+
+    '<input type=text id="cx_'+r[0]+'" aria-label="'+esc(t(r[1]))+'" value="'+esc(v)+'" maxlength=7><button class=b onclick="ccSave(\''+r[0]+'\')">'+t('save')+'</button></div>'});
+  h+='<p class=h>'+t('ccHint')+'</p>'}
+ return h+'</div>'}
+var SUGG=[['TV','com.apple.TV'],['VLC','org.videolan.vlc'],['QuickTime Player','com.apple.QuickTimePlayerX'],['IINA','com.colliderli.iina']];
+function jsq(v){return JSON.stringify(v).replace(/"/g,'&quot;')}
+function hadd(n,id){send({cmd:'hideAppAdd',name:n,id:id})}
+function hideSection(){var c=S.cfg,list=c.hideApps||[],why={shortcut:t('whyShortcut'),fullscreen:t('whyFull'),app:t('whyApp')}[S.fabHidden];
+ var h='<div class=kd style="margin-top:14px"><h3 style="margin:4px 0 8px">'+t('hideT')+'</h3><p class=h>'+t('hideHint')+'</p>';
+ h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Ctrl + Option + F'))+'</p>';
+ if(why)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('hiddenNow',why))+'</p>';
+ h+='<div class=row><button class=b style="flex:1" onclick="send({cmd:\'fabHideToggle\'})">'+(S.fabSessionHidden?t('showNow'):t('hideNow'))+'</button></div>';
+ h+='<h3 style="margin-top:14px">'+t('hideFull')+'</h3><p class=h>'+t('hideFullHint')+'</p>'+opts('hideFullscreen',[[true,t('on')],[false,t('off')]]);
+ h+='<h3 style="margin-top:14px">'+t('hideApps')+'</h3><p class=h>'+t('hideAppsHint')+'</p>';
+ if(!list.length)h+='<p>'+t('hideNone')+'</p>';
+ list.forEach(function(e,i){h+='<div class=m><div><b style="font-size:19px">'+esc(e.name)+'</b><small>'+esc(e.id||'')+'</small></div><button class=r onclick="send({cmd:\'hideAppDel\',i:'+(i+1)+'})">'+t('remove')+'</button></div>'});
+ var has=function(id,n){return list.some(function(e){return e.id==id||(e.name||'').toLowerCase()==n.toLowerCase()})};
+ var q=SUGG.filter(function(x){return !has(x[1],x[0])});
+ if(q.length)h+='<div class=lbl style="color:var(--mut);font-size:14px;margin-top:8px">'+t('quick')+'</div><div class=row>'+q.map(function(x){return '<button class=opt onclick="hadd('+jsq(x[0])+','+jsq(x[1])+')">+ '+esc(x[0])+'</button>'}).join('')+'</div>';
+ if(S.runApps){h+='<p class=h>'+t('pickApp')+'</p><div class=sws>'+S.runApps.filter(function(x){return !has(x.id,x.name)}).map(function(x){return '<button class=sw style="height:88px;background:var(--btn);border-color:var(--inbd)" onclick="hadd('+jsq(x.name)+','+jsq(x.id)+')">'+esc(x.name)+'</button>'}).join('')+
+  '</div><div class=row><button class=y style="flex:1" onclick="send({cmd:\'closeApps\'})">'+t('closeList')+'</button></div>'}
+ else h+='<div class=row style="margin-top:10px"><button class=g style="flex:1" onclick="send({cmd:\'listApps\'})">'+t('addRunning')+'</button></div>';
+ return h+'</div>'}
+function renderPerm(){var p=S.perm||{},h='';
+ if(p.ax===false)h+='<div class=card role=alert style="border:4px solid #ff453a"><h3>'+esc(t('axTitle'))+'</h3><p>'+esc(t('axInfo'))+'</p><p class=h>'+esc(t('axPath'))+'</p>'+
+  '<div class=row><button class="r pm" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button></div></div>';
+ if(p.mic)h+='<div class=card role=alert style="border:4px solid #ff9f0a"><h3>'+esc(t('micTitle'))+'</h3><p>'+esc(t('micInfo'))+'</p><p class=h>'+esc(t('micPath'))+'</p>'+
+  '<div class=row><button class="y pm" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button><button style="min-height:72px;height:auto" onclick="send({cmd:\'hideMic\'})">'+esc(t('hideBanner'))+'</button></div></div>';
+ document.getElementById('perm').innerHTML=h}
 function wset(i){var h=document.getElementById('w_h_'+i),r=document.getElementById('w_r_'+i);delete h.dataset.dirty;delete r.dataset.dirty;send({cmd:'setWord',i:i+1,heard:h.value,replace:r.value})}
 function wadd(){var h=document.getElementById('w_new_h'),r=document.getElementById('w_new_r');if(!h.value.trim()||!r.value.trim()){send({cmd:'wordsBad'});return}
  send({cmd:'addWord',heard:h.value,replace:r.value});h.value='';r.value='';delete h.dataset.dirty;delete r.dataset.dirty}
@@ -178,7 +266,7 @@ function renderHist(){var q=document.getElementById('q').value.toLowerCase(),h='
  h+='<div class="e'+(cv?' busy':'')+'"><div class=h>'+esc(e.time)+(e.cleaned?' · '+(e.style?t(e.style):t('cleaned')):' · '+t('raw'))+'</div>'+
  (cv?'<div class=conv>'+esc(t('converting',t(cv)))+'</div>':'')+'<div class=x>'+esc(fin(e))+'</div>'+
  (e.cleaned&&e.cleaned!=e.raw?'<div class=raw><b>'+t('rawLbl')+'</b> '+esc(e.raw)+'</div>':'')+
- '<div class=row><button class=b onclick="send({cmd:\'copy\',i:'+(i+1)+'})">'+t('copy')+'</button><button class=g onclick="send({cmd:\'paste\',i:'+(i+1)+'})">'+t('paste')+'</button>'+
+ '<div class=row><button class="b cpy" onclick="send({cmd:\'copy\',i:'+(i+1)+'})">'+t('copy')+'</button><button class=g onclick="send({cmd:\'paste\',i:'+(i+1)+'})">'+t('paste')+'</button>'+
  (e.cleaned&&e.cleaned!=e.raw?'<button onclick="send({cmd:\'copyRaw\',i:'+(i+1)+'})">'+t('copyRaw')+'</button>':'')+
  '<button class=r onclick="send({cmd:\'del\',i:'+(i+1)+'})">'+t('del')+'</button></div>'+
  '<div class="row sty"><span class=lbl>'+t('convertTo')+'</span>'+['light','paragraphs','bullets','formal'].map(st=>'<button class="opt'+(e.cleaned&&e.style==st?' on':'')+'" onclick="restyle('+(i+1)+',\''+st+'\')">'+t(st)+'</button>').join('')+'</div></div>'});
@@ -188,9 +276,9 @@ function set(k,v){send({cmd:'set',key:k,value:v})}
 function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
- h+=lookCard()+autoCard()+voiceCard()+recCard()+wordsCard();
+ h+=colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard();
  h+='<div class=card><h3>'+t('keys')+'</h3>'+
- [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
+ [['toggleKey','kToggle'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste'],['fabHideKey','kFabHide']].map(k=>'<div class=kd><div>'+t(k[1])+'</div><div class=big>'+esc(S.keyLabels[k[0]])+'</div>'+
   (S.keyLabels[k[0]]!=S.defaultKeys[k[0]]?'<p class=h>'+esc(t('def',S.defaultKeys[k[0]]))+'</p>':'')+
   '<div class=row><input type=text id="k_'+k[0]+'" aria-label="'+esc(t(k[1]))+'" value="'+esc(S.keys[k[0]])+'" style="flex:1"><button class=b onclick="set(\''+k[0]+'\',document.getElementById(\'k_'+k[0]+'\').value)">'+t('save')+'</button></div></div>').join('')+
  '<p class=h>'+t('keyFmt')+'</p><button class=y onclick="send({cmd:\'resetKeys\'})">'+t('resetKeys')+'</button></div>';
@@ -198,7 +286,7 @@ function renderSet(){var c=S.cfg,h='';
  h+='<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card><h3>'+t('after')+'</h3>'+opts('defaultAction',[['paste',t('pasteCur')],['copy',t('copyOnly')]])+'</div>';
  h+='<div class=card><h3>'+t('login')+'</h3>'+opts('openAtLogin',[[true,t('on')],[false,t('off')]])+
- (c.openAtLogin?'<p class=h>'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=h style="color:#ff9f0a">'+t('loginWarn')+'</p>')+
+ (c.openAtLogin?'<p class=h>'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=h style="color:var(--warn)!important">'+t('loginWarn')+'</p>')+
  '<h3 style="margin-top:14px">'+t('showLogin')+'</h3>'+opts('showAtLogin',[[true,t('on')],[false,t('off')]])+'</div>';
  document.getElementById('sl').innerHTML=h}
 function renderMod(){var h='';
@@ -213,7 +301,7 @@ function renderMod(){var h='';
  (S.dl[m.name]?'<span class=prog>'+esc(S.dl[m.name])+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">'+t('download')+'</button>'))+'</div>'});
  h+='</div><button onclick="send({cmd:\'refresh\'})">'+t('refresh')+'</button>';document.getElementById('ml').innerHTML=h}
 function clr(){var b=document.getElementById('clr');if(b.dataset.a){send({cmd:'clearHistory'});b.dataset.a='';b.textContent=t('clear')}else{b.dataset.a=1;b.textContent=t('clearSure');setTimeout(()=>{b.dataset.a='';b.textContent=t('clear')},4000)}}
-function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();histTop();renderHist();keepInputs(renderSet);renderMod()}
+function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();renderPerm();histTop();renderHist();var ae=document.activeElement;if(!(ae&&ae.type=='color'))keepInputs(renderSet);renderMod()}
 staticText();
 if(window.webkit)send({cmd:'refresh'});
 </script></body></html>

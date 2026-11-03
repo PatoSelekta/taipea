@@ -72,6 +72,15 @@ Taipea is for you if:
   using. Two smaller buttons appear beside it (blue = stop and copy only, red = cancel). Drag
   it anywhere; it remembers where you left it. You can also show the full recording card in
   Settings. It looks different when idle, recording and working.
+- **Hide the floating button when you don't need it.** Press Ctrl + Option + F (or use the
+  menu) to hide it until you press it again; hide it by itself while an app is full screen
+  (on by default) or while chosen apps are in front (for example VLC or TV). It never hides
+  while you are recording or Taipea is working, so Stop is always reachable.
+- **Color themes for the whole app.** Settings › Colors has 8 sets: Classic Blue, Studio,
+  Midnight, Forest, Sunset, High Contrast, Paper and Custom (pick 3 colors). They color the
+  window, the recording card and the floating button. Text that would be hard to read is
+  fixed automatically (at least 4.5:1 contrast), and the action colors never change: green =
+  stop and paste, blue = stop and copy only, red = cancel.
 - **Custom words.** Tell Taipea that "select dev" should be written "selektdev". Matching
   ignores capitals and accents and only replaces whole words. The words are also given to
   Whisper as hints and the cleanup model is told never to change them.
@@ -81,6 +90,9 @@ Taipea is for you if:
 - **Recovery.** Each recording is kept until its text is pasted. If Hammerspoon crashes or
   reloads in the middle, Taipea offers **Recover last recording** and transcribes it.
 - **Paste last dictation again** with Ctrl + Option + V, the menu, or a button in History.
+- **Permission checks.** If Accessibility is off, Taipea tells you, keeps your text on the
+  clipboard (paste it with Cmd + V) and shows a big **Open Accessibility settings** button. If
+  a recording comes back empty, it points you to the Microphone permission.
 
 ## Privacy: 100% local
 
@@ -117,7 +129,7 @@ Open the **Terminal** app, paste this line, and press Return:
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
-The one-line installer installs from `main`. To install exactly v0.2.0, download the release source zip, unzip it, and run `./install.sh` from that folder.
+The one-line installer installs from `main`. To install exactly v0.2.2, download the release source zip, unzip it, and run `./install.sh` from that folder.
 
 The installer explains each step, asks before anything big, and can be run again
 safely (it skips what is already done). It:
@@ -162,12 +174,51 @@ macOS protects your microphone and keyboard. You have to allow these once. Taipe
 inside Hammerspoon, so the permission is for **Hammerspoon**:
 
 1. **Accessibility:** System Settings › Privacy & Security › Accessibility › turn on
-   **Hammerspoon**. Needed for the shortcuts and to paste the text.
+   **Hammerspoon**. Needed to paste the text where your cursor is (Taipea presses Cmd+V
+   for you). The shortcuts themselves work without it.
 2. **Microphone:** the first time you dictate, macOS asks. Click **Allow**. To check
    later: System Settings › Privacy & Security › Microphone › **Hammerspoon**.
+   Hammerspoon only appears in that list after your first dictation.
 
 If a switch is already on but nothing gets pasted, turn it off and on again, then restart
 Hammerspoon.
+
+**Signs that a permission is missing**
+
+- **Nothing is pasted:** Accessibility is off. Taipea shows a red banner with an **Open
+  Accessibility settings** button, and your text stays on the clipboard (Cmd + V) and in History.
+- **The recording is empty, or you get "No speech detected" every time:** the Microphone
+  permission is off (macOS then records only silence), or the wrong microphone is chosen
+  in System Settings › Sound › Input.
+
+**Other messages you may see (normal)**
+
+- **"Terminal wants access to control Hammerspoon":** this can appear when you run the
+  installer again while Hammerspoon is open, because the installer restarts it. Click
+  **OK**. If you clicked Don't Allow, quit Hammerspoon from its menu bar icon and open it
+  again.
+- **"Background Items Added" / login item notice:** Taipea opens at login through
+  Hammerspoon, so macOS may tell you Hammerspoon was added to your login items. Nothing to
+  do. You can turn it off in Taipea's Settings (Open at login) or in System Settings ›
+  General › Login Items.
+
+## Why Hammerspoon?
+
+Taipea runs inside [Hammerspoon](https://www.hammerspoon.org), a free tool for
+automating your Mac, instead of being a separate native app. We chose it on purpose:
+
+- **It keeps Taipea free.** Hammerspoon is free and open source, and Taipea doesn't need
+  a paid Apple developer account to be signed and shared.
+- **Nothing is hidden.** Taipea is plain Lua and HTML you can read, check and change.
+  There is no closed binary, and you can see for yourself that everything stays on your Mac.
+- **Fixes arrive fast.** Most improvements are a change to one file and a reload. No app
+  rebuild, no waiting for an app store.
+- **It's proven.** Hammerspoon is mature and widely used, and it already does what
+  dictation needs: global shortcuts, floating windows, and pasting into any app.
+
+The honest trade-offs: you install Hammerspoon too (the installer does it for you), and
+macOS permissions and prompts say **Hammerspoon**, not Taipea. A native Taipea app may
+come later, once the features settle.
 
 ## How to use it
 
@@ -180,6 +231,7 @@ config file.
 | **Ctrl + Option + C** | Turn cleanup on or off (raw text). |
 | **Ctrl + Option + H** | Open the Taipea window: History, Settings, Models. |
 | **Ctrl + Option + V** | Paste the last dictation again. |
+| **Ctrl + Option + F** | Hide or show the floating button (until you press it again). |
 
 No keyboard? Everything also works with clicks:
 
@@ -250,6 +302,7 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Cleanup on / off | **Ctrl + Option + C** | any shortcut |
 | Open the Taipea window | **Ctrl + Option + H** | any shortcut |
 | Paste last dictation again | **Ctrl + Option + V** | any shortcut |
+| Hide / show floating button | **Ctrl + Option + F** | any shortcut |
 | Cleanup (grammar fix) | On | On / Off (raw text) |
 | Cleanup model | `gemma4:e4b`, falls back to `qwen2.5:7b`, then `gemma4:e2b` | any Ollama model |
 | Style | Light | Light / Paragraph / Bullets / Formal |
@@ -264,6 +317,9 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | High contrast | Auto (follows macOS Increase Contrast) | Auto / On / Off |
 | Floating mic button | On | On / Off |
 | Recording card with floating button | Off | On / Off (`cardWithFab` in config.lua) |
+| Colors | Classic Blue | Classic Blue, Studio, Midnight, Forest, Sunset, High Contrast, Paper, Custom |
+| Hide floating button when an app is full screen | On | On / Off |
+| Hide floating button in these apps | none | any open app |
 | Voice start / stop | Off | On / Off; start phrases "Taipea escribe", "Taipea write"; stop phrases "listo", "done", "Taipea listo" |
 | Custom words | none | any "heard → replace with" pairs |
 | Open at login | On | On / Off |
@@ -303,8 +359,11 @@ Advanced settings are in `~/Library/Application Support/Taipea/config.lua` (see
 ## Troubleshooting
 
 **Nothing happens when I press the shortcut.**
-Check that Hammerspoon is running (🎙 in the menu bar) and has Accessibility permission.
-Then choose Hammerspoon › Reload Config from its menu bar icon.
+Check that Hammerspoon is running (🎙 in the menu bar), then choose Hammerspoon › Reload
+Config from its menu bar icon. Shortcuts don't need any permission; if one still does
+nothing, another app may use the same keys: pick a different one in Settings › Shortcuts.
+(If the recording starts but the text is not pasted, that is the Accessibility permission:
+see the next item.)
 
 **The overlay appears but nothing is pasted.**
 Accessibility permission is missing or stuck: turn Hammerspoon off and on again in

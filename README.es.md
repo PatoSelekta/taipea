@@ -79,6 +79,16 @@ Taipea es para ti si:
   usando. Al lado aparecen dos botones más pequeños (azul = parar y solo copiar, rojo = cancelar). Arrástralo
   donde quieras; recuerda dónde lo dejaste. También puedes mostrar la tarjeta de grabación completa en Ajustes.
   Se ve distinto en reposo, grabando y trabajando.
+- **Oculta el botón flotante cuando no lo necesitas.** Presiona Ctrl + Opción + F (o usa el
+  menú) para ocultarlo hasta que lo vuelvas a presionar; se oculta solo mientras una app está
+  en pantalla completa (activado por defecto) o mientras ciertas apps están adelante (por
+  ejemplo VLC o TV). Nunca se oculta mientras grabas o Taipea trabaja, así que Parar siempre
+  está a mano.
+- **Temas de color para toda la app.** Ajustes › Colores tiene 8 juegos: Azul clásico,
+  Estudio, Medianoche, Bosque, Atardecer, Alto contraste, Papel y Personalizado (eliges 3
+  colores). Colorean la ventana, la tarjeta de grabación y el botón flotante. El texto que
+  sería difícil de leer se ajusta solo (contraste de al menos 4.5:1), y los colores de acción
+  no cambian nunca: verde = parar y pegar, azul = parar y solo copiar, rojo = cancelar.
 - **Palabras propias.** Dile a Taipea que "select dev" se escribe "selektdev". No importan
   mayúsculas ni tildes, y solo reemplaza palabras completas. Las palabras también se le dan
   a Whisper como pista, y al modelo de corrección se le pide no cambiarlas nunca.
@@ -90,6 +100,9 @@ Taipea es para ti si:
   transcribe.
 - **Pegar otra vez el último dictado** con Ctrl + Opción + V, el menú o un botón en el
   Historial.
+- **Revisión de permisos.** Si falta Accesibilidad, Taipea te avisa, deja tu texto en el
+  portapapeles (pégalo con Cmd + V) y muestra un botón grande **Abrir ajustes de
+  Accesibilidad**. Si una grabación sale vacía, te lleva al permiso de Micrófono.
 
 ## Privacidad: 100 % local
 
@@ -127,7 +140,7 @@ Abre la app **Terminal**, pega esta línea y presiona Enter:
 curl -fsSL https://raw.githubusercontent.com/PatoSelekta/taipea/main/install.sh | bash
 ```
 
-El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.0, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
+El instalador de una línea instala desde `main`. Para instalar exactamente v0.2.2, descarga el zip de código de la versión, descomprímelo y ejecuta `./install.sh` desde esa carpeta.
 
 El instalador explica cada paso, pregunta antes de algo grande y se puede volver a
 ejecutar sin problema (se salta lo que ya está hecho). El instalador:
@@ -173,13 +186,52 @@ macOS protege tu micrófono y tu teclado. Tienes que darlos una vez. Taipea corr
 Hammerspoon, así que el permiso es para **Hammerspoon**:
 
 1. **Accesibilidad:** Ajustes del Sistema › Privacidad y seguridad › Accesibilidad ›
-   activa **Hammerspoon**. Se necesita para los atajos y para pegar el texto.
+   activa **Hammerspoon**. Se necesita para pegar el texto donde está tu cursor (Taipea
+   presiona Cmd+V por ti). Los atajos funcionan sin este permiso.
 2. **Micrófono:** la primera vez que dictes, macOS te pregunta. Haz clic en **Permitir**.
    Para revisarlo después: Ajustes del Sistema › Privacidad y seguridad › Micrófono ›
-   **Hammerspoon**.
+   **Hammerspoon**. Hammerspoon solo aparece en esa lista después de tu primer dictado.
 
 Si el interruptor ya está activado pero no se pega nada, apágalo y vuelve a encenderlo, y
 reinicia Hammerspoon.
+
+**Señales de que falta un permiso**
+
+- **No se pega nada:** falta Accesibilidad. Taipea muestra un aviso rojo con el botón **Abrir
+  ajustes de Accesibilidad**, y tu texto queda en el portapapeles (Cmd + V) y en el Historial.
+- **La grabación sale vacía, o siempre aparece "No se detectó voz":** falta el permiso de
+  Micrófono (macOS entonces graba solo silencio), o está elegido otro micrófono en Ajustes
+  del Sistema › Sonido › Entrada.
+
+**Otros mensajes que puedes ver (normales)**
+
+- **"Terminal quiere acceder para controlar Hammerspoon":** puede aparecer si ejecutas el
+  instalador otra vez con Hammerspoon abierto, porque el instalador lo reinicia. Haz clic
+  en **Aceptar**. Si elegiste No permitir, cierra Hammerspoon desde su ícono en la barra de
+  menús y vuelve a abrirlo.
+- **Aviso de "Ítems en segundo plano añadidos" / ítem de inicio:** Taipea se abre al
+  iniciar sesión a través de Hammerspoon, así que macOS puede avisarte que Hammerspoon se
+  añadió a tus ítems de inicio. No tienes que hacer nada. Puedes desactivarlo en los Ajustes
+  de Taipea (Abrir al iniciar sesión) o en Ajustes del Sistema › General › Ítems de inicio.
+
+## ¿Por qué Hammerspoon?
+
+Taipea funciona dentro de [Hammerspoon](https://www.hammerspoon.org), una herramienta
+gratuita para automatizar tu Mac, en vez de ser una app nativa aparte. Lo elegimos a
+propósito:
+
+- **Así Taipea sigue siendo gratis.** Hammerspoon es gratuito y de código abierto, y
+  Taipea no necesita una cuenta de desarrollador de Apple paga para firmarse y compartirse.
+- **No hay nada oculto.** Taipea es Lua y HTML simples que puedes leer, revisar y cambiar.
+  No hay un binario cerrado, y puedes comprobar tú mismo que todo se queda en tu Mac.
+- **Las mejoras llegan rápido.** La mayoría de los arreglos son un cambio en un archivo y
+  una recarga. Sin recompilar la app ni esperar a una tienda de apps.
+- **Es probado.** Hammerspoon es maduro y muy usado, y ya hace lo que el dictado necesita:
+  atajos globales, ventanas flotantes y pegar en cualquier app.
+
+Las desventajas, con honestidad: también instalas Hammerspoon (el instalador lo hace por
+ti), y los permisos y avisos de macOS dicen **Hammerspoon**, no Taipea. Más adelante puede
+llegar una app nativa de Taipea, cuando las funciones se estabilicen.
 
 ## Cómo usarlo
 
@@ -192,6 +244,7 @@ de configuración.
 | **Ctrl + Opción + C** | Activa o desactiva la corrección (texto sin corregir). |
 | **Ctrl + Opción + H** | Abre la ventana de Taipea: Historial, Ajustes, Modelos. |
 | **Ctrl + Opción + V** | Pega otra vez el último dictado. |
+| **Ctrl + Opción + F** | Oculta o muestra el botón flotante (hasta que lo vuelvas a presionar). |
 
 ¿Sin teclado? Todo funciona también con clics:
 
@@ -267,6 +320,7 @@ están en `config.example.lua`).
 | Corrección sí / no | **Ctrl + Opción + C** | cualquier atajo |
 | Abrir la ventana de Taipea | **Ctrl + Opción + H** | cualquier atajo |
 | Pegar otra vez el último dictado | **Ctrl + Opción + V** | cualquier atajo |
+| Ocultar / mostrar el botón flotante | **Ctrl + Opción + F** | cualquier atajo |
 | Corrección (gramática) | Sí | Sí / No (texto original) |
 | Modelo de corrección | `gemma4:e4b`; si falta, `qwen2.5:7b` y luego `gemma4:e2b` | cualquier modelo de Ollama |
 | Estilo | Ligero | Ligero / Párrafos / Viñetas / Formal |
@@ -281,6 +335,9 @@ están en `config.example.lua`).
 | Alto contraste | Automático (sigue Aumentar contraste de macOS) | Automático / Sí / No |
 | Botón flotante con micrófono | Sí | Sí / No |
 | Tarjeta de grabación con el botón flotante | No | Sí / No (`cardWithFab` en config.lua) |
+| Colores | Azul clásico | Azul clásico, Estudio, Medianoche, Bosque, Atardecer, Alto contraste, Papel, Personalizado |
+| Ocultar el botón flotante con una app en pantalla completa | Sí | Sí / No |
+| Ocultar el botón flotante en estas apps | ninguna | cualquier app abierta |
 | Empezar / parar con la voz | No | Sí / No; frases de inicio "Taipea escribe", "Taipea write"; de parada "listo", "done", "Taipea listo" |
 | Palabras propias | ninguna | pares "se oye → reemplazar por" |
 | Abrir al iniciar sesión | Sí | Sí / No |
@@ -322,8 +379,11 @@ Los ajustes avanzados están en `~/Library/Application Support/Taipea/config.lua
 ## Solución de problemas
 
 **No pasa nada al presionar el atajo.**
-Revisa que Hammerspoon esté abierto (🎙 en la barra de menús) y tenga permiso de
-Accesibilidad. Luego elige Hammerspoon › Reload Config en su ícono de la barra de menús.
+Revisa que Hammerspoon esté abierto (🎙 en la barra de menús) y luego elige Hammerspoon ›
+Reload Config en su ícono de la barra de menús. Los atajos no necesitan ningún permiso; si
+uno sigue sin hacer nada, puede que otra app use las mismas teclas: elige otro en Ajustes ›
+Atajos. (Si la grabación empieza pero el texto no se pega, es el permiso de Accesibilidad:
+mira el punto siguiente.)
 
 **Aparece el panel pero no se pega nada.**
 Falta el permiso de Accesibilidad o quedó trabado: apaga y enciende Hammerspoon en

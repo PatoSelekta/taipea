@@ -12,7 +12,7 @@
 # Safe to run again: steps that are already done are skipped.
 set -euo pipefail
 
-TAIPEA_VERSION="0.2.1"
+TAIPEA_VERSION="0.2.2"
 REPO="${TAIPEA_REPO:-PatoSelekta/taipea}"
 REF="${TAIPEA_REF:-main}"
 DATA="$HOME/Library/Application Support/Taipea"
@@ -286,14 +286,31 @@ else
 fi
 
 # ---------- 10. permissions ----------
-step "One-time permissions (macOS asks for these, Taipea cannot grant them itself)"
-info "1. Accessibility → turn ON Hammerspoon. Needed to paste text and use the shortcuts."
+step "One-time permissions / Permisos (una sola vez)"
+info "macOS asks for these; Taipea cannot grant them itself."
+info "macOS los pide; Taipea no puede darlos por sí solo."
+info ""
+info "1. Accessibility → turn ON Hammerspoon. Needed to paste the text."
 info "   System Settings › Privacy & Security › Accessibility"
-info "2. Microphone → turn ON Hammerspoon. macOS asks the first time you dictate; click Allow."
-info "   System Settings › Privacy & Security › Microphone"
+info "   Accesibilidad → activa Hammerspoon. Se necesita para pegar el texto."
+info "   Ajustes del Sistema › Privacidad y seguridad › Accesibilidad"
+info ""
+info "2. Microphone → macOS asks the first time you dictate: click Allow."
+info "   If the recording is always empty, check:"
+info "   System Settings › Privacy & Security › Microphone › Hammerspoon"
+info "   Micrófono → macOS pregunta la primera vez que dictas: haz clic en Permitir."
+info "   Si la grabación siempre sale vacía, revisa:"
+info "   Ajustes del Sistema › Privacidad y seguridad › Micrófono › Hammerspoon"
+info ""
 info "If a switch was already on but Taipea does not paste, turn it off and on again."
-if [ "$NO_START" != 1 ] && ask "Open the Accessibility settings now?" y; then
-  open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" || true
+info "Si el interruptor ya estaba activado pero Taipea no pega, apágalo y vuelve a encenderlo."
+if [ "$NO_START" != 1 ]; then
+  if ask "Open the Accessibility settings now? / ¿Abrir los ajustes de Accesibilidad ahora?" y; then
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" || true
+  fi
+  if ask "Open the Microphone settings too? / ¿Abrir también los ajustes de Micrófono?" n; then
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" || true
+  fi
 fi
 
 printf '\n%s%s  Taipea is installed!%s\n' "$B" "$G" "$N"

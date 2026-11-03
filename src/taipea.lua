@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.1
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.2
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -52,6 +52,11 @@ local DEFAULTS = {
   floatButton = true,                        -- round always-on-top mic button: click to start; while recording it turns green (click = stop and paste)
                                              -- and shows two small buttons: blue = stop and copy only, red = cancel
   cardWithFab = false,                       -- also show the recording card while the floating button is on
+  floatingTheme = "classic",                 -- app colours: classic | studio | midnight | forest | sunset | contrast | paper | custom
+  customBg = "#1A1A1A", customMic = "#FFFFFF", customAccent = "#E8503A",  -- the 3 colours of the Custom set (#RRGGBB)
+  fabHideKey = { mods = {"ctrl","alt"}, key = "f" },  -- hide / show the floating button until pressed again
+  hideFullscreen = true,                     -- hide the floating button while the app in front is full screen
+  hideApps = {},                             -- hide it while one of these apps is in front: { {name="VLC", id="org.videolan.vlc"}, ... }
   customWords = {},                          -- { {heard="select dev", replace="selektdev"}, ... } (edit in Settings)
   voiceControl = false,                      -- voice start/stop (listens for the phrases below; all on this Mac)
   startPhrases = { "Taipea escribe", "Taipea write" },
@@ -158,6 +163,13 @@ local NEWSTR = {
   fab_on="Floating button: ON", card_on="Recording card: shown with the floating button", card_off="Recording card: hidden while the floating button is on", fab_off="Floating button: OFF",
   words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
   look_set="Display updated",
+  fab_hidden="Floating button hidden (%s shows it again)", fab_shown="Floating button shown", fab_is_off="The floating button is off in Settings",
+  menu_fab_hide="Hide floating button for now", hide_added="Added: %s", hide_removed="Removed: %s", color_bad="That color is not valid. Use a code like #E8503A",
+  perm_ax_paste="⚠️ Accessibility permission is off, so Taipea can't paste.\nThe text is on the clipboard: paste it with Cmd+V. Open Taipea for the settings button.",
+  perm_ax_start="⚠️ Taipea needs Accessibility permission (for Hammerspoon) to paste.\nOpen Taipea › Open Accessibility settings.",
+  perm_ax_back="✅ Accessibility is on: pasting works again.",
+  perm_mic_hint="\n\n🎤 If this keeps happening, Hammerspoon may not have Microphone permission.\nOpen Taipea › Open Microphone settings.",
+  menu_open_ax="⚠️ Open Accessibility settings", menu_open_mic="🎤 Open Microphone settings",
  },
  es = {
   menu_voice="Empezar/parar con la voz (di «%s»)", menu_fab="Botón flotante", menu_paste_last="Pegar otra vez el último dictado",
@@ -173,6 +185,13 @@ local NEWSTR = {
   fab_on="Botón flotante: SÍ", card_on="Tarjeta de grabación: se muestra con el botón flotante", card_off="Tarjeta de grabación: oculta mientras el botón flotante está activo", fab_off="Botón flotante: NO",
   words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
   look_set="Pantalla actualizada",
+  fab_hidden="Botón flotante oculto (%s lo vuelve a mostrar)", fab_shown="Botón flotante visible", fab_is_off="El botón flotante está apagado en Ajustes",
+  menu_fab_hide="Ocultar el botón flotante por ahora", hide_added="Añadida: %s", hide_removed="Quitada: %s", color_bad="Ese color no es válido. Usa un código como #E8503A",
+  perm_ax_paste="⚠️ El permiso de Accesibilidad está apagado: Taipea no puede pegar.\nEl texto está en el portapapeles: pégalo con Cmd+V. Abre Taipea para el botón de ajustes.",
+  perm_ax_start="⚠️ Taipea necesita el permiso de Accesibilidad (para Hammerspoon) para pegar.\nAbre Taipea › Abrir ajustes de Accesibilidad.",
+  perm_ax_back="✅ Accesibilidad activada: ya se puede pegar.",
+  perm_mic_hint="\n\n🎤 Si se repite, puede que Hammerspoon no tenga permiso de Micrófono.\nAbre Taipea › Abrir ajustes de Micrófono.",
+  menu_open_ax="⚠️ Abrir ajustes de Accesibilidad", menu_open_mic="🎤 Abrir ajustes de Micrófono",
  },
 }
 for l, t in pairs(NEWSTR) do for k, v in pairs(t) do STR[l][k] = v end end
@@ -467,8 +486,48 @@ local function addHistory(raw, cleaned)
 end
 local function finalText(e) return (e.cleaned and e.cleaned ~= "") and e.cleaned or e.raw end
 
+-- ---------- permissions (Accessibility = paste, Microphone = recording; both granted to Hammerspoon) ----------
+local AX_URL  = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+local MIC_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+M.AX_URL, M.MIC_URL = AX_URL, MIC_URL
+M.axCheck = function() return hs.accessibilityState(false) end   -- tests may replace this
+M.permAx = M.axCheck() and true or false
+M.micWarn = false
+function M.permSync()
+  if not M.permAx then
+    if not M._axTimer then M._axTimer = hs.timer.doEvery(3, function() M.axOK() end) end
+  elseif M._axTimer then M._axTimer:stop(); M._axTimer = nil end
+  if M.refreshUI then M.refreshUI() end
+end
+-- re-reads the permission; reports when it changes and keeps a 3 s recheck running while it is off
+function M.axOK()
+  local ok = M.axCheck() and true or false
+  if ok ~= M.permAx then
+    M.permAx = ok; log("permission: Accessibility "..(ok and "ON" or "OFF"))
+    if ok then hs.alert.show(T("perm_ax_back"), 4) end
+    M.permSync()
+  end
+  return ok
+end
+-- an empty recording or no speech: show the message plus a hint about the Microphone permission
+function M.micProblem(msg)
+  M.micWarn = true; log("permission: empty/no-speech recording, microphone hint shown")
+  hs.alert.show(msg..T("perm_mic_hint"), 8)
+  if M.refreshUI then M.refreshUI() end
+end
+function M.openPerm(url) hs.urlevent.openURL(url) end
+
 -- ---------- paste ----------
+-- returns false when pasting is blocked (no Accessibility): the text is then left on the clipboard
 local function doPaste(text, app)
+  if not M.axOK() then
+    -- never restore the old clipboard here, or the dictation would be lost
+    hs.pasteboard.setContents(text)
+    if app then app:activate() end
+    log("PASTE BLOCKED: Accessibility off, text left on clipboard ("..#text.." chars)")
+    hs.alert.show(T("perm_ax_paste"), 10)
+    return false
+  end
   local old = hs.pasteboard.readAllData()
   hs.pasteboard.setContents(text)
   if app then app:activate() end
@@ -476,7 +535,9 @@ local function doPaste(text, app)
     hs.eventtap.keyStroke({"cmd"}, "v", 0)
     if cfg.restoreClipboard and old then after(0.6, function() hs.pasteboard.writeAllData(old) end) end
   end)
+  return true
 end
+M.doPaste = doPaste
 
 -- ---------- model catalogs ----------
 local WHISPER = {
@@ -550,26 +611,27 @@ local function overlayFrame()
   return { x=sf.x+(sf.w-w)/2, y=sf.y+60, w=w, h=h }
 end
 local function overlayHTML() return [[
-<html lang="]]..uiLang()..[["><head><meta charset="utf-8"><style>
+<html lang="]]..uiLang()..[[" class="cl"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important}
-body{font:600 22px -apple-system;color:#fff;overflow:hidden;-webkit-user-select:none}
-#panel{width:100%;height:100%;background:rgba(25,25,30,.95);border-radius:18px;overflow:hidden;cursor:move}
+html{--ovbg:rgba(25,25,30,.95);--ovtx:#fff;--ovmut:#aaa;--ovt:#ccc;--bd:transparent}
+body{font:600 22px -apple-system;color:var(--ovtx);overflow:hidden;-webkit-user-select:none}
+#panel{width:100%;height:100%;background:var(--ovbg);border-radius:18px;overflow:hidden;cursor:move;border:2px solid var(--bd)}
 #panel button{cursor:pointer}
 #top{display:flex;align-items:center;gap:14px;padding:18px 22px 6px;cursor:move}
 #dot{width:30px;height:30px;border-radius:50%;background:#ff3b30;animation:p 1s infinite}
 .busy #dot{background:#ffcc00;animation:s 1s linear infinite;border-radius:6px}
 @keyframes p{0%,100%{transform:scale(.7);opacity:.6}50%{transform:scale(1.1);opacity:1}}
 @keyframes s{to{transform:rotate(360deg)}}
-#t{margin-left:auto;font-variant-numeric:tabular-nums;color:#ccc}
-#sub{padding:0 22px;font:400 16px -apple-system;color:#aaa;height:22px}
+#t{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ovt)}
+#sub{padding:0 22px;font:400 16px -apple-system;color:var(--ovmut);height:22px}
 #b{display:flex;gap:10px;padding:16px;width:100%}
 button{flex:1;min-width:0;height:110px;border:0;border-radius:14px;font:700 21px -apple-system;color:#fff;cursor:pointer}
 #stop{background:#1e8e3e;flex:1.4}#copy{background:#0a6cd6}#cancel{background:#d42c22}
 button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.15}.ic{display:flex}.ic svg{width:32px;height:32px}
 button:hover{filter:brightness(1.2)} .busy button{opacity:.35;pointer-events:none}
 .busy #cancel{opacity:1;pointer-events:auto}
-html.hc #panel{background:#000;border:4px solid #fff}html.hc button{border:4px solid #fff}
-html.hc #stop{background:#006b1f}html.hc #copy{background:#003f8a}html.hc #cancel{background:#a00000}html.hc #sub,html.hc #t{color:#fff}
+html.hc.cl #panel{background:#000;border:4px solid #fff}html.hc button{border:4px solid #fff}html.hc:not(.cl) #panel{border:4px solid var(--ovtx)}
+html.hc #stop{background:#006b1f}html.hc #copy{background:#003f8a}html.hc #cancel{background:#a00000}html.hc.cl #sub,html.hc.cl #t{color:#fff}
 html.rm *{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion: reduce){*{animation:none!important}}
 </style></head><body><div id=panel>
@@ -580,7 +642,8 @@ html.rm *{animation:none!important;transition:none!important}
 document.getElementById('panel').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();s({cmd:'dragOverlay'})}});
 function upd(st,t,sub,busy){document.getElementById('st').textContent=st;document.getElementById('t').textContent=t;
 document.getElementById('sub').textContent=sub;document.body.classList.toggle('busy',!!busy)}
-function setLook(hc,rm){document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}</script></body></html>]] end
+function setLook(hc,rm){document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
+function setPal(p){var r=document.documentElement;['ovbg','ovtx','ovmut','ovt'].forEach(function(k){r.style.setProperty('--'+k,p[k])});r.style.setProperty('--bd',p.cl?'transparent':p.bd2);r.classList.toggle('cl',!!p.cl)}</script></body></html>]] end
 
 -- ---------- hotkeys ----------
 local hk = {}
@@ -660,6 +723,7 @@ local function showOverlay()
   overlay:frame(overlayFrame()):show()
   local z = (cfg.uiSize=="compact" and 0.75 or 1) * ((M.look and M.look.scale) or 1)
   overlay:evaluateJavaScript("window.__tpZoom="..z..";document.documentElement.style.zoom=window.__tpZoom;setLook("..tostring(M.look and M.look.hc or false)..","..tostring(M.look and M.look.rm or false)..")")
+  if M.overlayPal then M.overlayPal() end
 end
 local function hideOverlay() if overlay then overlay:hide() end end
 M._showOverlay, M._hideOverlay = showOverlay, hideOverlay
@@ -725,7 +789,7 @@ function M.pasteLast(app)
   if not e then hs.alert.show(T("nothing_paste")); return end
   app = app or hs.application.frontmostApplication()
   if not app or app:bundleID() == "org.hammerspoon.Hammerspoon" then app = M.lastApp end
-  doPaste(finalText(e), app); log("PASTED AGAIN ("..#finalText(e).." chars)")
+  if doPaste(finalText(e), app) ~= false then log("PASTED AGAIN ("..#finalText(e).." chars)") end
 end
 
 -- remember the last app you used (not Hammerspoon), so text from the floating button goes back there
@@ -874,20 +938,144 @@ local function satLayout(mf, sw, sr)
   return sideOf(deg), fr
 end
 M.satLayout = satLayout
+-- ---------- colour sets (Settings › Colors) ----------
+-- Each set has 3 colours: bg = background, mic = microphone and text, acc = accent (buttons, rings).
+-- They theme the whole app: the window, the recording card and the floating button. The action
+-- colours never change: green = stop and paste, blue = stop and copy only, red = cancel, and
+-- warnings stay orange / red.
+local FAB_THEMES = {
+  { id = "classic",  bg = "#0A6CD6", mic = "#FFFFFF", acc = "#FFFFFF" },
+  { id = "studio",   bg = "#1A1A1A", mic = "#F2EFEA", acc = "#E8503A", outline = true },
+  { id = "midnight", bg = "#14213D", mic = "#FFFFFF", acc = "#22D3EE" },
+  { id = "forest",   bg = "#1F3D2B", mic = "#F3EBD3", acc = "#A3E635" },
+  { id = "sunset",   bg = "#3B1F4A", mic = "#FFFFFF", acc = "#FB923C" },
+  { id = "contrast", bg = "#000000", mic = "#FFE600", acc = "#FFE600" },
+  { id = "paper",    bg = "#F5F2EA", mic = "#111111", acc = "#E8503A" },
+  { id = "custom" },
+}
+local function isHex(c) return type(c) == "string" and c:match("^#%x%x%x%x%x%x$") ~= nil end
+-- "#e8503a", "E8503A", "#0f0" -> "#E8503A" / "#00FF00"; anything else -> nil
+local function normHex(v)
+  if type(v) ~= "string" then return nil end
+  local c = v:gsub("^%s+", ""):gsub("%s+$", ""):upper()
+  if c ~= "" and c:sub(1, 1) ~= "#" then c = "#"..c end
+  if c:match("^#%x%x%x$") then c = "#"..c:sub(2,2):rep(2)..c:sub(3,3):rep(2)..c:sub(4,4):rep(2) end
+  return isHex(c) and c or nil
+end
+-- the set in use; an unknown name or a Custom set with an invalid colour falls back to Classic Blue
+local function fabTheme()
+  local id = cfg.floatingTheme
+  for _, t in ipairs(FAB_THEMES) do
+    if t.id == id then
+      if id ~= "custom" then return t end
+      if isHex(cfg.customBg) and isHex(cfg.customMic) and isHex(cfg.customAccent) then
+        return { id = "custom", bg = cfg.customBg, mic = cfg.customMic, acc = cfg.customAccent }
+      end
+    end
+  end
+  return FAB_THEMES[1]
+end
+M.FAB_THEMES, M.fabTheme, M.isHex, M.normHex = FAB_THEMES, fabTheme, isHex, normHex
+-- A full palette from the 3 colours. Classic Blue keeps the original Taipea colours. Other sets
+-- derive the surfaces from the background, the text from the mic colour and the buttons / active
+-- tab / selected choices from the accent, then fix any text below 4.5:1 contrast (WCAG AA) by
+-- moving it toward black or white (and, if that is not enough, the background too).
+local function hexRGB(h) return tonumber(h:sub(2,3),16), tonumber(h:sub(4,5),16), tonumber(h:sub(6,7),16) end
+local function toHex(r,g,b) local function c(x) return math.max(0, math.min(255, math.floor(x + 0.5))) end; return string.format("#%02X%02X%02X", c(r), c(g), c(b)) end
+local function mixC(a, b, t) local r1,g1,b1 = hexRGB(a); local r2,g2,b2 = hexRGB(b); return toHex(r1+(r2-r1)*t, g1+(g2-g1)*t, b1+(b2-b1)*t) end
+local function lumC(h) local r,g,b = hexRGB(h)
+  local function ch(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+  return 0.2126*ch(r) + 0.7152*ch(g) + 0.0722*ch(b) end
+local function contrastC(a, b) local x, y = lumC(a), lumC(b); if x < y then x, y = y, x end; return (x + 0.05) / (y + 0.05) end
+local function worstC(c, bgs) local w = 99; for _, b in ipairs(bgs) do w = math.min(w, contrastC(c, b)) end; return w end
+-- the colour closest to c that reaches `min` contrast against every background in bgs
+local function ensureC(c, bgs, min)
+  if worstC(c, bgs) >= min then return c end
+  local best, bestT, bestW, bestW2 = nil, 99, 0, nil
+  for _, target in ipairs({ "#FFFFFF", "#000000" }) do
+    for i = 1, 40 do local t = i / 40; local cc = mixC(c, target, t)
+      if worstC(cc, bgs) >= min then if t < bestT then best, bestT = cc, t end; break end end
+    local w = worstC(target, bgs); if w > bestW then bestW, bestW2 = w, target end
+  end
+  return best or bestW2
+end
+-- readable text for a filled button; if no text colour reaches 4.5:1, the fill itself is adjusted
+local function onFill(fill, prefs)
+  for _, c in ipairs(prefs) do if contrastC(c, fill) >= 4.5 then return fill, c end end
+  local tx = contrastC("#FFFFFF", fill) >= contrastC("#000000", fill) and "#FFFFFF" or "#000000"
+  return ensureC(fill, { tx }, 4.5), tx
+end
+local CLASSIC_PAL = { panel="#1C1C20", bar="#2A2A30", tabs="#111111", tab="#333333", tabtx="#FFFFFF", btn="#3A3A40", btntx="#FFFFFF",
+  acc="#0A6CD6", acctx="#FFFFFF", input="#2A2A30", inbd="#555555", card="#2C2C32", inner="#24242A", tx="#EEEEEE", mut="#999999", mut2="#AAAAAA",
+  bd="#3A3A40", bd2="#444444", ring="#FFFFFF", focus="#0A84FF", warn="#FFCC00", sb="#55555A", ovbg="rgba(25,25,30,.95)", ovtx="#FFFFFF", ovmut="#AAAAAA", ovt="#CCCCCC" }
+local function surfaces(p) return { p.panel, p.bar, p.tabs, p.card, p.inner, p.tab, p.btn, p.input } end
+local function buildPalette1(bg, fg, ac)
+  local light = lumC(bg) > 0.35
+  local p = { cl = false, light = light, panel = bg }
+  if light then
+    p.tabs = mixC(bg, "#000000", 0.06); p.bar = mixC(bg, fg, 0.06); p.card = mixC(bg, "#FFFFFF", 0.6); p.inner = mixC(bg, fg, 0.04)
+    p.tab = mixC(bg, fg, 0.10); p.btn = mixC(bg, fg, 0.10); p.input = mixC(bg, "#FFFFFF", 0.85); p.inbd = mixC(bg, fg, 0.35)
+    p.bd = mixC(bg, fg, 0.15); p.bd2 = mixC(bg, fg, 0.18); p.sb = mixC(bg, fg, 0.30)
+  else
+    p.tabs = mixC(bg, "#000000", 0.35); p.bar = mixC(bg, fg, 0.07); p.card = mixC(bg, fg, 0.07); p.inner = mixC(bg, fg, 0.035)
+    p.tab = mixC(bg, fg, 0.12); p.btn = mixC(bg, fg, 0.15); p.input = mixC(bg, fg, 0.06); p.inbd = mixC(bg, fg, 0.30)
+    p.bd = mixC(bg, fg, 0.15); p.bd2 = mixC(bg, fg, 0.20); p.sb = mixC(bg, fg, 0.30)
+  end
+  p.tx = ensureC(fg, surfaces(p), 4.5); p.tabtx, p.btntx, p.ovtx = p.tx, p.tx, p.tx
+  p.mut = ensureC(mixC(p.tx, p.card, 0.3), { p.panel, p.bar, p.card, p.inner }, 4.5); p.mut2, p.ovmut, p.ovt = p.mut, p.mut, p.mut
+  p.acc, p.acctx = onFill(ac, { p.tx, "#FFFFFF", "#000000" })
+  p.ring = p.tx
+  p.focus = contrastC(p.acc, p.panel) >= 3 and p.acc or p.tx
+  p.warn = ensureC(light and "#9A6700" or "#FFCC00", { p.card, p.inner, p.panel }, 4.5)
+  local r, g, b = hexRGB(bg); p.ovbg = string.format("rgba(%d,%d,%d,.96)", r, g, b)
+  return p
+end
+-- if no text colour reaches 4.5:1 on every surface (mid-grey backgrounds), the background is
+-- stepped toward black (dark sets) or white (light sets) until it does
+local function buildPalette(th)
+  if th.id == "classic" then local p = {}; for k, v in pairs(CLASSIC_PAL) do p[k] = v end; p.cl, p.light = true, false; return p end
+  local bg, p = th.bg, nil
+  for i = 0, 8 do
+    p = buildPalette1(bg, th.mic, th.acc)
+    if worstC(p.tx, surfaces(p)) >= 4.5 then break end
+    bg = mixC(th.bg, p.light and "#FFFFFF" or "#000000", (i + 1) * 0.1)
+  end
+  return p
+end
+-- lowest contrast numbers of a palette (text on every surface, accent text, muted, warning, focus ring)
+local function palReport(p)
+  local function r2(x) return math.floor(x * 100 + 0.5) / 100 end
+  return { text = r2(worstC(p.tx, surfaces(p))), accent = r2(contrastC(p.acctx, p.acc)), muted = r2(worstC(p.mut, { p.panel, p.card, p.inner })),
+    warn = r2(worstC(p.warn, { p.card, p.inner, p.panel })), focus = r2(contrastC(p.focus, p.panel)) }
+end
+local palCache = {}
+function M.palette()
+  local th = fabTheme(); local key = th.id..(th.bg or "")..(th.mic or "")..(th.acc or "")
+  if not palCache[key] then palCache[key] = buildPalette(th) end
+  return palCache[key]
+end
+M.buildPalette, M.palReport, M.contrastC = buildPalette, palReport, contrastC
+function M.overlayPal()
+  if overlay then overlay:evaluateJavaScript("setPal("..hs.json.encode(M.palette())..")") end
+end
 local fabHTML = [[
-<html><head><meta charset="utf-8"><style>
+<html class="cl"><head><meta charset="utf-8"><style>
 html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:pointer}
-#b{position:absolute;inset:4px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:#1f6feb;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+html{--bg:#0A6CD6;--mic:#fff;--acc:rgba(255,255,255,.9);--arc:#fff}
+#b{position:absolute;inset:4px;border-radius:50%;border:4px solid var(--acc);background:var(--bg);color:var(--mic);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.5)}
 #i{width:50%;height:50%;display:flex}#i svg{width:100%;height:100%}
-#b.rec{background:#1e8e3e;animation:pulse 2.4s ease-in-out infinite}
-#b.busy{background:#3a3f47}#b.busy #i{display:none}
+#b:not(.rec) #i svg path:first-of-type{stroke:var(--arc)}
+html.ol #b:not(.rec) #i svg rect{fill:none}html.ol #b:not(.rec) #i svg{stroke-linecap:butt}
+html:not(.cl) #b{border-width:5px}
+#b.rec{background:#1e8e3e;color:#fff;animation:pulse 2.4s ease-in-out infinite}
+#b.busy{background:#3a3f47;color:#fff}#b.busy #i{display:none}
 #spin{display:none;width:50%;height:50%;box-sizing:border-box;border-radius:50%;border:7px solid rgba(255,255,255,.28);border-top-color:#fff;animation:spin 1s linear infinite}
 #b.busy #spin{display:block}
 #b.armed{border-color:#30d158;border-width:6px}#ear{display:none;position:absolute;right:-2px;bottom:-2px;font-size:calc(100vw*.22);background:#30d158;border-radius:50%;padding:2px 4px}
 #b.armed #ear{display:block}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,.65),0 3px 10px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 7px rgba(48,209,88,0),0 3px 10px rgba(0,0,0,.5)}}
 @keyframes spin{to{transform:rotate(360deg)}}
-html.hc #b{background:#000;border:5px solid #fff;box-shadow:none}html.hc #b.rec{background:#006b1f}html.hc #b.busy{background:#000}
+html.hc.cl #b{background:#000;border:5px solid #fff;box-shadow:none}html.hc #b{border-width:6px;box-shadow:none}html.hc #b.rec{background:#006b1f}html.hc #b.busy{background:#000}
 html.hc #spin{border-color:#555;border-top-color:#ffd60a}html.hc #b.armed{border-color:#30d158}
 html.rm #b,html.rm #spin{animation:none!important}html.rm #spin{border-style:dotted;border-color:#fff}
 @media (prefers-reduced-motion: reduce){#b,#spin{animation:none!important}#spin{border-style:dotted;border-color:#fff}}
@@ -899,6 +1087,8 @@ var cur='';function setSt(st,armed,label,hc,rm){var b=document.getElementById('b
  var ic=st=='rec'?'rec':'mic';if(ic!=cur){document.getElementById('i').innerHTML=IC[ic];cur=ic}
  b.setAttribute('aria-label',label);
  document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
+function th(bg,mic,acc,cl,ol){var r=document.documentElement.style;r.setProperty('--bg',bg);r.setProperty('--mic',mic);r.setProperty('--acc',cl?'rgba(255,255,255,.9)':acc);r.setProperty('--arc',cl?mic:acc);
+ document.documentElement.classList.toggle('cl',!!cl);document.documentElement.classList.toggle('ol',!!ol)}
 s({cmd:'fabReady'});</script></body></html>]]
 local satHTML = [[
 <html><head><meta charset="utf-8"><style>
@@ -991,12 +1181,93 @@ local function showSats()
 end
 M.showSats, M.hideSats = showSats, hideSats
 function M.satRefs() return sats end
+-- ---------- hiding the floating button ----------
+-- Three ways: the shortcut (until pressed again or Hammerspoon reloads), "Hide when an app is full
+-- screen" and "Hide in these apps". Hiding only happens while idle: while recording or working the
+-- button and its satellites always show, so Stop stays reachable. Shortcuts keep working while hidden.
+M.fabSessionHidden = false
+-- is this app (or {name=, id=}) in the "Hide in these apps" list? matches bundle id or name, any case
+local function appMatches(app, list)
+  if not app then return false end
+  local function get(f) if type(f) ~= "function" then return f end; local ok, v = pcall(f, app); return ok and v or nil end
+  local nm = get(app.name) or ""
+  local id = (type(app.bundleID) == "function" and get(app.bundleID)) or (type(app.id) == "string" and app.id) or ""
+  nm, id = nm:lower(), id:lower()
+  for _, e in ipairs(list or cfg.hideApps or {}) do
+    local en, ei = ((type(e)=="table" and e.name) or (type(e)=="string" and e) or ""):lower(), ((type(e)=="table" and e.id) or ""):lower()
+    if (ei ~= "" and ei == id) or (en ~= "" and (en == nm or en == id)) then return true end
+  end
+  return false
+end
+-- native full screen, or a window that covers the whole screen (borderless video players, games)
+local function isFullscreenWin(w)
+  if not w then return false end
+  local ok, fs = pcall(function() return w:isFullScreen() end)
+  if ok and fs then return true end
+  -- borderless full-screen windows are often not "standard", so only rule out things that are not
+  -- windows at all (the Finder desktop is an AXScrollArea)
+  local ok2, role = pcall(function() return w:role() end)
+  if not ok2 or role ~= "AXWindow" then return false end
+  local f, scr = w:frame(), w:screen(); if not scr then return false end
+  local sf = scr:fullFrame()
+  return f.x <= sf.x + 1 and f.y <= sf.y + 1 and f.x + f.w >= sf.x + sf.w - 1 and f.y + f.h >= sf.y + sf.h - 1
+end
+-- the decision, as a plain function: "" = show, else why it is hidden ("shortcut" | "app" | "fullscreen")
+local function hideDecision(o)
+  if o.state ~= "idle" then return "" end
+  if o.session then return "shortcut" end
+  if o.inList then return "app" end
+  if o.hideFullscreen and o.fullscreen then return "fullscreen" end
+  return ""
+end
+M.isFullscreenWin, M.appMatches, M.hideDecision = isFullscreenWin, appMatches, hideDecision
+function M.fabHideReason()
+  if state ~= "idle" then return "" end
+  if M.fabSessionHidden then return "shortcut" end
+  local app = hs.application.frontmostApplication()
+  -- Taipea's own window (Hammerspoon) in front: keep what was decided for the app before it
+  if not app or app:bundleID() == "org.hammerspoon.Hammerspoon" then return M._lastAutoReason or "" end
+  local full = false
+  if cfg.hideFullscreen then local ok, w = pcall(function() return app:focusedWindow() end); full = ok and isFullscreenWin(w) end
+  local r = hideDecision({ state = state, session = false, inList = appMatches(app), hideFullscreen = cfg.hideFullscreen, fullscreen = full })
+  M._lastAutoReason = r
+  return r
+end
+function M.applyFabVis()
+  if not fab then return end
+  local r = M.fabHideReason()
+  local vis = fab:isVisible()
+  if r ~= "" then if vis then hideSats(); fab:hide() end
+  elseif not vis then fab:show() end
+  if r ~= (M._fabHidR or "") then M._fabHidR = r; log("floating button "..(r == "" and "shown" or ("hidden: "..r))) end
+end
+function M.toggleFabHidden()
+  if not cfg.floatButton then hs.alert.show(T("fab_is_off")); return end
+  M.fabSessionHidden = not M.fabSessionHidden
+  M.applyFabVis()
+  hs.alert.show(M.fabSessionHidden and T("fab_hidden", keyText(cfg.fabHideKey)) or T("fab_shown"), 2)
+  if pushState then pushState() end
+end
+-- react when you switch apps, plus a light check every second for full screen changes
+if M._fabAppW then M._fabAppW:stop() end
+M._fabAppW = hs.application.watcher.new(function(_, ev)
+  if ev == hs.application.watcher.activated or ev == hs.application.watcher.deactivated or ev == hs.application.watcher.terminated then
+    after(0.15, function() M.applyFabVis() end)
+  end
+end)
+if M._fabAppW then M._fabAppW:start() end
+M._fabPoll = hs.timer.doEvery(1, function()
+  if fab and state == "idle" and (cfg.hideFullscreen or M._fabHidR == "fullscreen") then M.applyFabVis() end
+end)
 function M.fabUpdate()
   if not fab then hideSats(); return end
   local st = state == "rec" and "rec" or (state == "busy" and "busy" or "idle")
   local armed = M.voiceActive() and st ~= "busy"
   local label = st == "rec" and T("fab_rec") or (st == "busy" and T("fab_busy") or (armed and T("fab_listening", (cfg.startPhrases or {})[1] or "") or T("fab_idle")))
+  local th = fabTheme()
+  fab:evaluateJavaScript(string.format("th(%q,%q,%q,%s,%s)", th.bg, th.mic, th.acc, th.id == "classic" and "true" or "false", th.outline and "true" or "false"))
   fab:evaluateJavaScript(string.format("setSt(%q,%s,%q,%s,%s)", st, armed and "true" or "false", label, look.hc and "true" or "false", look.rm and "true" or "false"))
+  M.applyFabVis()
   if st == "rec" then showSats() else hideSats() end
 end
 local function showFab()
@@ -1009,7 +1280,7 @@ local function showFab()
       :html((fabHTML:gsub("__MSG__", MSG)))
   else fab:frame(fabFrame()) end
   hideSats()   -- rebuilt at the new size / look by fabUpdate
-  fab:show(); M.fabUpdate()
+  if M.fabHideReason() == "" then fab:show() end; M.fabUpdate()
 end
 M.showFab = showFab
 function M.fabRef() return fab end
@@ -1056,9 +1327,15 @@ refresh = function()
     { title = T("menu_autostop", tostring(cfg.silenceSeconds)), checked = cfg.autoStop, fn = function() M.toggleAutoStop() end },
     { title = T("menu_voice", (cfg.startPhrases or {})[1] or ""), checked = cfg.voiceControl, fn = function() M.handle({cmd="set", key="voiceControl", value=not cfg.voiceControl}) end },
     { title = T("menu_fab"), checked = cfg.floatButton, fn = function() M.handle({cmd="set", key="floatButton", value=not cfg.floatButton}) end },
+    { title = T("menu_fab_hide").."  ("..keyText(cfg.fabHideKey)..")", checked = M.fabSessionHidden, disabled = not cfg.floatButton, fn = function() M.toggleFabHidden() end },
     { title = "-" },
     { title = T("menu_paste_last").."  ("..keyText(cfg.pasteLastKey)..")", disabled = #history==0, fn = function() M.pasteLast() end },
   }
+  if not M.permAx then
+    table.insert(items, 1, { title = T("menu_open_ax"), fn = function() M.openPerm(AX_URL) end })
+    table.insert(items, 2, { title = "-" })
+  end
+  if M.micWarn then table.insert(items, { title = T("menu_open_mic"), fn = function() M.openPerm(MIC_URL) end }) end
   if M.recoverable then
     table.insert(items, { title = "♻️ "..T("menu_recover", fmtSecs(M.recoverable.secs)), fn = function() M.recover() end })
     table.insert(items, { title = T("menu_discard"), fn = function() M.discardRecovery() end })
@@ -1075,6 +1352,7 @@ refresh = function()
   vlSync(); M.fabUpdate()
   if pushState then pushState() end
 end
+M.refreshUI = function() refresh() end
 
 -- ---------- pipeline ----------
 local function finish(raw, cleaned)
@@ -1084,13 +1362,14 @@ local function finish(raw, cleaned)
   if recovering then os.remove(recoverWav) end
   local text = ((cleaned or raw) or ""):gsub("^%s+",""):gsub("%s+$","")
   if M._dry then M._dryResult = text; log("DRY RUN result: "..text); refresh(); return end
-  if text == "" then hs.alert.show(T("no_speech")); refresh(); return end
+  if text == "" then refresh(); M.micProblem(T("no_speech")); return end
+  M.micWarn = false
   addHistory((raw or ""):gsub("^%s+",""):gsub("%s+$",""), cleaned and text or nil)
   refresh()
   if cancelled then return end
   if recovering then hs.pasteboard.setContents(text); hs.alert.show(T("recovered"), 4); log("RECOVERED: "..text)
   elseif mode=="copy" then hs.pasteboard.setContents(text); hs.alert.show(T("copied_clip")); log("COPIED: "..text)
-  else doPaste(text, targetApp); log("PASTED: "..text) end
+  elseif doPaste(text, targetApp) ~= false then log("PASTED: "..text) end
 end
 
 local STYLE = {
@@ -1357,7 +1636,7 @@ transcribe = function(file)
   if sz <= 44 + 3200 then   -- header + 0.1 s of audio
     log("watchdog: recording empty ("..sz.." bytes), back to idle")
     state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false; refresh()
-    hs.alert.show(T("wd_empty"), 5); return
+    M.micProblem(T("wd_empty")); return
   end
   saveSession({ phase="transcribing", wav=file })
   state="busy"; refresh(); setOverlay(T("ov_transcribing"), cfg.modelName:gsub("^ggml%-",""):gsub("%.bin$","").." ("..cfg.language..")", true)
@@ -1507,18 +1786,22 @@ pushState = function()
   for i,e in ipairs(history) do if M.converting[e] then conv[tostring(i)] = M.converting[e] end end
   local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
      autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay,
-     voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords },
-     look=look, recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
+     voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords,
+     hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id,
+     customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
+     look=look, perm={ ax=M.permAx, mic=M.micWarn }, pal=M.palette(), fabThemes=FAB_THEMES, fabHidden=(fab and M._fabHidR or ""), fabSessionHidden=M.fabSessionHidden, runApps=M._runApps,
+     recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
      voice={ active=M.voiceActive(), model=(vlModel():match("[^/]+$") or ""):gsub("^ggml%-",""):gsub("%.bin$","") },
-     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey) },
-     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey), pasteLastKey=keyLabel(cfg.pasteLastKey) },
-     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey), pasteLastKey=keyLabel(DEFAULTS.pasteLastKey) },
+     keys={ toggleKey=keyStr(cfg.toggleKey), modeKey=keyStr(cfg.modeKey), historyKey=keyStr(cfg.historyKey), pasteLastKey=keyStr(cfg.pasteLastKey), fabHideKey=keyStr(cfg.fabHideKey) },
+     keyLabels={ toggleKey=keyLabel(cfg.toggleKey), modeKey=keyLabel(cfg.modeKey), historyKey=keyLabel(cfg.historyKey), pasteLastKey=keyLabel(cfg.pasteLastKey), fabHideKey=keyLabel(cfg.fabHideKey) },
+     defaultKeys={ toggleKey=keyLabel(DEFAULTS.toggleKey), modeKey=keyLabel(DEFAULTS.modeKey), historyKey=keyLabel(DEFAULTS.historyKey), pasteLastKey=keyLabel(DEFAULTS.pasteLastKey), fabHideKey=keyLabel(DEFAULTS.fabHideKey) },
      lang=uiLang(), sysLang=sysLang,
      whisperModels=wm, llmModels=lm, dl=downloads, ollama=(cfg.ollama~=nil), activeModel=M.activeModel() or "", missing=preflight() or "" }
   local js = hs.json.encode(data)
   if next(downloads)==nil then js = js:gsub('"dl":%[%]','"dl":{}') end
   if next(conv)==nil then js = js:gsub('"conv":%[%]','"conv":{}') end
   if #(cfg.customWords or {})==0 then js = js:gsub('"customWords":{}','"customWords":[]') end
+  if #(cfg.hideApps or {})==0 then js = js:gsub('"hideApps":{}','"hideApps":[]') end
   appWin:evaluateJavaScript("render("..js..")")
 end
 
@@ -1526,6 +1809,9 @@ function M.handle(a)
   local c = a.cmd
   local e = a.i and history[math.floor(a.i)]
   if c=="refresh" then ollamaInstalled(true); pushState()
+  elseif c=="openAx" then M.openPerm(AX_URL)
+  elseif c=="openMic" then M.openPerm(MIC_URL)
+  elseif c=="hideMic" then M.micWarn = false; refresh()
   elseif c=="close" then appWin:hide(); if M.lastApp then M.lastApp:activate() end
   elseif c=="mini" then appWin:hide(); hs.alert.show(T("hidden", keyLabel(cfg.historyKey)))
   elseif c=="dictate" then if appWin then appWin:hide() end; after(0.3, function() if M.lastApp then M.lastApp:activate() end; after(0.3, M.start) end)
@@ -1541,6 +1827,24 @@ function M.handle(a)
   elseif c=="recover" then if appWin then appWin:hide() end; M.recover()
   elseif c=="discardRecovery" then M.discardRecovery()
   elseif c=="wordsBad" then hs.alert.show(T("words_bad"))
+  elseif c=="fabHideToggle" then M.toggleFabHidden()
+  elseif c=="listApps" then
+    local list, seen = {}, {}
+    for _, ap in ipairs(hs.application.runningApplications()) do
+      local id, nm = ap:bundleID(), ap:name()
+      if ap:kind() == 1 and id and nm and id ~= "org.hammerspoon.Hammerspoon" and not seen[id] then seen[id] = true; list[#list+1] = { name = nm, id = id } end
+    end
+    table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
+    M._runApps = list; pushState()
+  elseif c=="closeApps" then M._runApps = nil; pushState()
+  elseif c=="hideAppAdd" or c=="hideAppDel" then
+    local list = {}; for _, x in ipairs(cfg.hideApps or {}) do if type(x)=="table" then list[#list+1] = { name = x.name, id = x.id } end end
+    if c=="hideAppAdd" then
+      local nm, id = tostring(a.name or ""), tostring(a.id or "")
+      local dup = appMatches({ name = nm, id = id }, list)
+      if nm ~= "" and not dup then list[#list+1] = { name = nm, id = id }; hs.alert.show(T("hide_added", nm)) end
+    else local i = a.i and math.floor(a.i); if i and list[i] then hs.alert.show(T("hide_removed", list[i].name or "")); table.remove(list, i) end end
+    setOpt("hideApps", list); M.applyFabVis(); pushState()
   elseif c=="addWord" or c=="setWord" or c=="delWord" then
     local list = {}; for _,w in ipairs(cfg.customWords or {}) do list[#list+1] = { heard=w.heard, replace=w.replace } end
     local i = a.i and math.floor(a.i)
@@ -1551,13 +1855,13 @@ function M.handle(a)
     elseif i and list[i] then list[i] = { heard=h, replace=r } end
     setOpt("customWords", list); hs.alert.show(T("words_saved"))
   elseif c=="resetKeys" then
-    for _,k in ipairs({"toggleKey","modeKey","historyKey","pasteLastKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
+    for _,k in ipairs({"toggleKey","modeKey","historyKey","pasteLastKey","fabHideKey"}) do saved[k]=nil; cfg[k]=DEFAULTS[k] end
     saveSettings(); bindAll(); refresh(); hs.alert.show(T("shortcuts_reset"))
   elseif c=="dlWhisper" then dlWhisper(a.file)
   elseif c=="dlLLM" then dlLLM(a.name)
   elseif c=="set" then
     local k, v = a.key, a.value
-    if k=="toggleKey" or k=="modeKey" or k=="historyKey" or k=="pasteLastKey" then
+    if k=="toggleKey" or k=="modeKey" or k=="historyKey" or k=="pasteLastKey" or k=="fabHideKey" then
       local pk = parseKey(v)
       if not pk then hs.alert.show(T("bad_shortcut", tostring(v))); pushState(); return end
       setOpt(k, pk); bindAll(); hs.alert.show(T("shortcut_set", keyLabel(pk)))
@@ -1570,6 +1874,14 @@ function M.handle(a)
     elseif k=="floatButton" or k=="cardWithFab" then setOpt(k, v and true or false); showFab()
       if state == "rec" then if M.cardWanted() then showOverlay() else hideOverlay() end end
       if k=="floatButton" then hs.alert.show(cfg.floatButton and T("fab_on") or T("fab_off")) else hs.alert.show(cfg.cardWithFab and T("card_on") or T("card_off")) end
+    elseif k=="floatingTheme" then
+      local ok = false; for _, t in ipairs(FAB_THEMES) do if t.id == v then ok = true end end
+      setOpt(k, ok and v or "classic"); M.fabUpdate(); M.overlayPal(); pushState()
+    elseif k=="customBg" or k=="customMic" or k=="customAccent" then
+      local col = normHex(v)
+      if not col then hs.alert.show(T("color_bad")); pushState(); return end
+      setOpt(k, col); M.fabUpdate(); M.overlayPal(); pushState()
+    elseif k=="hideFullscreen" then setOpt(k, v and true or false); M.applyFabVis(); pushState()
     elseif k=="startPhrases" or k=="stopPhrases" then
       local list = type(v)=="table" and v or splitPhrases(v)
       if #list==0 then hs.alert.show(T("voice_need_phrase")); pushState(); return end
@@ -1612,6 +1924,7 @@ function M.openApp()
   after(0.1, function() local hw=appWin:hswindow(); if hw then hw:focus() end end)
   hs.application.get("org.hammerspoon.Hammerspoon"):activate()
   updateLook()
+  M.axOK()
   after(0.5, pushState)
 end
 M.showHistory = M.openApp
@@ -1620,11 +1933,12 @@ function M.js(s) if appWin then appWin:evaluateJavaScript(s) end end
 
 bindAll = function()
   for _,h in ipairs(hk) do h:delete() end; hk = {}
-  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey, pasteLast=cfg.pasteLastKey }
+  M.bound = { toggle=cfg.toggleKey, mode=cfg.modeKey, history=cfg.historyKey, pasteLast=cfg.pasteLastKey, fabHide=cfg.fabHideKey }
   table.insert(hk, hs.hotkey.bind(cfg.toggleKey.mods, cfg.toggleKey.key, M.toggle))
   table.insert(hk, hs.hotkey.bind(cfg.modeKey.mods, cfg.modeKey.key, M.toggleMode))
   table.insert(hk, hs.hotkey.bind(cfg.historyKey.mods, cfg.historyKey.key, M.openApp))
   table.insert(hk, hs.hotkey.bind(cfg.pasteLastKey.mods, cfg.pasteLastKey.key, function() M.pasteLast() end))
+  table.insert(hk, hs.hotkey.bind(cfg.fabHideKey.mods, cfg.fabHideKey.key, function() M.toggleFabHidden() end))
 end
 bindAll()
 hs.urlevent.bind("taipea", function() M.openApp() end)
@@ -1666,6 +1980,8 @@ M._watchdog = hs.timer.doEvery(5, function()
   if (age > 60 and not M.wTask) or age > 180 then M.watchdogReset(string.format("processing for %.0f s", age)) end
 end)
 showFab()
+M.permSync()
+if not M.permAx then log("permission: Accessibility OFF at startup"); after(2.5, function() if not M.permAx then hs.alert.show(T("perm_ax_start"), 10) end end) end
 log("Taipea loaded · whisper="..tostring(cfg.whisper).." rec="..tostring(cfg.rec).." ollama="..tostring(cfg.ollama).." model="..cfg.modelName..
   " · voice="..tostring(cfg.voiceControl).." floatButton="..tostring(cfg.floatButton).." card="..tostring(M.cardWanted()).." customWords="..#(cfg.customWords or {}))
 refresh()
