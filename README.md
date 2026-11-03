@@ -20,7 +20,8 @@ choice comes from that daily use:
 - **Hands-free.** One shortcut or one click starts and stops dictation. Nothing needs a
   double-click, a held key, or a precise drag.
 - **Local and private.** Your voice and text never leave your Mac. No account, no cloud.
-- **Bilingual.** English, Spanish, and the mix many of us actually speak.
+- **Made for English and Spanish.** And the mix many of us actually speak. Speech
+  recognition also works in about 99 other languages.
 
 That same large, calm design makes Taipea comfortable for **anyone** who wants fast,
 private dictation: writers, developers, people with tired hands, or anyone who would rather
@@ -51,7 +52,8 @@ Taipea is for you if:
 
 - **Works in any app.** Text is pasted at your cursor. You can also choose "copy only".
 - **English, Spanish, or both mixed.** "Necesito the report antes del viernes" stays
-  exactly like that. Nothing is translated.
+  exactly like that. Nothing is translated. Speech recognition also works in about 99
+  other languages; see [Other languages](#other-languages).
 - **Grammar cleanup (optional).** A local AI model fixes punctuation, capitals and
   spelling, and removes "um" and "eh".
 - **Four styles:** Light (fix only), Paragraph, Bullets, Formal (polite, professional, uses
@@ -412,7 +414,7 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Cleanup model | `gemma4:e4b`, falls back to `qwen2.5:7b`, then `gemma4:e2b` | any Ollama model |
 | Style | Light | Light / Paragraph / Bullets / Formal |
 | Speech model | `ggml-large-v3-turbo` | turbo-q5, small, large-v3, medium |
-| Dictation language | Auto (English/Spanish mix) | Auto / English / Español |
+| Dictation language | Auto (detects the language, including the English/Spanish mix) | Auto / English / Español |
 | Interface language | Auto (follows your Mac) | Auto / English / Español |
 | After stopping | Paste at the cursor | Paste / Copy only |
 | Restore clipboard after pasting | On | On / Off |
@@ -446,6 +448,23 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 In every style, English words stay English and Spanish words stay Spanish, and names,
 numbers and dates are kept. Pick the default style in Settings, or convert any old
 dictation in History. Converting always starts from your original words.
+
+## Other languages
+
+Taipea is made for English and Spanish, even mixed in the same sentence. Speech
+recognition also works in about 99 other languages (for example French, Portuguese,
+German, Italian, Japanese or Chinese). Leave **Dictation language** on **Auto** and Whisper
+detects what you speak. Every speech model Taipea offers is multilingual. Accuracy is best
+in widely spoken languages.
+
+What is made for English and Spanish only:
+
+- **The interface** is in English and Spanish.
+- **Cleanup** was written and tested in English and Spanish. It is told never to
+  translate, but other languages haven't been tested. If the result looks odd, use the
+  **Light** style, or turn cleanup off (Control + Option + C) to paste exactly what
+  Whisper heard.
+- **Voice start / stop** phrases are in English and Spanish (you can edit them).
 
 ## Models
 

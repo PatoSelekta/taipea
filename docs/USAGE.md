@@ -212,7 +212,8 @@ described below in the order it appears.
 - **Custom words:** for example, write "selektdev" when Whisper hears "select dev".
 - **Cleanup (grammar fix):** On, or Off (raw). **Style:** Light fix, Paragraphs, Bullet
   points or Formal.
-- **Dictation language:** Auto, English or Español.
+- **Dictation language:** Auto, English or Español. Auto also recognizes about 99 other
+  languages ([Other languages](../README.md#other-languages)).
 - **After stopping:** Paste at cursor, or Copy only.
 - **Open at login** and **Show window at login**.
 

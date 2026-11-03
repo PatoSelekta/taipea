@@ -20,7 +20,8 @@ y cada decisión viene de ese uso diario:
 - **Sin manos.** Un atajo o un clic empieza y termina el dictado. Nada necesita doble clic,
   mantener una tecla presionada ni arrastrar con precisión.
 - **Local y privado.** Tu voz y tu texto nunca salen de tu Mac. Sin cuenta, sin nube.
-- **Bilingüe.** Inglés, español y la mezcla que muchos de verdad hablamos.
+- **Hecho para inglés y español.** Y la mezcla que muchos de verdad hablamos. El
+  reconocimiento de voz también funciona en unos 99 idiomas más.
 
 Ese mismo diseño amplio y tranquilo hace que Taipea sea cómodo para **cualquier persona**
 que quiera dictar rápido y en privado: escritores, desarrolladores, personas con las manos
@@ -53,7 +54,8 @@ Taipea es para ti si:
 - **Funciona en cualquier app.** El texto se pega en el cursor. También puedes elegir
   "solo copiar".
 - **Español, inglés o mezclado.** "Necesito the report antes del viernes" queda tal cual.
-  No se traduce nada.
+  No se traduce nada. El reconocimiento de voz también funciona en unos 99 idiomas más;
+  mira [Otros idiomas](#otros-idiomas).
 - **Corrección gramatical (opcional).** Un modelo de IA local corrige puntuación,
   mayúsculas y ortografía, y quita los "eh" y "mmm".
 - **Cuatro estilos:** Ligero (solo corregir), Párrafos, Viñetas y Formal (cortés y
@@ -435,7 +437,7 @@ están en `config.example.lua`).
 | Modelo de corrección | `gemma4:e4b`; si falta, `qwen2.5:7b` y luego `gemma4:e2b` | cualquier modelo de Ollama |
 | Estilo | Ligero | Ligero / Párrafos / Viñetas / Formal |
 | Modelo de voz | `ggml-large-v3-turbo` | turbo-q5, small, large-v3, medium |
-| Idioma del dictado | Automático (mezcla español/inglés) | Automático / English / Español |
+| Idioma del dictado | Automático (detecta el idioma, incluida la mezcla español/inglés) | Automático / English / Español |
 | Idioma de la interfaz | Automático (el de tu Mac) | Automático / English / Español |
 | Al parar | Pegar en el cursor | Pegar / Solo copiar |
 | Restaurar el portapapeles al pegar | Sí | Sí / No |
@@ -470,6 +472,24 @@ En todos los estilos, lo que dijiste en inglés queda en inglés y lo que dijist
 español queda en español, y se conservan nombres, números y fechas. Elige el estilo por
 defecto en Ajustes, o convierte cualquier dictado viejo en Historial. La conversión
 siempre parte de tus palabras originales.
+
+## Otros idiomas
+
+Taipea está hecho para inglés y español, incluso mezclados en la misma frase. El
+reconocimiento de voz también funciona en unos 99 idiomas más (por ejemplo francés,
+portugués, alemán, italiano, japonés o chino). Deja **Idioma del dictado** en
+**Automático** y Whisper detecta lo que hablas. Todos los modelos de voz que ofrece Taipea
+son multilingües. La precisión es mejor en los idiomas más hablados.
+
+Lo que está hecho solo para inglés y español:
+
+- **La interfaz** está en inglés y español.
+- **La corrección** se escribió y se probó en inglés y español. Tiene la orden de nunca
+  traducir, pero no se ha probado en otros idiomas. Si el resultado se ve raro, usa el
+  estilo **Ligero**, o apaga la corrección (Control + Opción + C) para pegar exactamente
+  lo que Whisper oyó.
+- **Las frases para empezar / parar con la voz** están en inglés y español (puedes
+  cambiarlas).
 
 ## Modelos
 

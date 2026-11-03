@@ -221,7 +221,8 @@ Cada tarjeta se explica abajo en el orden en que aparece.
 - **Palabras propias:** por ejemplo, escribir "selektdev" cuando Whisper oye "select dev".
 - **Corrección (gramática):** Sí, o No (original). **Estilo:** Ligero, Párrafos, Viñetas o
   Formal.
-- **Idioma del dictado:** Automático, English o Español.
+- **Idioma del dictado:** Automático, English o Español. Automático también reconoce unos
+  99 idiomas más ([Otros idiomas](../README.es.md#otros-idiomas)).
 - **Al parar:** Pegar en el cursor, o Solo copiar.
 - **Abrir al iniciar sesión** y **Mostrar la ventana al iniciar sesión**.
 
