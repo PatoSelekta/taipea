@@ -4,6 +4,22 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.8] - 2026-11-04
+
+### Fixed
+- **No more "Thank you." added at the end.** If you stayed quiet for a few seconds before
+  stopping, Whisper often filled the quiet with "Thank you." / "Gracias." / "Thanks for
+  watching" and Taipea pasted it after your text. Now:
+  - Before Whisper, the quiet start and end of the recording are cut off with sox (keeping
+    0.3 s before and 0.5 s after your voice). The threshold comes from your room's own noise
+    level, and mouth clicks do not count as voice. If anything fails, the whole recording is used.
+  - After Whisper, a last segment that is only such a phrase is removed when it starts after
+    your voice ended or there is no voice in its time window. A "thank you" you really say
+    is kept. Every removal is written to the log.
+- **Long dictations no longer lose words at the 30-second mark.** Whisper now runs with
+  timestamps, so a sentence that crosses its 30 s window is no longer dropped or replaced with
+  a stray word.
+
 ## [0.2.7] - 2026-11-04
 
 ### Fixed

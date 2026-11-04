@@ -2028,8 +2028,123 @@ function M.nothingHeard(why)
   if M._dry then M._dryResult = "" end
   refresh(); hs.alert.show(T("nothing_heard"), 2)
 end
+-- ---------- quiet-tail trim and trailing phrase guard ----------
+-- After he stops talking there are often a few quiet seconds before Stop & Paste. Whisper fills
+-- that quiet with "Thank you." / "Gracias." / "Thanks for watching". Before Whisper the recording
+-- is cut to the sound plus a margin (sox "silence" both ways, threshold from the room's own
+-- noise floor: quietest + 10 dB, at least loudest - 18 dB, between -48 and -30 dB). Sound means 50 ms above the threshold,
+-- so mouth clicks do not count. If anything about the trim fails, the original file is used.
+-- After Whisper (timestamps on), a last segment that is only such a phrase is removed when it
+-- starts after the last sound, or when its own time window has no voice. Each removal is logged.
+M.TRIM = { ABOVE = "0.05", HEAD = 0.3, TAIL = 0.5, MIN_CUT = 0.3, MIN_SPEECH = 0.3, VOICE_DB = 4, file = DATA.."/tmp/rec-trim.wav" }
+function M.trimThreshold(lv)
+  local tr, pk = lv and lv.rmsTr, lv and lv.rmsPk
+  if not tr or tr < -90 then tr = -58 end            -- unknown or digital silence
+  local t = tr + 10                                   -- room noise floor + 10 dB
+  if pk and pk > -90 then t = math.max(t, pk - 18) end  -- a moment of digital silence must not pull it below the room noise
+  t = math.max(-48, math.min(-30, t))
+  if pk and pk > -90 then t = math.min(t, pk - 12) end  -- always well under the voice
+  return t
+end
+-- len = whole file, a = length left after cutting the quiet start, b = after cutting the quiet end
+function M.trimPlan(len, a, b)
+  local K = M.TRIM
+  if not (len and a and b) or a <= 0 or b <= 0 or a > len + 0.05 or b > len + 0.05 then return nil end
+  local s0, s1 = math.max(0, len - a), math.min(len, b)   -- first and last sound
+  if s1 - s0 < K.MIN_SPEECH then return nil end
+  local start = math.max(0, s0 - K.HEAD); if start < K.MIN_CUT then start = 0 end
+  local stop = math.min(len, s1 + K.TAIL); if len - stop < K.MIN_CUT then stop = len end
+  return { start = start, stop = stop, cut = (start > 0 or stop < len), speechEnd = s1 - start, len = stop - start, cutHead = start, cutTail = len - stop }
+end
+-- cb(path, plan): the trimmed copy, or the original file (plan nil) when trimming is not possible
+function M.trimSilence(file, lv, cb)
+  local sox = (cfg.rec or ""):gsub("rec$", "sox")
+  if sox == "" or not fileExists(sox) or not lv or not lv.len or lv.len < 1 then cb(file, nil); return end
+  local thr = M.trimThreshold(lv); local thrS = string.format("%.1fd", thr)
+  local done = false
+  local function fin(p, plan) if done then return end; done = true; M.trimTask = nil; cb(p, plan) end
+  local script = '"$0" "$1" -n silence 1 '..M.TRIM.ABOVE..' "$2" stats 2>&1; echo "=="; "$0" "$1" -n reverse silence 1 '..M.TRIM.ABOVE..' "$2" stats 2>&1'
+  M.trimTask = hs.task.new("/bin/sh", function(_, so, se)
+    if done then return end
+    local txt = (so or "")..(se or "")
+    local p1, p2 = txt:match("^(.-)==(.*)$")
+    local a = p1 and tonumber(p1:match("Length s%s+([%d%.]+)")); local b = p2 and tonumber(p2:match("Length s%s+([%d%.]+)"))
+    local plan = M.trimPlan(lv.len, a, b)
+    if not plan then log(string.format("trim: no clear sound above %s, using the whole recording", thrS)); fin(file, nil); return end
+    plan.thr = thr
+    if not plan.cut then fin(file, plan); return end
+    os.remove(M.TRIM.file)
+    M.trimTask = hs.task.new(sox, function(code)
+      local sz = (hs.fs.attributes(M.TRIM.file) or {}).size or 0
+      if code == 0 and sz > 44 + 3200 then
+        log(string.format("trim: kept %.2f-%.2fs of %.2fs (cut %.2fs quiet start, %.2fs quiet end, threshold %s)", plan.start, plan.stop, lv.len, plan.cutHead, plan.cutTail, thrS))
+        fin(M.TRIM.file, plan)
+      else log("trim: sox failed, using the whole recording"); fin(file, nil) end
+    end, { file, M.TRIM.file, "trim", string.format("%.3f", plan.start), string.format("=%.3f", plan.stop) })
+    if not M.trimTask:start() then log("trim: sox did not start"); fin(file, nil) end
+  end, { "-c", script, sox, file, thrS })
+  if not M.trimTask:start() then fin(file, nil); return end
+  after(8, function() if not done then if M.trimTask then M.trimTask:terminate() end; log("trim: timed out, using the whole recording"); fin(file, nil) end end)
+end
+-- whisper-cli stdout with timestamps -> text, segments {from, to, text} (plain lines are kept too)
+function M.parseWhisper(out)
+  local segs, plain = {}, {}
+  for raw in ((out or "").."\n"):gmatch("([^\n]*)\n") do
+    local line = raw:gsub("%[BLANK_AUDIO%]", "")
+    local h1, m1, s1, h2, m2, s2, txt = line:match("^%s*%[(%d+):(%d+):([%d%.]+)%s*%-%->%s*(%d+):(%d+):([%d%.]+)%]%s?(.*)$")
+    if h1 then
+      txt = (txt:gsub("^%s+", ""):gsub("%s+$", ""))
+      segs[#segs+1] = { from = h1*3600 + m1*60 + tonumber(s1), to = h2*3600 + m2*60 + tonumber(s2), text = txt }
+    elseif line:match("%S") then plain[#plain+1] = (line:gsub("^%s+", ""):gsub("%s+$", "")) end
+  end
+  if #segs == 0 then return (#plain > 0 and " "..table.concat(plain, " ") or ""), segs end
+  return M.joinSegs(segs, #segs), segs
+end
+function M.joinSegs(segs, upto)
+  local t = {}
+  for i = 1, upto do if segs[i].text:match("%S") then t[#t+1] = segs[i].text end end
+  return #t > 0 and " "..table.concat(t, " ") or ""
+end
+M.TAIL_PHRASES = { "thank you", "thank you very much", "thank you so much", "thanks", "thanks for watching", "thank you for watching",
+  "thanks for listening", "thank you for listening", "thanks for watching and see you next time", "please subscribe", "bye", "bye bye", "you",
+  "gracias", "muchas gracias", "gracias por ver", "gracias por ver el video", "gracias por su atencion", "gracias por escuchar",
+  "gracias por vernos", "hasta la proxima", "nos vemos", "subtitulos realizados por la comunidad de amara org",
+  "subtitulos por la comunidad de amara org", "subtitulado por la comunidad de amara org", "subtitles by the amara org community", "amara org" }
+-- index and phrase of a last segment that is only a tail phrase, with real text before it
+function M.tailPhrase(segs)
+  segs = segs or {}
+  local n = #segs; while n > 0 and not M.hasLetters(segs[n].text) do n = n - 1 end
+  if n < 2 then return nil end
+  local w = table.concat(wordsOf(segs[n].text), " ")
+  for _, p in ipairs(M.TAIL_PHRASES) do
+    if w == p then for i = 1, n - 1 do if M.hasLetters(segs[i].text) then return n, p end end; return nil end
+  end
+  return nil
+end
+-- cb(text): text with a made-up trailing phrase removed, or unchanged
+function M.tailGuard(text, segs, file, plan, cb)
+  local n = M.tailPhrase(segs)
+  if not n then cb(text); return end
+  local s = segs[n]
+  local function drop(why) log(string.format('tail guard: removed trailing "%s" [%.2f-%.2fs] (%s)', s.text, s.from, s.to, why)); cb(M.joinSegs(segs, n - 1)) end
+  local function keep(why) log(string.format('tail guard: kept trailing "%s" [%.2f-%.2fs] (%s)', s.text, s.from, s.to, why)); cb(text) end
+  if plan and plan.speechEnd and s.from >= plan.speechEnd - 0.1 then drop(string.format("starts after the last sound at %.2fs", plan.speechEnd)); return end
+  local sox = (cfg.rec or ""):gsub("rec$", "sox")
+  if sox == "" or not fileExists(sox) then keep("cannot measure"); return end
+  local thr = (plan and plan.thr) or M.trimThreshold(M._lv)
+  local done = false
+  local t = hs.task.new(sox, function(_, so, se)
+    if done then return end; done = true
+    local lv = M.parseStats((se or "")..(so or ""))
+    if lv.rmsPk and lv.rmsPk < thr + M.TRIM.VOICE_DB then drop(string.format("no voice in its window: loudest %.1f dB, voice needs %.1f dB", lv.rmsPk, thr + M.TRIM.VOICE_DB))
+    else keep(lv.rmsPk and string.format("voice in its window: loudest %.1f dB", lv.rmsPk) or "window not measurable") end
+  end, { file, "-n", "trim", string.format("%.3f", s.from), string.format("%.3f", math.max(0.1, s.to - s.from)), "stats" })
+  if not t:start() then done = true; keep("sox did not start"); return end
+  after(5, function() if not done then done = true; t:terminate(); keep("measuring timed out") end end)
+end
+-- timestamps stay on: with -nt Whisper drops words that cross its 30 s window and gives no segments
 local function whisperArgs(f, lang)
-  local a = { "-m", modelPath(), "-l", lang or cfg.language, "-nt", "-np" }
+  local a = { "-m", modelPath(), "-l", lang or cfg.language, "-np" }
   local hint = whisperHint(); if hint then a[#a+1] = "--prompt"; a[#a+1] = hint end
   a[#a+1] = "-f"; a[#a+1] = f
   return a
@@ -2040,7 +2155,7 @@ function M.testPipeline(f, cb)
   local t0 = hs.timer.secondsSinceEpoch()
   M.testTask = hs.task.new(cfg.whisper, function(code, out)
     local tw = hs.timer.secondsSinceEpoch()-t0
-    out = (out or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
+    out = M.parseWhisper(out)
     cleanText(out, function(cl, st)
       M._testing = false
       cb({ whisperExit=code, whisperSecs=tw, raw=out, cleaned=cl, stats=st })
@@ -2077,7 +2192,7 @@ function M.afterRaw(out, file)
       M.wTask = hs.task.new(cfg.whisper, function(code, o)
         M.wTask = nil
         if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
-        o = (o or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
+        o = M.parseWhisper(o)
         log(string.format("whisper retry -l %s exit %d RAW: %s", l, code, o))
         if code == 0 then cands[#cands+1] = { lang = l, text = o } end
         run(i + 1)
@@ -2107,15 +2222,21 @@ transcribe = function(file)
   tick = hs.timer.doEvery(1, function() if M.wTask then setOverlay(T("ov_still"), tsub, true) elseif state=="busy" then
     if overlay then local e=math.floor(hs.timer.secondsSinceEpoch()-recStart); overlay:evaluateJavaScript(string.format("document.getElementById('t').textContent=%q", string.format("%d:%02d",e//60,e%60))) end end end)
   local function go()
+  M.trimSilence(file, M._lv, function(wfile, plan)
+  if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
   M.wTask = hs.task.new(cfg.whisper, function(code, out, err)
     M.wTask = nil
     if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
     log(string.format("whisper %s exit %d %.1fs RAW: %s", cfg.modelName, code, hs.timer.secondsSinceEpoch()-t0, out or ""))
     if code ~= 0 then state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh(); hs.alert.show(T("trans_failed")); return end
-    out = (out or ""):gsub("%[BLANK_AUDIO%]",""):gsub("\n"," ")
-    M.afterRaw(out, file)
-  end, whisperArgs(file))
+    local text, segs = M.parseWhisper(out)
+    M.tailGuard(text, segs, wfile, plan, function(t2)
+      if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+      M.afterRaw(t2, wfile)
+    end)
+  end, whisperArgs(wfile))
   if not M.wTask:start() then M.wTask = nil; M.watchdogReset("whisper-cli did not start", T("wd_reset")) end
+  end)
   end
   -- measure the recording first (sox stats, a few ms); a silent one is not sent to Whisper
   M._lv = nil
@@ -2500,7 +2621,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.7"
+local VERSION = "0.2.8"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

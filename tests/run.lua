@@ -593,8 +593,8 @@ do
   local tk = fake.tasks[#fake.tasks]
   local function argOf(t, flag) for i, a in ipairs(t.args or {}) do if a == flag then return t.args[i + 1] end end end
   check("afterRaw English: one retry with -l es", #fake.tasks == nt + 1 and argOf(tk, "-l") == "es" and got == nil)
-  tk.cb(0, "Hola, ¿cómo estás? Yo creo que está bien.\n")
-  check("afterRaw English: usable retry pasted", got == "Hola, ¿cómo estás? Yo creo que está bien. ")
+  tk.cb(0, "\n[00:00:00.000 --> 00:00:02.500]   Hola, ¿cómo estás? Yo creo que está bien.\n\n")
+  check("afterRaw English: usable retry pasted", got == " Hola, ¿cómo estás? Yo creo que está bien.")
   got = nil; nt = #fake.tasks; fake.lastAlert = nil
   M.cfg.language = "es"
   M.afterRaw(RU, "/tmp/x.wav")
@@ -629,10 +629,49 @@ do
   M.transcribeFile("/tmp/x.wav")
   fake.tasks[#fake.tasks].cb(0, "", SPEECH)
   tk = fake.tasks[#fake.tasks]
-  check("transcribe: speech goes on to Whisper", #fake.tasks == nt + 2 and tk.cmd == base .. "_whisper" and argOf(tk, "-l") == "auto" and fake.lastAlert == nil)
+  check("transcribe: quiet start/end measured after the levels", #fake.tasks == nt + 2 and tk.cmd == "/bin/sh" and tk.args[3] == base .. "_sox" and tk.args[4] == "/tmp/x.wav" and tk.args[5] == "-31.0d")
+  -- 12.4 s recording: sound from 1.4 s to 9.0 s -> keep 1.1-9.5 s
+  local trimF = M.TRIM.file
+  hs.fs.attributes = function(p, a) if p == "/tmp/x.wav" or p == trimF then return a and nil or { size = 200000 } end; return oldAttr(p, a) end
+  tk.cb(0, "Length s      11.000\n==\nLength s       9.000\n", "")
+  tk = fake.tasks[#fake.tasks]
+  check("transcribe: sox cuts the quiet tail", #fake.tasks == nt + 3 and tk.cmd == base .. "_sox" and tk.args[2] == trimF and tk.args[3] == "trim" and tk.args[4] == "1.100" and tk.args[5] == "=9.500")
+  tk.cb(0, "", "")
+  tk = fake.tasks[#fake.tasks]
+  check("transcribe: speech goes on to Whisper", #fake.tasks == nt + 4 and tk.cmd == base .. "_whisper" and argOf(tk, "-l") == "auto" and fake.lastAlert == nil)
+  check("transcribe: Whisper gets the trimmed file", argOf(tk, "-f") == trimF)
+  local hasNt = false; for _, a in ipairs(tk.args) do if a == "-nt" then hasNt = true end end
+  check("transcribe: Whisper runs with timestamps (no -nt)", not hasNt)
   check("transcribe: levels kept for the checks", M._lv and M._lv.rmsPk == -14.5)
-  got = nil; tk.cb(0, "Hola equipo, mañana a las nueve.\n")
-  check("transcribe: Whisper text reaches cleanup", got == "Hola equipo, mañana a las nueve. ")
+  got = nil; tk.cb(0, "\n[00:00:00.000 --> 00:00:07.900]   Hola equipo, mañana a las nueve.\n[00:00:07.900 --> 00:00:08.400]   Thank you.\n\n")
+  check("transcribe: made-up Thank you after the last sound removed", got == " Hola equipo, mañana a las nueve.")
+  -- the same, but the last sound is later: the phrase's window is measured
+  nt = #fake.tasks
+  M.transcribeFile("/tmp/x.wav")
+  fake.tasks[#fake.tasks].cb(0, "", SPEECH)
+  fake.tasks[#fake.tasks].cb(0, "Length s      11.000\n==\nLength s       9.000\n", "")
+  fake.tasks[#fake.tasks].cb(0, "", "")
+  got = nil; fake.tasks[#fake.tasks].cb(0, "[00:00:00.000 --> 00:00:06.000]   Can you check the notes?\n[00:00:06.000 --> 00:00:07.200]   Thank you.\n")
+  tk = fake.tasks[#fake.tasks]
+  check("transcribe: spoken-looking Thank you gets its window measured", got == nil and tk.cmd == base .. "_sox" and tk.args[1] == trimF and tk.args[3] == "trim" and tk.args[4] == "6.000" and tk.args[5] == "1.200")
+  tk.cb(0, "", "RMS Pk dB     -16.00\n")
+  check("transcribe: Thank you with voice in its window is kept", got == " Can you check the notes? Thank you.")
+  -- trimming fails -> the whole recording is used
+  nt = #fake.tasks
+  M.transcribeFile("/tmp/x.wav")
+  fake.tasks[#fake.tasks].cb(0, "", SPEECH)
+  fake.tasks[#fake.tasks].cb(0, "Length s      11.000\n==\nLength s       9.000\n", "")
+  hs.fs.attributes = function(p, a) if p == "/tmp/x.wav" then return a and nil or { size = 200000 } end; return oldAttr(p, a) end
+  fake.tasks[#fake.tasks].cb(2, "", "sox FAIL")
+  tk = fake.tasks[#fake.tasks]
+  check("transcribe: failed trim falls back to the original", tk.cmd == base .. "_whisper" and argOf(tk, "-f") == "/tmp/x.wav")
+  got = nil; tk.cb(0, " Hola equipo, mañana a las nueve.\n")
+  check("transcribe: plain Whisper output still works", got == " Hola equipo, mañana a las nueve.")
+  -- unreadable trim analysis -> the whole recording is used
+  M.transcribeFile("/tmp/x.wav")
+  fake.tasks[#fake.tasks].cb(0, "", SPEECH)
+  fake.tasks[#fake.tasks].cb(1, "sox FAIL", "")
+  check("transcribe: unreadable trim analysis falls back to the original", fake.tasks[#fake.tasks].cmd == base .. "_whisper" and argOf(fake.tasks[#fake.tasks], "-f") == "/tmp/x.wav")
   nt = #fake.tasks
   M.transcribeFile("/tmp/x.wav")
   fake.tasks[#fake.tasks].cb(1, "", "sox FAIL formats")
@@ -642,7 +681,70 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.7", M.VERSION == "0.2.7")
+  check("version 0.2.8", M.VERSION == "0.2.8")
+end
+-- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
+do
+  check("trim threshold: room floor + 10 dB", M.trimThreshold({ rmsTr = -42.1, rmsPk = -16.5 }) == -32.1)
+  check("trim threshold: digital silence does not pull it under the room", M.trimThreshold({ rmsTr = -200, rmsPk = -18 }) == -36)
+  check("trim threshold: never above -30 dB", M.trimThreshold({ rmsTr = -25, rmsPk = -10 }) == -30)
+  check("trim threshold: never below -48 dB", M.trimThreshold({ rmsTr = -80, rmsPk = -70 }) == -82)
+  check("trim threshold: unknown levels", M.trimThreshold(nil) == -48)
+  local pl = M.trimPlan(31.45, 30.23, 30.17)
+  check("trim plan: keeps 0.3 s before and 0.5 s after the sound", pl and math.abs(pl.start - 0.92) < 0.01 and math.abs(pl.stop - 30.67) < 0.01 and pl.cut)
+  check("trim plan: speech end in the trimmed file", pl and math.abs(pl.speechEnd - (30.17 - 0.92)) < 0.01)
+  local p2 = M.trimPlan(5.0, 4.9, 4.7)
+  check("trim plan: tiny margins are not cut", p2 and p2.start == 0 and p2.stop == 5.0 and not p2.cut and math.abs(p2.speechEnd - 4.7) < 0.001)
+  check("trim plan: no sound -> nil", M.trimPlan(5.0, 0.1, 0.1) == nil)
+  check("trim plan: missing numbers -> nil", M.trimPlan(5.0, nil, 4) == nil and M.trimPlan(nil, 4, 4) == nil)
+  check("trim plan: bad numbers -> nil", M.trimPlan(5.0, 9, 4) == nil and M.trimPlan(5.0, 0, 4) == nil)
+  local p3 = M.trimPlan(10, 9.9, 9.95)
+  check("trim plan: never past the end", p3 and p3.stop == 10)
+  local txt, segs = M.parseWhisper("\n[00:00:00.000 --> 00:00:29.640]   Hola equipo.\n[00:00:30.000 --> 00:01:03.060]   [BLANK_AUDIO] Nos vemos mañana.\n\n")
+  check("parse: segments with times", #segs == 2 and segs[1].from == 0 and math.abs(segs[1].to - 29.64) < 0.001 and segs[2].from == 30 and math.abs(segs[2].to - 63.06) < 0.001)
+  check("parse: text joined, BLANK_AUDIO removed", txt == " Hola equipo. Nos vemos mañana.")
+  local t2, s2 = M.parseWhisper(" Plain text\n second line\n")
+  check("parse: plain output kept", t2 == " Plain text second line" and #s2 == 0)
+  check("parse: nothing", (M.parseWhisper("")) == "" and (M.parseWhisper(nil)) == "")
+  local function S(...) local r = {}; for i, t in ipairs({ ... }) do r[i] = { from = i - 1, to = i, text = t } end; return r end
+  check("tail phrase: Thank you as the last segment", M.tailPhrase(S("Can you check it?", "Thank you.")) == 2)
+  check("tail phrase: Gracias as the last segment", M.tailPhrase(S("Mira esos links.", "¡Gracias!")) == 2)
+  check("tail phrase: Amara subtitles", M.tailPhrase(S("Hola.", "Subtítulos realizados por la comunidad de Amara.org")) == 2)
+  check("tail phrase: empty last segments skipped", M.tailPhrase(S("Hola.", "Gracias.", " ")) == 2)
+  check("tail phrase: Thank you inside the sentence is not one", M.tailPhrase(S("Can you check it? Thank you.")) == nil)
+  check("tail phrase: alone is left to the silence guard", M.tailPhrase(S("Thank you.")) == nil)
+  check("tail phrase: other last words are kept", M.tailPhrase(S("Hola.", "Gracias por venir.")) == nil and M.tailPhrase(S("Hi.", "Thanks to Ana.")) == nil)
+  check("tail phrase: needs real text before it", M.tailPhrase(S("...", "Thank you.")) == nil)
+  -- tailGuard directly
+  local res
+  M.tailGuard(" Hola. Gracias.", { { from = 0, to = 2, text = "Hola." }, { from = 2.6, to = 3.1, text = "Gracias." } }, "/tmp/x.wav", { speechEnd = 2.5, thr = -32 }, function(t) res = t end)
+  check("tail guard: after the last sound -> removed", res == " Hola.")
+  res = nil
+  local n0, oldRec2 = #fake.tasks, M.cfg.rec
+  M.cfg.rec = "/nonexistent/bin/rec"
+  M.tailGuard(" Hola. Gracias.", { { from = 0, to = 2, text = "Hola." }, { from = 2.0, to = 3.0, text = "Gracias." } }, "/tmp/x.wav", nil, function(t) res = t end)
+  check("tail guard: without sox it is kept", res == " Hola. Gracias." and #fake.tasks == n0)
+  local b2 = os.tmpname(); for _, n in ipairs({ "_rec", "_sox" }) do local f = io.open(b2 .. n, "w"); f:write("x"); f:close() end
+  M.cfg.rec = b2 .. "_rec"
+  res = nil
+  M.tailGuard(" Hola. Gracias.", { { from = 0, to = 2, text = "Hola." }, { from = 2.0, to = 3.0, text = "Gracias." } }, "/tmp/x.wav", { speechEnd = 2.9, thr = -32 }, function(t) res = t end)
+  local tk2 = fake.tasks[#fake.tasks]
+  check("tail guard: overlapping the voice -> its window is measured", res == nil and tk2.cmd == b2 .. "_sox" and tk2.args[4] == "2.000")
+  tk2.cb(0, "", "RMS Pk dB     -40.00\n")
+  check("tail guard: no voice in the window -> removed", res == " Hola.")
+  res = nil
+  M.tailGuard(" Hola. Gracias.", { { from = 0, to = 2, text = "Hola." }, { from = 2.0, to = 3.0, text = "Gracias." } }, "/tmp/x.wav", { speechEnd = 2.9, thr = -32 }, function(t) res = t end)
+  fake.tasks[#fake.tasks].cb(0, "", "RMS Pk dB     -18.00\n")
+  check("tail guard: voice in the window -> kept", res == " Hola. Gracias.")
+  res = nil
+  M.tailGuard(" Hola. Gracias.", { { from = 0, to = 2, text = "Hola." }, { from = 2.0, to = 3.0, text = "Gracias." } }, "/tmp/x.wav", { speechEnd = 2.9, thr = -32 }, function(t) res = t end)
+  fake.tasks[#fake.tasks].cb(1, "", "sox FAIL")
+  check("tail guard: unmeasurable window -> kept", res == " Hola. Gracias.")
+  res = nil
+  M.tailGuard(" Can you check it? Thank you.", { { from = 0, to = 3, text = "Can you check it? Thank you." } }, "/tmp/x.wav", { speechEnd = 1, thr = -32 }, function(t) res = t end)
+  check("tail guard: phrase inside the last segment is never touched", res == " Can you check it? Thank you.")
+  for _, n in ipairs({ "_rec", "_sox" }) do os.remove(b2 .. n) end; os.remove(b2)
+  M.cfg.rec = oldRec2
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)
