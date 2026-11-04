@@ -4,6 +4,13 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.7] - 2026-11-04
+
+### Fixed
+- **Floating button's shadow no longer cut off at the edge.** The recording pulse and the Copy /
+  Cancel buttons' shadows were also clipped at the window edge. Button size and saved position
+  are unchanged.
+
 ## [0.2.6] - 2026-11-03
 
 ### Fixed

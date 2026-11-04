@@ -976,13 +976,21 @@ M.whisperHint, M.wordsRule = whisperHint, wordsRule
 -- Idle: mic on the brand colour. Recording: green "stop & paste" (pulses gently) with two satellites,
 -- blue "stop & copy only" and red "cancel", on whichever side has room. Working: spinner.
 local fab, sats, satLabel, satTimer = nil, {}, nil, nil
-local function fabSize() return math.floor(96 * (look.scale or 1) + 0.5) + 8 end
+-- FABG.PAD: transparent room around the circles so their drop shadow (0 3px 10px) and the recording
+-- pulse fade out inside the window instead of being cut at its edge. Saved positions and the
+-- satellite layout still use the old frame (circle + 4 px), so FABG.EXTRA converts between the two.
+-- (one table, not five locals: the main chunk is near Lua's 200-local limit)
+local FABG = { PAD = 18 }; FABG.EXTRA = FABG.PAD - 4
+local function fabSize() return math.floor(96 * (look.scale or 1) + 0.5) + 2 * FABG.PAD end
+function FABG.shrink(f, d) return { x = f.x + d, y = f.y + d, w = f.w - 2 * d, h = f.h - 2 * d } end
+function FABG.grow(f, d) return { x = f.x - d, y = f.y - d, w = f.w + 2 * d, h = f.h + 2 * d } end
 local function satSizes() local s = look.scale or 1; return math.max(60, math.floor(64 * s + 0.5)), math.max(80, math.floor(84 * s + 0.5)) end
-local function satWin() local _, big = satSizes(); return big + 8 end
+function FABG.satWin0() local _, big = satSizes(); return big + 8 end
+local function satWin() return FABG.satWin0() + 2 * FABG.EXTRA end
 local function fabFrame()
   local s = fabSize(); local p = settings.get(KP.."fabPos"); local sf = hs.screen.mainScreen():frame()
-  if type(p) == "table" and p.x then return clampFrame({ x = p.x, y = p.y, w = s, h = s }) end
-  return { x = sf.x + sf.w - s - 30, y = sf.y + math.floor(sf.h * 0.55), w = s, h = s }
+  if type(p) == "table" and p.x then return clampFrame({ x = p.x - FABG.EXTRA, y = p.y - FABG.EXTRA, w = s, h = s }) end
+  return { x = sf.x + sf.w - s - 30 + FABG.EXTRA, y = sf.y + math.floor(sf.h * 0.55) - FABG.EXTRA, w = s, h = s }
 end
 -- where the two satellites go: around the button on the first side that fits on the screen
 -- (left, right, above, below, then the diagonals for corners)
@@ -1135,9 +1143,9 @@ function M.overlayPal()
 end
 local fabHTML = [[
 <html class="cl"><head><meta charset="utf-8"><style>
-html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:pointer}
+html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:default}#b,#c{cursor:pointer}
 html{--bg:#0A6CD6;--mic:#fff;--acc:rgba(255,255,255,.9);--arc:#fff}
-#b{position:absolute;inset:4px;border-radius:50%;border:4px solid var(--acc);background:var(--bg);color:var(--mic);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#b{position:absolute;inset:]]..FABG.PAD..[[px;border-radius:50%;border:4px solid var(--acc);background:var(--bg);color:var(--mic);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.5)}
 #i{width:50%;height:50%;display:flex}#i svg{width:100%;height:100%}
 #b:not(.rec) #i svg path:first-of-type{stroke:var(--arc)}
 html.ol #b:not(.rec) #i svg rect{fill:none}html.ol #b:not(.rec) #i svg{stroke-linecap:butt}
@@ -1167,7 +1175,7 @@ function th(bg,mic,acc,cl,ol){var r=document.documentElement.style;r.setProperty
 s({cmd:'fabReady'});</script></body></html>]]
 local satHTML = [[
 <html><head><meta charset="utf-8"><style>
-html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:pointer}
+html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:default}#b,#c{cursor:pointer}
 #c{position:absolute;left:50%;top:50%;width:__R__px;height:__R__px;transform:translate(-50%,-50%);box-sizing:border-box;border-radius:50%;border:3px solid rgba(255,255,255,.9);
  color:#fff;display:flex;align-items:center;justify-content:center;opacity:.55;box-shadow:0 2px 8px rgba(0,0,0,.45);transition:width .18s ease,height .18s ease,opacity .18s ease}
 #c.copy{background:#0a6cd6}#c.cancel{background:#d42c22}
@@ -1210,10 +1218,10 @@ local function hideLabel() if satLabel then satLabel:delete(); satLabel = nil en
 local function inside(p, f) return p.x >= f.x and p.x < f.x + f.w and p.y >= f.y and p.y < f.y + f.h end
 local function placeSats()
   if not fab then return end
-  local mf = fab:frame(); local sw = satWin()
+  local wf = fab:frame(); local mf = FABG.shrink(wf, FABG.EXTRA); local sw = FABG.satWin0()
   local side, fr = satLayout(mf, sw, screenFor(mf):frame())
   M._satSide, M._satMF = side, { x = mf.x, y = mf.y }
-  for i, k in ipairs(SAT_KINDS) do if sats[k] then sats[k]:frame(fr[i]) end end
+  for i, k in ipairs(SAT_KINDS) do if sats[k] then sats[k]:frame(FABG.grow(fr[i], FABG.EXTRA)) end end
 end
 -- mouse-over check every 0.08 s while the satellites are up (webviews that are not focused don't get hover events)
 local function satTick()
@@ -1222,11 +1230,11 @@ local function satTick()
   if not M._satMF or M._satMF.x ~= mf.x or M._satMF.y ~= mf.y then placeSats() end
   local p = hs.mouse.absolutePosition(); local hit, hf
   for _, k in ipairs(SAT_KINDS) do local w = sats[k]
-    if w then local f = w:frame(); local on = inside(p, f)
+    if w then local f = FABG.shrink(w:frame(), FABG.EXTRA); local on = inside(p, f)
       if on ~= (M._satHov[k] or false) then M._satHov[k] = on; w:evaluateJavaScript("hov("..tostring(on)..")") end
       if on then hit, hf = k, f end end
   end
-  if not hit and inside(p, mf) then hit, hf = "main", mf end
+  if not hit and inside(p, FABG.shrink(mf, FABG.EXTRA)) then hit, hf = "main", FABG.shrink(mf, FABG.EXTRA) end
   if hit ~= M._satLbl then M._satLbl = hit; if hit then showLabel(hit, hf, M._satSide) else hideLabel() end end
 end
 M.satTick = satTick
@@ -1601,7 +1609,8 @@ end
 function M.startFabDrag()
   if not fab then return end
   startDrag(fab, KP.."fabPos", function(moved, f0)
-    if moved < 8 then fab:frame(f0); settings.set(KP.."fabPos", { x = f0.x, y = f0.y }); fabClick() else placeSats() end
+    if moved < 8 then fab:frame(f0); settings.set(KP.."fabPos", { x = f0.x + FABG.EXTRA, y = f0.y + FABG.EXTRA }); fabClick()
+    else local f = fab:frame(); settings.set(KP.."fabPos", { x = f.x + FABG.EXTRA, y = f.y + FABG.EXTRA }); placeSats() end
   end)
 end
 -- press on a satellite: it acts when the mouse is released less than 8 px from where it went down
@@ -2491,7 +2500,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.6"
+local VERSION = "0.2.7"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end
