@@ -27,13 +27,15 @@ macOS asks for two permissions once. Taipea runs inside Hammerspoon, so both are
 
 1. **Accessibility**, so Taipea can paste where your cursor is. The installer offers to
    open this page for you. Go to System Settings › Privacy & Security › Accessibility and
-   turn on **Hammerspoon**.
+   turn on **Hammerspoon**. On macOS 27 that permission list is titled **Device Control and
+   Data Access** (the sidebar item just called Accessibility is VoiceOver, not this).
 2. **Microphone**. macOS asks the first time you dictate. Click **Allow**.
 
 If Accessibility is off, the Taipea window shows a red banner with a big **Open
 Accessibility settings** button. Your text is not lost: it stays on the clipboard (press
 Cmd + V) and in History. If a recording comes back empty, an orange banner points you to
-the Microphone settings.
+the Microphone settings. Settings › Permissions has both buttons all the time. Settings ›
+Microphone chooses which input Taipea records with, without changing the Mac's default.
 
 <img src="images/permission-banner-en.png" width="570" alt="Taipea window with a red banner at the top: Accessibility permission is off, with a large red Open Accessibility settings button">
 

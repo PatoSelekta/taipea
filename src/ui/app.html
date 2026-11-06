@@ -25,12 +25,14 @@ input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:
 .e.busy .sty .opt{opacity:.4;pointer-events:none}.conv{color:var(--warn);font-weight:700;font-size:18px}.raw{color:var(--mut2);font-size:15px;margin-bottom:8px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
-.opt{flex:1;min-width:130px;height:auto;min-height:60px;padding:8px 18px}.opt.on{background:var(--acc);color:var(--acctx);outline:3px solid var(--ring)}
+.opts{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+.opt{flex:1 1 180px;min-width:min(100%,160px);min-height:60px;height:auto;padding:10px 14px;white-space:normal;overflow-wrap:anywhere;line-height:1.25;text-align:center}.opt.on{background:var(--acc);color:var(--acctx);outline:3px solid var(--ring)}
+.opt small{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:2px;line-height:1.2}
 .m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--inner);border-radius:10px;padding:12px 16px;margin:8px 0}
 .m small{color:var(--mut2);display:block;font-size:14px}.prog{color:var(--warn);font-weight:700}
 /* Size: compact scales the whole UI via one variable; the Size card stays full size */
 body{--z:1}#bar,#inner{zoom:var(--z)}
-body.compact #sizecard,body.compact #langcard{zoom:calc(1/var(--z))}
+body.compact #sizecard,body.compact #langcard,body.compact #miccard,body.compact #permcard{zoom:calc(1/var(--z))}
 .big{font:700 22px -apple-system;margin:4px 0}.kd{background:var(--inner);border-radius:10px;padding:14px 16px;margin:8px 0}
 .wr{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:8px 0;align-items:center}.wr input{width:100%}.wh span{color:var(--mut);font-size:14px}
 button:disabled{opacity:.45;pointer-events:none}
@@ -108,9 +110,12 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  hideFull:'Hide when an app is full screen',hideFullHint:'Hides it while the app in front is full screen (for example a full-screen video) and brings it back when you leave full screen.',
  hideApps:'Hide in these apps',hideAppsHint:'The button hides while one of these apps is in front.',hideNone:'No apps yet.',remove:'Remove',quick:'Quick add',addRunning:'Add an open app',closeList:'Close list',pickApp:'Click an open app to add it:',kFabHide:'Hide / show floating button',
  axTitle:'⚠️ Accessibility permission is off',axInfo:'Hammerspoon needs it to paste your text. Until it is on, each dictation is copied: paste it with Cmd+V.',
- axPath:'System Settings › Privacy & Security › Accessibility › Hammerspoon. If it is already on, turn it off and on again.',axOpen:'Open Accessibility settings',
+ axPath:'System Settings › Privacy & Security › %s › Hammerspoon. If it is already on, turn it off and on again.',axOpen:'Open Accessibility settings',
  micTitle:'🎤 The last recording was empty',micInfo:'If this keeps happening, Hammerspoon may not have Microphone permission, or the wrong microphone is selected (System Settings › Sound › Input).',
  micPath:'System Settings › Privacy & Security › Microphone › Hammerspoon',micOpen:'Open Microphone settings',hideBanner:'Hide',
+ permCard:'Permissions',permHint:'These open the exact System Settings pane for that permission. Accessibility is under Privacy & Security › %s.',
+ micCard:'Microphone',micHint:'Choosing a microphone here does not change the Mac\'s default input. Dictation and voice start/stop use this one.',
+ micDefault:'System default',micGone:'The saved microphone is not connected. Using the system default until it is plugged in again.',
  cardToo:'Show the recording card too',cardTooHint:'Off: while you dictate, only the floating button and its two small buttons show. On: the recording card shows as well.',cardFabOff:'With the floating button off, the recording card with its three buttons is used while you dictate.',resetCard:'Reset card position',
  words:'Custom words',wordsHint:'Fixes words Whisper gets wrong, after transcription and again after cleanup. Whole words only; capitals and accents don\'t matter. The cleanup model is told never to change the "Replace with" words. Changes save when you leave a box.',
  heard:'Heard',replace:'Replace with',add:'Add',wordsNone:'No custom words yet.',
@@ -153,9 +158,12 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  hideFull:'Ocultar cuando una app está en pantalla completa',hideFullHint:'Lo oculta mientras la app de adelante está en pantalla completa (por ejemplo un video) y lo vuelve a mostrar al salir.',
  hideApps:'Ocultar en estas apps',hideAppsHint:'El botón se oculta mientras una de estas apps está adelante.',hideNone:'Aún no hay apps.',remove:'Quitar',quick:'Añadir rápido',addRunning:'Añadir una app abierta',closeList:'Cerrar la lista',pickApp:'Haz clic en una app abierta para añadirla:',kFabHide:'Ocultar / mostrar el botón flotante',
  axTitle:'⚠️ El permiso de Accesibilidad está apagado',axInfo:'Hammerspoon lo necesita para pegar tu texto. Mientras esté apagado, cada dictado se copia: pégalo con Cmd+V.',
- axPath:'Ajustes del Sistema › Privacidad y seguridad › Accesibilidad › Hammerspoon. Si ya está activado, apágalo y vuelve a encenderlo.',axOpen:'Abrir ajustes de Accesibilidad',
+ axPath:'Ajustes del Sistema › Privacidad y seguridad › %s › Hammerspoon. Si ya está activado, apágalo y vuelve a encenderlo.',axOpen:'Abrir ajustes de Accesibilidad',
  micTitle:'🎤 La última grabación quedó vacía',micInfo:'Si se repite, puede que Hammerspoon no tenga permiso de Micrófono, o que esté elegido otro micrófono (Ajustes del Sistema › Sonido › Entrada).',
  micPath:'Ajustes del Sistema › Privacidad y seguridad › Micrófono › Hammerspoon',micOpen:'Abrir ajustes de Micrófono',hideBanner:'Ocultar',
+ permCard:'Permisos',permHint:'Estos abren el panel exacto de Ajustes del Sistema para ese permiso. El de Accesibilidad está en Privacidad y seguridad › %s.',
+ micCard:'Micrófono',micHint:'Elegir un micrófono aquí no cambia la entrada por defecto del Mac. El dictado y el inicio/parada con la voz usan este.',
+ micDefault:'Por defecto del sistema',micGone:'El micrófono guardado no está conectado. Se usa el del sistema hasta que lo vuelvas a enchufar.',
  cardToo:'Mostrar también la tarjeta de grabación',cardTooHint:'No: mientras dictas solo se ven el botón flotante y sus dos botones pequeños. Sí: también se muestra la tarjeta de grabación.',cardFabOff:'Con el botón flotante apagado, mientras dictas se usa la tarjeta de grabación con sus tres botones.',resetCard:'Restablecer la posición de la tarjeta',
  words:'Palabras propias',wordsHint:'Corrige palabras que Whisper entiende mal, después de transcribir y otra vez después de la corrección. Solo palabras completas; no importan mayúsculas ni tildes. Al modelo de corrección se le pide no cambiar nunca las palabras de «Reemplazar por». Los cambios se guardan al salir de cada casilla.',
  heard:'Se oye',replace:'Reemplazar por',add:'Añadir',wordsNone:'Aún no hay palabras propias.',
@@ -243,8 +251,9 @@ function updCard(){var u=S.upd||{},r=u.checking?t('updChecking'):u.result=='new'
  '<div class=row style="margin-top:10px"><button class=b style="flex:1"'+(u.checking?' disabled':'')+' onclick="send({cmd:\'updCheck\'})">'+t('updNow')+'</button></div>'+
  (r?'<p class=big role=status style="font-size:18px;'+(u.result=='err'?'color:var(--warn)':'')+'">'+esc(r)+'</p>':'')+
  (u.result=='new'&&!u.banner?'<div class=row><button class=b style="flex:1" onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button></div>':'')+'</div>'}
+function axPane(){var p=S.perm||{};return LANG=='es'?(p.axPaneEs||'Accesibilidad'):(p.axPane||'Accessibility')}
 function renderPerm(){var p=S.perm||{},h='';
- if(p.ax===false)h+='<div class=card role=alert style="border:4px solid #ff453a"><h3>'+esc(t('axTitle'))+'</h3><p>'+esc(t('axInfo'))+'</p><p class=h>'+esc(t('axPath'))+'</p>'+
+ if(p.ax===false)h+='<div class=card role=alert style="border:4px solid #ff453a"><h3>'+esc(t('axTitle'))+'</h3><p>'+esc(t('axInfo'))+'</p><p class=h>'+esc(t('axPath',axPane()))+'</p>'+
   '<div class=row><button class="r pm" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button></div></div>';
  if(p.mic)h+='<div class=card role=alert style="border:4px solid #ff9f0a"><h3>'+esc(t('micTitle'))+'</h3><p>'+esc(t('micInfo'))+'</p><p class=h>'+esc(t('micPath'))+'</p>'+
   '<div class=row><button class="y pm" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button><button style="min-height:72px;height:auto" onclick="send({cmd:\'hideMic\'})">'+esc(t('hideBanner'))+'</button></div></div>';
@@ -288,7 +297,15 @@ function renderHist(){var q=document.getElementById('q').value.toLowerCase(),h='
  '<button class=r onclick="send({cmd:\'del\',i:'+(i+1)+'})">'+t('del')+'</button></div>'+
  '<div class="row sty"><span class=lbl>'+t('convertTo')+'</span>'+['light','paragraphs','bullets','formal'].map(st=>'<button class="opt'+(e.cleaned&&e.style==st?' on':'')+'" onclick="restyle('+(i+1)+',\''+st+'\')">'+t(st)+'</button>').join('')+'</div></div>'});
  document.getElementById('hl').innerHTML=h||'<p>'+t(q?'noneMatch':'none')+'</p>'}
-function opts(key,list){return '<div class=row>'+list.map(o=>'<button class="opt'+(S.cfg[key]==o[0]?' on':'')+'" onclick="set(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,'&quot;')+')">'+o[1]+'</button>').join('')+'</div>'}
+function opts(key,list){return '<div class=opts>'+list.map(o=>'<button class="opt'+(S.cfg[key]==o[0]?' on':'')+'" onclick="set(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,'&quot;')+')">'+o[1]+'</button>').join('')+'</div>'}
+function micCard(){var c=S.cfg||{},mics=S.mics||[],def=S.micDefault||'',uid=c.inputDevice||'',list=[['',t('micDefault')+(def?'<small>'+esc(def)+'</small>':'')]];
+ mics.forEach(function(m){list.push([m.uid,'🎤 '+esc(m.name)])});
+ var h='<div class=card id=miccard><h3>'+t('micCard')+'</h3><p class=h>'+t('micHint')+'</p>'+opts('inputDevice',list);
+ if(uid&&!mics.some(function(m){return m.uid==uid}))h+='<p style="color:var(--warn);font-weight:700">'+esc(t('micGone'))+'</p>';
+ return h+'</div>'}
+function permCard(){return '<div class=card id=permcard><h3>'+t('permCard')+'</h3><p class=h>'+esc(t('permHint',axPane()))+'</p>'+
+ '<div class=row><button class="r pm" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button>'+
+ '<button class="y pm" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button></div></div>'}
 function set(k,v){send({cmd:'set',key:k,value:v})}
 var OT={};
 function keysCard(){var K=S.keys||{},P=S.keySyms||{},L=S.keyLabels||{},D=S.defaultKeys||{},cap=S.cap||null,listening=!!(cap&&cap.phase=='listen');
@@ -319,7 +336,7 @@ function keysCard(){var K=S.keys||{},P=S.keySyms||{},L=S.keyLabels||{},D=S.defau
 function renderSet(){var c=S.cfg,h='';
  h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
  h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
- h+=colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard()+updCard();
+ h+=micCard()+permCard()+colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard()+updCard();
  h+=keysCard();
  h+='<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:14px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>';
  h+='<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>';

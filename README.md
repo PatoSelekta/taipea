@@ -102,7 +102,12 @@ Taipea is for you if:
   The Mic (Dictation) key 🎙 (F5) can start and stop Taipea too (optional).
 - **Permission checks.** If Accessibility is off, Taipea tells you, keeps your text on the
   clipboard (paste it with Cmd + V) and shows a big **Open Accessibility settings** button. If
-  a recording comes back empty, it points you to the Microphone permission.
+  a recording comes back empty, it points you to the Microphone permission. Settings ›
+  Permissions has the same two buttons at any time; they open the exact System Settings pane
+  (on macOS 27 the Accessibility permission list is **Device Control and Data Access**).
+- **Preferred microphone.** Settings › Microphone chooses which input Taipea records with,
+  without changing the Mac's default. If that device is unplugged, Taipea uses the system
+  default until you plug it in again.
 
 ## Privacy: 100% local
 
@@ -238,12 +243,16 @@ macOS protects your microphone and keyboard. You have to allow these once. Taipe
 inside Hammerspoon, so the permission is for **Hammerspoon**:
 
 1. **Accessibility:** System Settings › Privacy & Security › Accessibility › turn on
-   **Hammerspoon**. Needed to paste the text where your cursor is (Taipea presses Cmd+V
-   for you) and to notice Control + Command, Option + Command, Escape and the Mic key.
-   Control + Option + Space works without it.
+   **Hammerspoon** (on macOS 27 that permission list is titled **Device Control and Data
+   Access**). Needed to paste the text where your cursor is (Taipea presses Cmd+V for you)
+   and to notice Control + Command, Option + Command, Escape and the Mic key. Control +
+   Option + Space works without it. Settings › Permissions › **Open Accessibility settings**
+   opens that pane.
 2. **Microphone:** the first time you dictate, macOS asks. Click **Allow**. To check
-   later: System Settings › Privacy & Security › Microphone › **Hammerspoon**.
-   Hammerspoon only appears in that list after your first dictation.
+   later: System Settings › Privacy & Security › Microphone › **Hammerspoon**, or Settings ›
+   Permissions › **Open Microphone settings**. Hammerspoon only appears in that list after
+   your first dictation. To pick which mic Taipea uses (without changing the Mac default),
+   use Settings › Microphone.
 
 If a switch is already on but nothing gets pasted, turn it off and on again, then restart
 Hammerspoon.
