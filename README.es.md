@@ -112,7 +112,13 @@ Taipea es para ti si:
   La tecla Micrófono (Dictado) 🎙 (F5) también puede empezar y parar Taipea (opcional).
 - **Revisión de permisos.** Si falta Accesibilidad, Taipea te avisa, deja tu texto en el
   portapapeles (pégalo con Cmd + V) y muestra un botón grande **Abrir ajustes de
-  Accesibilidad**. Si una grabación sale vacía, te lleva al permiso de Micrófono.
+  Accesibilidad**. Si una grabación sale vacía, te lleva al permiso de Micrófono. Ajustes ›
+  Permisos tiene los mismos dos botones en cualquier momento; abren el panel exacto de
+  Ajustes del Sistema (en macOS 27 la lista de Accesibilidad se llama **Control de
+  dispositivos y acceso a datos**).
+- **Micrófono preferido.** Ajustes › Micrófono elige con qué entrada graba Taipea, sin
+  cambiar la entrada por defecto del Mac. Si ese aparato se desconecta, Taipea usa el del
+  sistema hasta que lo vuelvas a enchufar.
 
 ## Privacidad: 100 % local
 
@@ -253,12 +259,16 @@ macOS protege tu micrófono y tu teclado. Tienes que darlos una vez. Taipea corr
 Hammerspoon, así que el permiso es para **Hammerspoon**:
 
 1. **Accesibilidad:** Ajustes del Sistema › Privacidad y seguridad › Accesibilidad ›
-   activa **Hammerspoon**. Se necesita para pegar el texto donde está tu cursor (Taipea
+   activa **Hammerspoon** (en macOS 27 esa lista se llama **Control de dispositivos y
+   acceso a datos**). Se necesita para pegar el texto donde está tu cursor (Taipea
    presiona Cmd+V por ti) y para notar Control + Comando, Opción + Comando, Escape y la
-   tecla Micrófono. Control + Opción + Espacio funciona sin este permiso.
+   tecla Micrófono. Control + Opción + Espacio funciona sin este permiso. Ajustes ›
+   Permisos › **Abrir ajustes de Accesibilidad** abre ese panel.
 2. **Micrófono:** la primera vez que dictes, macOS te pregunta. Haz clic en **Permitir**.
    Para revisarlo después: Ajustes del Sistema › Privacidad y seguridad › Micrófono ›
-   **Hammerspoon**. Hammerspoon solo aparece en esa lista después de tu primer dictado.
+   **Hammerspoon**, o Ajustes › Permisos › **Abrir ajustes de Micrófono**. Hammerspoon solo
+   aparece en esa lista después de tu primer dictado. Para elegir con qué micrófono graba
+   Taipea (sin cambiar el del Mac), usa Ajustes › Micrófono.
 
 Si el interruptor ya está activado pero no se pega nada, apágalo y vuelve a encenderlo, y
 reinicia Hammerspoon.

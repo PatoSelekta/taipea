@@ -4,6 +4,30 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.12] - 2026-11-06
+
+### Added
+- **Preferred microphone in Settings.** Settings › Microphone lists every input (and
+  System default, with the current default name on a second line). Taipea records through
+  that device with sox (`-t coreaudio "<name>"`) for both dictation and voice start/stop,
+  without changing the Mac's default input. The CoreAudio UID is saved in `settings.json`
+  (`inputDevice`; empty = system default). If the saved device is unplugged, Taipea falls
+  back to the system default and shows a warning until you plug it in again.
+- **Always-visible Settings › Permissions card.** Two large buttons open Accessibility and
+  Microphone settings even when no warning banner is showing.
+
+### Fixed
+- **Open Accessibility / Microphone settings opens the exact pane.** The buttons now use
+  `x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility`
+  (and `Privacy_Microphone`), launched with `/usr/bin/open`. `hs.urlevent.openURL` rejects
+  Apple's settings links because they have no `://`, so the old buttons could silently do
+  nothing. On macOS 12 and earlier, or if `open` fails, the previous
+  `com.apple.preference.security?Privacy_*` URL is tried. On macOS 27 the Accessibility
+  permission list is titled Device Control and Data Access (Control de dispositivos y
+  acceso a datos); in-app path hints use that name.
+- **Long option names no longer overlap** in a narrow or Compact window. Choice buttons
+  wrap (`min-height: 60px`, height auto) instead of a fixed 60 px height.
+
 ## [0.2.11] - 2026-11-06
 
 ### Changed

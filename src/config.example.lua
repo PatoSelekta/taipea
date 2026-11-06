@@ -79,6 +79,8 @@ return {
   -- voiceThreshold = "2%",              -- how loud a sound must be to be checked (raise it in noisy rooms)
   -- voiceMaxBurst = 4,                  -- seconds; longer bursts (normal talking) are skipped
   -- voiceDebug   = false,               -- true = write what the listener heard to the log
+  -- inputDevice = "",                   -- CoreAudio UID of the preferred microphone; empty = Mac default (Settings › Microphone)
+  -- inputDeviceName = "",               -- display name saved with it (set automatically)
   -- openAtLogin = true,                 -- start Hammerspoon (and Taipea) when you log in
   -- showAtLogin = false,                -- also open the Taipea window at login
   -- historyMax  = 500,                  -- dictations kept in History

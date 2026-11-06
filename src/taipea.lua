@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.11
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.12
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -71,6 +71,8 @@ local DEFAULTS = {
   voiceThreshold = "2%",                     -- how loud a sound must be to be checked for a phrase
   voiceMaxBurst = 4,                         -- seconds; longer bursts (normal talking) are skipped
   voiceDebug = false,                        -- true = write what the listener heard to the log
+  inputDevice = "",                          -- CoreAudio UID of the preferred microphone; empty = system default
+  inputDeviceName = "",                      -- display name saved with it
 }
 
 local cfg = {}
@@ -184,6 +186,8 @@ local NEWSTR = {
   perm_ax_back="✅ Accessibility is on: pasting works again.",
   perm_mic_hint="\n\n🎤 If this keeps happening, Hammerspoon may not have Microphone permission.\nOpen Taipea › Open Microphone settings.",
   menu_open_ax="⚠️ Open Accessibility settings", menu_open_mic="🎤 Open Microphone settings",
+  mic_set="Microphone: %s", mic_default="Microphone: system default",
+  mic_missing="That microphone is not connected. Using the system default.",
   upd_menu="⬆️ New version available: v%s", upd_new="New version available: v%s", upd_none="You have the latest version (v%s)", upd_err="Couldn't check for updates. Try again later.",
   upd_later="OK, I'll remind you in 7 days", upd_skipped="Skipped v%s", upd_note_t="Taipea v%s is available", upd_note_b="Open Taipea to see what's new.", upd_on="Update check: ON", upd_off="Update check: OFF",
  },
@@ -214,6 +218,8 @@ local NEWSTR = {
   perm_ax_back="✅ Accesibilidad activada: ya se puede pegar.",
   perm_mic_hint="\n\n🎤 Si se repite, puede que Hammerspoon no tenga permiso de Micrófono.\nAbre Taipea › Abrir ajustes de Micrófono.",
   menu_open_ax="⚠️ Abrir ajustes de Accesibilidad", menu_open_mic="🎤 Abrir ajustes de Micrófono",
+  mic_set="Micrófono: %s", mic_default="Micrófono: el del sistema",
+  mic_missing="Ese micrófono no está conectado. Se usa el del sistema.",
   upd_menu="⬆️ Nueva versión disponible: v%s", upd_new="Nueva versión disponible: v%s", upd_none="Tienes la última versión (v%s)", upd_err="No se pudo buscar actualizaciones. Inténtalo más tarde.",
   upd_later="Listo, te lo recuerdo en 7 días", upd_skipped="Se omitió la v%s", upd_note_t="Taipea v%s está disponible", upd_note_b="Abre Taipea para ver las novedades.", upd_on="Buscar actualizaciones: SÍ", upd_off="Buscar actualizaciones: NO",
  },
@@ -513,9 +519,15 @@ end
 local function finalText(e) return (e.cleaned and e.cleaned ~= "") and e.cleaned or e.raw end
 
 -- ---------- permissions (Accessibility = paste, Microphone = recording; both granted to Hammerspoon) ----------
-local AX_URL  = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-local MIC_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+-- Recent macOS uses the PrivacySecurity extension pane. hs.urlevent.openURL rejects these
+-- (they have no "://"), so we launch them with /usr/bin/open. Legacy URLs are the fallback.
+local AX_URL  = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility"
+local MIC_URL = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone"
 M.AX_URL, M.MIC_URL = AX_URL, MIC_URL
+M.PERM_OLD = {
+  [AX_URL] = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+  [MIC_URL] = "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
+}
 M.axCheck = function() return hs.accessibilityState(false) end   -- tests may replace this
 M.permAx = M.axCheck() and true or false
 M.micWarn = false
@@ -541,7 +553,75 @@ function M.micProblem(msg)
   hs.alert.show(msg..T("perm_mic_hint"), 8)
   if M.refreshUI then M.refreshUI() end
 end
-function M.openPerm(url) hs.urlevent.openURL(url) end
+function M.osMajor()
+  local v = hs.host.operatingSystemVersion
+  if type(v) == "function" then v = v() end
+  return tonumber(type(v) == "table" and v.major) or 13
+end
+-- macOS 27 renamed the Accessibility *permission* list (the sidebar item "Accessibility" is VoiceOver)
+function M.axPaneNames()
+  if M.osMajor() >= 27 then
+    return "Device Control and Data Access", "Control de dispositivos y acceso a datos"
+  end
+  return "Accessibility", "Accesibilidad"
+end
+function M.openPerm(url)
+  local old = M.PERM_OLD[url]
+  if M.osMajor() < 13 and old then url = old end
+  local function launch(u, fallback)
+    log("permission: opening "..u)
+    local t = hs.task.new("/usr/bin/open", function(code)
+      if tonumber(code) == 0 then return end
+      log("permission: open failed ("..tostring(code)..") for "..u)
+      if fallback and fallback ~= u then log("permission: trying legacy URL"); launch(fallback, nil) end
+    end, { u })
+    if not (t and t:start()) then
+      log("permission: could not start open for "..u)
+      if fallback and fallback ~= u then launch(fallback, nil) end
+    end
+  end
+  launch(url, old)
+end
+-- preferred microphone (CoreAudio UID in settings; sox needs the current device name). Never changes the Mac default.
+function M.listMics()
+  local list, ok, devs = {}, pcall(function() return hs.audiodevice.allInputDevices() end)
+  if not ok or type(devs) ~= "table" then return list end
+  for _, d in ipairs(devs) do
+    local uid, name = d:uid(), d:name()
+    if type(uid) == "string" and uid ~= "" and type(name) == "string" and name ~= "" then
+      list[#list + 1] = { uid = uid, name = name }
+    end
+  end
+  table.sort(list, function(a, b) return a.name:lower() < b.name:lower() end)
+  return list
+end
+function M.micDefaultName()
+  local ok, d = pcall(function() return hs.audiodevice.defaultInputDevice() end)
+  if not ok or not d then return "" end
+  return d:name() or ""
+end
+function M.recDevice()
+  local uid = cfg.inputDevice
+  if type(uid) ~= "string" or uid == "" then return nil end
+  local ok, d = pcall(function() return hs.audiodevice.findDeviceByUID(uid) end)
+  local name = (ok and d) and d:name() or nil
+  if type(name) == "string" and name ~= "" then M._micMissingLogged = nil; return name end
+  if not M._micMissingLogged then
+    M._micMissingLogged = true
+    log("saved input "..uid.." not found, using system default")
+  end
+  return nil
+end
+function M.micActive() return M.recDevice() or M.micDefaultName() end
+function M.recCmdArgs(args)
+  local name = M.recDevice()
+  if not name then return cfg.rec, args end
+  local out = { "-q", "-t", "coreaudio", name }
+  for i, a in ipairs(args or {}) do
+    if not (i == 1 and a == "-q") then out[#out + 1] = a end
+  end
+  return (cfg.rec or ""):gsub("rec$", "sox"), out
+end
 
 -- ---------- paste ----------
 -- returns false when pasting is blocked (no Accessibility): the text is then left on the clipboard
@@ -949,12 +1029,18 @@ local function vlSync()
   elseif VL.task then local t = VL.task; VL.task = nil; t:terminate() end
 end
 M.vlSync = vlSync
+function M.restartVoiceListener()
+  if VL.task then local t = VL.task; VL.task = nil; t:terminate() end
+  vlSync()
+end
 vlBurst = function()
   VL.n = VL.n % 3 + 1
   local f = DATA_DIR.."/tmp/voice"..VL.n..".wav"; os.remove(f)
   local thr, cap = cfg.voiceThreshold or "2%", cfg.voiceMaxBurst or 4
   local t0 = hs.timer.secondsSinceEpoch()
-  local t; t = hs.task.new(cfg.rec, function()
+  local args = { "-q", "-c", "1", "-r", "16000", "-b", "16", f, "silence", "1", "0.15", thr, "1", "0.7", thr, "trim", "0", tostring(cap) }
+  local recCmd; recCmd, args = M.recCmdArgs(args)
+  local t; t = hs.task.new(recCmd, function()
     if VL.task ~= t then os.remove(f); return end   -- stopped on purpose
     VL.task = nil
     local secs = wavSeconds(f)
@@ -965,7 +1051,7 @@ vlBurst = function()
       VL.waiting = true; log("voice: recorder keeps stopping, retrying in 30 s")
       after(30, function() VL.waiting = false; VL.quick = 0; vlSync() end)
     else after(0.05, vlSync) end
-  end, { "-q", "-c", "1", "-r", "16000", "-b", "16", f, "silence", "1", "0.15", thr, "1", "0.7", thr, "trim", "0", tostring(cap) })
+  end, args)
   VL.task = t
   if not t:start() then VL.task = nil end
 end
@@ -2701,7 +2787,7 @@ function M.start()
     for _,a in ipairs({"silence","1","0.1",cfg.silenceThreshold,"1",tostring(cfg.silenceSeconds),cfg.silenceThreshold}) do table.insert(args,a) end
   end
   for _,a in ipairs({"trim","0",tostring(cfg.maxSeconds)}) do table.insert(args,a) end
-  local recCmd = cfg.rec
+  local recCmd; recCmd, args = M.recCmdArgs(args)
   if M._simInput then recCmd = cfg.rec:gsub("rec$","sox"); args = { M._simInput, "-c", "1", "-r", "16000", "-b", "16", wav } end  -- test hook
   recTask = hs.task.new(recCmd, function()
     recTask = nil
@@ -2815,12 +2901,16 @@ pushState = function()
   for n,_ in pairs(inst) do if not knownL[n] and not n:match(":latest$") and not n:match("embed") then table.insert(lm,{name=n,size="",note=T("note_installed"),installed=true}) end end
   local conv = {}
   for i,e in ipairs(history) do if M.converting[e] then conv[tostring(i)] = M.converting[e] end end
+  local axEn, axEs = M.axPaneNames()
+  local mics = M.listMics()
   local data = { history=history, conv=conv, autoLaunch=hs.autoLaunch(), cfg={ checkForUpdates=(cfg.checkForUpdates~=false), openAtLogin=cfg.openAtLogin, showAtLogin=cfg.showAtLogin, cleanup=cfg.cleanup, style=cfg.style, language=cfg.language, defaultAction=cfg.defaultAction,
      autoStop=cfg.autoStop, silenceSeconds=cfg.silenceSeconds, silenceThreshold=cfg.silenceThreshold, modelName=cfg.modelName, ollamaModel=cfg.ollamaModel, uiSize=cfg.uiSize, uiLanguage=cfg.uiLanguage, showOverlay=cfg.showOverlay,
      voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords,
      hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id, escStop=(cfg.escStop~=false), micKey=(cfg.micKey==true),
+     inputDevice=(cfg.inputDevice or ""), inputDeviceName=(cfg.inputDeviceName or ""),
      customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
-     look=look, perm={ ax=M.permAx, mic=M.micWarn },
+     look=look, perm={ ax=M.permAx, mic=M.micWarn, axPane=axEn, axPaneEs=axEs },
+     mics=mics, micDefault=M.micDefaultName(), micActive=M.micActive(),
      upd={ cur=M.VERSION, latest=M.upd.latest or "", banner=M.updWanted(), on=(cfg.checkForUpdates~=false), checking=M.upd.checking, result=M.upd.result or "",
        last=(tonumber(saved.updLastCheck) and os.date("%Y-%m-%d %H:%M", tonumber(saved.updLastCheck)) or "") }, pal=M.palette(), fabThemes=FAB_THEMES, fabHidden=(fab and M._fabHidR or ""), fabSessionHidden=M.fabSessionHidden, runApps=M._runApps,
      recover=(M.recoverable and fmtSecs(M.recoverable.secs) or ""),
@@ -2834,6 +2924,7 @@ pushState = function()
   if next(conv)==nil then js = js:gsub('"conv":%[%]','"conv":{}') end
   if #(cfg.customWords or {})==0 then js = js:gsub('"customWords":{}','"customWords":[]') end
   if #(cfg.hideApps or {})==0 then js = js:gsub('"hideApps":{}','"hideApps":[]') end
+  if #mics==0 then js = js:gsub('"mics":{}','"mics":[]') end
   appWin:evaluateJavaScript("render("..js..")")
 end
 
@@ -2920,6 +3011,17 @@ function M.handle(a)
       hs.alert.show(v and T("login_on") or T("login_off"))
     elseif k=="voiceControl" then setOpt(k, v and true or false); vlSync(); refresh()
       hs.alert.show(cfg.voiceControl and T("voice_on", (cfg.startPhrases or {})[1] or "") or T("voice_off"))
+    elseif k=="inputDevice" then
+      local uid, name, missing = tostring(v or ""), "", false
+      if uid ~= "" then
+        local ok, d = pcall(function() return hs.audiodevice.findDeviceByUID(uid) end)
+        name = (ok and d and d:name()) or ""
+        if name == "" then uid = ""; missing = true; log("inputDevice: unknown UID, using system default") end
+      end
+      saved.inputDeviceName = name; cfg.inputDeviceName = name
+      setOpt("inputDevice", uid); M._micMissingLogged = nil
+      hs.alert.show(missing and T("mic_missing") or (uid ~= "" and T("mic_set", name) or T("mic_default")))
+      M.restartVoiceListener()
     elseif k=="floatButton" or k=="cardWithFab" then setOpt(k, v and true or false); showFab()
       if state == "rec" then if M.cardWanted() then showOverlay() else hideOverlay() end end
       if k=="floatButton" then hs.alert.show(cfg.floatButton and T("fab_on") or T("fab_off")) else hs.alert.show(cfg.cardWithFab and T("card_on") or T("card_off")) end
@@ -3055,7 +3157,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.11"
+local VERSION = "0.2.12"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

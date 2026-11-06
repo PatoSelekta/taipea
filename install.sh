@@ -12,7 +12,7 @@
 # Safe to run again: steps that are already done are skipped.
 set -euo pipefail
 
-TAIPEA_VERSION="0.2.11"
+TAIPEA_VERSION="0.2.12"
 REPO="${TAIPEA_REPO:-PatoSelekta/taipea}"
 REF="${TAIPEA_REF:-main}"
 DATA="$HOME/Library/Application Support/Taipea"
@@ -292,8 +292,10 @@ info "macOS los pide; Taipea no puede darlos por sí solo."
 info ""
 info "1. Accessibility → turn ON Hammerspoon. Needed to paste the text."
 info "   System Settings › Privacy & Security › Accessibility"
+info "   (macOS 27+: Privacy & Security › Device Control and Data Access)"
 info "   Accesibilidad → activa Hammerspoon. Se necesita para pegar el texto."
 info "   Ajustes del Sistema › Privacidad y seguridad › Accesibilidad"
+info "   (macOS 27+: Privacidad y seguridad › Control de dispositivos y acceso a datos)"
 info ""
 info "2. Microphone → macOS asks the first time you dictate: click Allow."
 info "   If the recording is always empty, check:"
@@ -306,10 +308,12 @@ info "If a switch was already on but Taipea does not paste, turn it off and on a
 info "Si el interruptor ya estaba activado pero Taipea no pega, apágalo y vuelve a encenderlo."
 if [ "$NO_START" != 1 ]; then
   if ask "Open the Accessibility settings now? / ¿Abrir los ajustes de Accesibilidad ahora?" y; then
-    open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" || true
+    open "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility" \
+      || open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" || true
   fi
   if ask "Open the Microphone settings too? / ¿Abrir también los ajustes de Micrófono?" n; then
-    open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" || true
+    open "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone" \
+      || open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" || true
   fi
 fi
 

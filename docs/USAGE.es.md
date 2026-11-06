@@ -27,13 +27,16 @@ son para **Hammerspoon**:
 
 1. **Accesibilidad**, para que Taipea pueda pegar donde está tu cursor. El instalador
    ofrece abrir esa página por ti. Ve a Ajustes del Sistema › Privacidad y seguridad ›
-   Accesibilidad y activa **Hammerspoon**.
+   Accesibilidad y activa **Hammerspoon**. En macOS 27 esa lista se llama **Control de
+   dispositivos y acceso a datos** (el ítem Accesibilidad de la barra lateral es VoiceOver,
+   no este permiso).
 2. **Micrófono**. macOS pregunta la primera vez que dictas. Haz clic en **Permitir**.
 
 Si Accesibilidad está apagada, la ventana de Taipea muestra un aviso rojo con un botón
 grande **Abrir ajustes de Accesibilidad**. Tu texto no se pierde: queda en el portapapeles
 (presiona Cmd + V) y en el Historial. Si una grabación sale vacía, un aviso naranja te
-lleva a los ajustes de Micrófono.
+lleva a los ajustes de Micrófono. Ajustes › Permisos tiene los dos botones siempre.
+Ajustes › Micrófono elige con qué entrada graba Taipea, sin cambiar la del Mac.
 
 <img src="images/permission-banner-es.png" width="570" alt="Ventana de Taipea con un aviso rojo arriba: El permiso de Accesibilidad está apagado, con un botón rojo grande Abrir ajustes de Accesibilidad">
 

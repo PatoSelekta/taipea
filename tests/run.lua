@@ -62,6 +62,27 @@ hs.application = setmetatable({ frontmostApplication = function() return front e
   watcher = { new = function() return { start = function() end } end, activated = 1 } }, { __index = function() return proxy() end })
 hs.caffeinate = { watcher = { new = function() return { start = function() end } end }, sessionProperties = function() return {} end }
 hs.webview = setmetatable({}, { __index = function() return proxy() end })
+fake.osVersion = { major = 14, minor = 0, patch = 0 }
+hs.host.operatingSystemVersion = function() return fake.osVersion or { major = 14 } end
+fake.mics = {
+  { uid = "BuiltInMicDevice", name = "MacBook Pro Microphone" },
+  { uid = "Studio", name = "Studio Display Microphone" },
+}
+local function micObj(m)
+  if not m then return nil end
+  return { uid = function() return m.uid end, name = function() return m.name end }
+end
+hs.audiodevice = {
+  allInputDevices = function()
+    local o = {}
+    for i, m in ipairs(fake.mics or {}) do o[i] = micObj(m) end
+    return o
+  end,
+  findDeviceByUID = function(uid)
+    for _, m in ipairs(fake.mics or {}) do if m.uid == uid then return micObj(m) end end
+  end,
+  defaultInputDevice = function() return micObj((fake.mics or {})[1]) end,
+}
 
 package.preload["hs.ipc"] = function() return true end
 local HOME = "/nonexistent-home"
@@ -336,7 +357,12 @@ check("permission state back on", M.permAx == true and fake.lastAlert == M.T("pe
 M.axCheck, hs.pasteboard = realAx, realPB
 M.micProblem(M.T("no_speech"))
 check("mic hint shown", M.micWarn == true and (fake.lastAlert or ""):find(M.T("perm_mic_hint"), 1, true) ~= nil)
-check("permission URLs", M.AX_URL:find("Privacy_Accessibility", 1, true) and M.MIC_URL:find("Privacy_Microphone", 1, true))
+check("permission URLs use the PrivacySecurity extension",
+  M.AX_URL:find("PrivacySecurity.extension", 1, true) and M.AX_URL:find("Privacy_Accessibility", 1, true)
+  and M.MIC_URL:find("PrivacySecurity.extension", 1, true) and M.MIC_URL:find("Privacy_Microphone", 1, true))
+check("legacy permission URLs kept as fallback",
+  M.PERM_OLD[M.AX_URL]:find("preference.security?Privacy_Accessibility", 1, true)
+  and M.PERM_OLD[M.MIC_URL]:find("preference.security?Privacy_Microphone", 1, true))
 
 -- ---------- v0.2.5: modifier-only shortcuts act on press (Control + Command, Option + Command) ----------
 local F = "flags"
@@ -508,13 +534,13 @@ check("older release: no banner", U.result == "ok" and M.updWanted() == false an
 check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
 M.updResult(200, gh(M.VERSION), false)
 check("same release: no banner", U.result == "ok" and M.updWanted() == false)
-M.updResult(200, gh("v0.2.12"), false)
-check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.12" and S.updLatest == "0.2.12" and M.updWanted() == true)
-check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.12" and S.updUrl == U.url)
-check("newer release: one notification", notes == 1 and S.updNotified == "0.2.12")
-M.updResult(200, gh("v0.2.12"), false)
+M.updResult(200, gh("v0.2.13"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.13" and S.updLatest == "0.2.13" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.13" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.2.13")
+M.updResult(200, gh("v0.2.13"), false)
 check("same new release again: no second notification", notes == 1)
-M.updResult(200, gh("v0.2.13", "https://evil.example/x"), false)
+M.updResult(200, gh("v0.2.14", "https://evil.example/x"), false)
 check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
 -- remind me later (7 days) / skip this version
 local now = os.time()
@@ -524,28 +550,28 @@ check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == tr
 check("remind later: alert", fake.lastAlert == M.T("upd_later"))
 S.updRemindUntil = nil
 M.updSkip()
-check("skip: this version hidden", S.updSkip == "0.2.13" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.13"))
-M.updResult(200, gh("v0.2.14"), false)
+check("skip: this version hidden", S.updSkip == "0.2.14" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.14"))
+M.updResult(200, gh("v0.2.15"), false)
 check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
 -- errors are only logged; the last good answer is kept
 for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
   { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
   fake.lastAlert = nil
   local okc = pcall(M.updResult, c[1], c[2], false)
-  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.14" and notes == 3)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.15" and notes == 3)
 end
 M.updResult(-1, nil, true)
 check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
 -- the request itself
 local got = {}
-hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.14")) end
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.15")) end
 check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
 check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
   and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
 M.cfg.checkForUpdates = false
 check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
 fake.lastAlert = nil
-check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.14"))
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.15"))
 U.checking = true
 check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
 U.checking = false
@@ -705,7 +731,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.11", M.VERSION == "0.2.11")
+  check("version 0.2.12", M.VERSION == "0.2.12")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -1337,6 +1363,148 @@ do
   check("no Settings toggle for glass or Reduce Transparency",
     not ui:find("reduceTransparency", 1, true) and not ui:find("backdrop-filter", 1, true)
     and not src:find('contrast = "glass"', 1, true))
+end
+-- ---------- v0.2.12: permission panes + preferred microphone ----------
+do
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+  check("openPerm / rec helpers live on M (no extra main-chunk locals)",
+    src:find("function M.openPerm(url)", 1, true) and src:find("function M.recCmdArgs(args)", 1, true)
+    and src:find("function M.axPaneNames()", 1, true) and src:find("function M.recDevice()", 1, true)
+    and not src:find("\nlocal function recDevice", 1, true) and not src:find("\nlocal function recCmdArgs", 1, true)
+    and not src:find("\nlocal function openPerm", 1, true))
+  check("never changes the Mac default input", not src:find("setDefaultInputDevice", 1, true))
+  check("start uses recCmdArgs before the simInput hook",
+    src:find("recCmd, args = M.recCmdArgs(args)", 1, true)
+    and src:find('if M._simInput then recCmd = cfg.rec:gsub("rec$","sox")', 1, true))
+  check("voice listener uses recCmdArgs",
+    src:find("vlBurst = function()", 1, true) and src:find("M.recCmdArgs(args)", 1, true))
+  fake.osVersion = { major = 27 }
+  local en, es = M.axPaneNames()
+  check("macOS 27 ax pane names", en == "Device Control and Data Access" and es == "Control de dispositivos y acceso a datos")
+  fake.osVersion = { major = 15 }
+  en, es = M.axPaneNames()
+  check("older macOS ax pane names", en == "Accessibility" and es == "Accesibilidad")
+  fake.osVersion = { major = 27 }
+  local nOpen = #fake.tasks
+  M.openPerm(M.AX_URL)
+  local tk = fake.tasks[#fake.tasks]
+  check("openPerm uses /usr/bin/open, not urlevent",
+    #fake.tasks == nOpen + 1 and tk.cmd == "/usr/bin/open"
+    and tk.args[1]:find("PrivacySecurity.extension", 1, true)
+    and tk.args[1]:find("Privacy_Accessibility", 1, true)
+    and not src:find("function M.openPerm(url) hs.urlevent.openURL", 1, true))
+  tk.cb(1)
+  local fb = fake.tasks[#fake.tasks]
+  check("openPerm falls back to the legacy URL when open fails",
+    #fake.tasks == nOpen + 2 and fb.args[1]:find("preference.security?Privacy_Accessibility", 1, true))
+  fb.cb(0)
+  nOpen = #fake.tasks
+  M.openPerm(M.MIC_URL)
+  check("openPerm microphone URL",
+    fake.tasks[#fake.tasks].args[1]:find("Privacy_Microphone", 1, true)
+    and fake.tasks[#fake.tasks].args[1]:find("PrivacySecurity.extension", 1, true))
+  fake.tasks[#fake.tasks].cb(0)
+  fake.osVersion = { major = 12 }
+  nOpen = #fake.tasks
+  M.openPerm(M.AX_URL)
+  check("macOS 12 uses the legacy URL first",
+    fake.tasks[#fake.tasks].args[1]:find("preference.security?Privacy_Accessibility", 1, true))
+  fake.tasks[#fake.tasks].cb(0)
+  fake.osVersion = { major = 14 }
+  local oldRec = M.cfg.rec
+  M.cfg.rec = "/opt/homebrew/bin/rec"
+  M.cfg.inputDevice = ""
+  local cmd, args = M.recCmdArgs({ "-q", "-c", "1", "-r", "16000", "-b", "16", "/tmp/x.wav" })
+  check("no preferred mic: rec args unchanged", cmd == "/opt/homebrew/bin/rec" and args[1] == "-q" and args[2] == "-c" and args[8] == "/tmp/x.wav")
+  M.cfg.inputDevice = "Studio"
+  cmd, args = M.recCmdArgs({ "-q", "-c", "1", "-r", "16000", "-b", "16", "/tmp/x.wav", "trim", "0", "4" })
+  check("preferred mic: sox -t coreaudio name, then output options",
+    cmd == "/opt/homebrew/bin/sox" and args[1] == "-q" and args[2] == "-t" and args[3] == "coreaudio"
+    and args[4] == "Studio Display Microphone" and args[5] == "-c" and args[6] == "1" and args[7] == "-r"
+    and args[8] == "16000" and args[9] == "-b" and args[10] == "16" and args[11] == "/tmp/x.wav"
+    and args[12] == "trim" and args[13] == "0" and args[14] == "4")
+  check("recDevice returns the current CoreAudio name", M.recDevice() == "Studio Display Microphone")
+  M.cfg.inputDevice = "Gone"
+  M._micMissingLogged = nil
+  cmd, args = M.recCmdArgs({ "-q", "-c", "1", "-r", "16000", "-b", "16", "/tmp/x.wav" })
+  check("missing saved mic falls back to rec / system default",
+    M.recDevice() == nil and cmd == "/opt/homebrew/bin/rec" and args[1] == "-q")
+  local mics = M.listMics()
+  check("listMics returns uid+name sorted by name",
+    #mics == 2 and mics[1].uid == "BuiltInMicDevice" and mics[1].name == "MacBook Pro Microphone"
+    and mics[2].uid == "Studio" and mics[2].name == "Studio Display Microphone")
+  check("micDefaultName is the system default input", M.micDefaultName() == "MacBook Pro Microphone")
+  M.cfg.inputDevice = ""
+  check("micActive without a saved device is the system default", M.micActive() == "MacBook Pro Microphone")
+  M.cfg.inputDevice = "Studio"
+  check("micActive with a saved device is that name", M.micActive() == "Studio Display Microphone")
+  check("inputDevice default is empty (system default)", M.DEFAULTS.inputDevice == "" and M.cfg.inputDeviceName == "")
+  local termAt = {}
+  local obj = { terminate = function() termAt[#termAt + 1] = M.VL.task == nil and "cleared" or "still-set" end }
+  M.VL.task = obj
+  M.cfg.voiceControl = false
+  M.restartVoiceListener()
+  check("restartVoiceListener nils the handle before terminate", #termAt == 1 and termAt[1] == "cleared")
+  obj = { terminate = function() termAt[#termAt + 1] = M.VL.task == nil and "cleared" or "still-set" end }
+  termAt = {}
+  M.VL.task = obj
+  M.handle({ cmd = "set", key = "inputDevice", value = "Studio" })
+  check("set inputDevice saves uid and name", M.cfg.inputDevice == "Studio" and M.cfg.inputDeviceName == "Studio Display Microphone")
+  check("set inputDevice alert", fake.lastAlert == M.T("mic_set", "Studio Display Microphone"))
+  check("set inputDevice stopped the previous listener", M.VL.task ~= obj)
+  M.handle({ cmd = "set", key = "inputDevice", value = "Nope" })
+  check("unknown UID resets to system default", M.cfg.inputDevice == "" and M.cfg.inputDeviceName == "")
+  check("unknown UID alert", fake.lastAlert == M.T("mic_missing"))
+  M.handle({ cmd = "set", key = "inputDevice", value = "" })
+  check("empty UID is system default", M.cfg.inputDevice == "" and fake.lastAlert == M.T("mic_default"))
+  M.cfg.voiceControl = true
+  M.cfg.whisper = M.cfg.whisper or "/usr/local/bin/whisper-cli"
+  M.cfg.inputDevice = "Studio"
+  local nVoice = #fake.tasks
+  M.vlSync()
+  local vt = fake.tasks[#fake.tasks]
+  check("voice listener records through sox -t coreaudio",
+    #fake.tasks == nVoice + 1 and vt.cmd == "/opt/homebrew/bin/sox" and vt.args[2] == "-t"
+    and vt.args[3] == "coreaudio" and vt.args[4] == "Studio Display Microphone"
+    and vt.args[5] == "-c" and vt.args[#vt.args] == "4")
+  if M.VL.task then local t = M.VL.task; M.VL.task = nil; t:terminate() end
+  M.cfg.voiceControl = false
+  M.cfg.inputDevice = ""
+  M.cfg.inputDeviceName = ""
+  M.cfg.rec = oldRec
+  check("Settings Microphone card is always in the page",
+    ui:find("id=miccard", 1, true) and ui:find("micCard:'Microphone'", 1, true)
+    and ui:find("micCard:'Micrófono'", 1, true) and ui:find("micDefault:'System default'", 1, true)
+    and ui:find("function micCard()", 1, true) and ui:find("opts('inputDevice'", 1, true))
+  check("Settings Permissions card is always in the page",
+    ui:find("id=permcard", 1, true) and ui:find("permCard:'Permissions'", 1, true)
+    and ui:find("permCard:'Permisos'", 1, true) and ui:find("function permCard()", 1, true)
+    and ui:find("send({cmd:\\'openAx\\'})", 1, true) and ui:find("permHint:", 1, true))
+  check("axPath uses the OS pane name placeholder",
+    ui:find("axPath:'System Settings › Privacy & Security › %s › Hammerspoon", 1, true)
+    and ui:find("t('axPath',axPane())", 1, true)
+    and ui:find("t('permHint',axPane())", 1, true))
+  check("opts helper uses wrapping .opts, not .row",
+    ui:find("function opts(key,list){return '<div class=opts>'", 1, true) ~= nil)
+  check("option buttons wrap and grow (min-height 60px, height auto)",
+    ui:find(".opts{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}", 1, true)
+    and ui:find("min-height:60px;height:auto", 1, true)
+    and ui:find("overflow-wrap:anywhere", 1, true)
+    and ui:find(".opt small{display:block", 1, true))
+  check("permission and mic cards stay ≥60 px in Compact",
+    ui:find("body.compact #sizecard,body.compact #langcard,body.compact #miccard,body.compact #permcard", 1, true) ~= nil)
+  check("permission strings in both Lua languages",
+    M.STR.en.mic_set:find("Microphone", 1, true) and M.STR.es.mic_set:find("Micrófono", 1, true)
+    and M.STR.en.mic_default:find("system default", 1, true) and M.STR.es.mic_missing:find("conectado", 1, true))
+  check("installer uses the PrivacySecurity deep link with a legacy fallback",
+    (function()
+      local f = io.open((arg[0]:match("^(.*)/") or ".") .. "/../install.sh"); if not f then return false end
+      local s = f:read("a"); f:close()
+      return s:find("com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility", 1, true)
+        and s:find("com.apple.preference.security?Privacy_Accessibility", 1, true)
+        and s:find("Device Control and Data Access", 1, true)
+    end)())
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)
