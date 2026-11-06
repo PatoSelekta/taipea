@@ -4,6 +4,31 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.10] - 2026-11-06
+
+### Fixed
+- **Reload no longer throws away a recording that can still be recovered.** On load, Taipea
+  now offers recovery before it sweeps leftover live-session folders, so a Hammerspoon
+  reload or crash does not delete the audio it needs.
+- **A failed Whisper run keeps the audio.** If whisper-cli exits with an error, the
+  recording is moved out of the session folder before that folder is deleted, then
+  recovery is offered.
+- **Cancel then start no longer pastes the old take.** Leftover cleanup, finish, Whisper
+  and stop-timer callbacks ignore a job that was cancelled or replaced. Finish does not
+  write History or paste in that case. Recover also isolates itself from leftover
+  callbacks.
+- **A killed live-slice Whisper run no longer blinds Cancel and the watchdog.** It only
+  clears the task handle if it still owns it, so a newer full-file transcription can
+  keep going.
+- **A long cleanup is not treated as a stuck job.** In-flight Ollama cleanup counts as
+  busy work for the 60-second watchdog. The 180-second hard ceiling is unchanged.
+- **Voice start/stop flags no longer leak into the next dictation.** They are cleared
+  after a watchdog reset, a Whisper failure, or an empty recording, not only after
+  Cancel, nothing-heard, or a successful take.
+- **A failed model download can be retried without reloading Hammerspoon.** The Models
+  tab shows a Retry button (same large control, at least 60 px tall) instead of leaving
+  the failure text in place of the button.
+
 ## [0.2.9] - 2026-11-06
 
 ### Added

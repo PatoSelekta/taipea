@@ -508,13 +508,13 @@ check("older release: no banner", U.result == "ok" and M.updWanted() == false an
 check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
 M.updResult(200, gh(M.VERSION), false)
 check("same release: no banner", U.result == "ok" and M.updWanted() == false)
-M.updResult(200, gh("v0.2.10"), false)
-check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.10" and S.updLatest == "0.2.10" and M.updWanted() == true)
-check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.10" and S.updUrl == U.url)
-check("newer release: one notification", notes == 1 and S.updNotified == "0.2.10")
-M.updResult(200, gh("v0.2.10"), false)
+M.updResult(200, gh("v0.2.11"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.11" and S.updLatest == "0.2.11" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.11" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.2.11")
+M.updResult(200, gh("v0.2.11"), false)
 check("same new release again: no second notification", notes == 1)
-M.updResult(200, gh("v0.2.11", "https://evil.example/x"), false)
+M.updResult(200, gh("v0.2.12", "https://evil.example/x"), false)
 check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
 -- remind me later (7 days) / skip this version
 local now = os.time()
@@ -524,28 +524,28 @@ check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == tr
 check("remind later: alert", fake.lastAlert == M.T("upd_later"))
 S.updRemindUntil = nil
 M.updSkip()
-check("skip: this version hidden", S.updSkip == "0.2.11" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.11"))
-M.updResult(200, gh("v0.2.12"), false)
+check("skip: this version hidden", S.updSkip == "0.2.12" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.12"))
+M.updResult(200, gh("v0.2.13"), false)
 check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
 -- errors are only logged; the last good answer is kept
 for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
   { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
   fake.lastAlert = nil
   local okc = pcall(M.updResult, c[1], c[2], false)
-  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.12" and notes == 3)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.13" and notes == 3)
 end
 M.updResult(-1, nil, true)
 check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
 -- the request itself
 local got = {}
-hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.12")) end
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.13")) end
 check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
 check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
   and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
 M.cfg.checkForUpdates = false
 check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
 fake.lastAlert = nil
-check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.12"))
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.13"))
 U.checking = true
 check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
 U.checking = false
@@ -705,7 +705,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.9", M.VERSION == "0.2.9")
+  check("version 0.2.10", M.VERSION == "0.2.10")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -1008,6 +1008,250 @@ do
   check("bench --plan runs offline on a local wav", (okp or code == 0) and out:find("0.0-24.0", 1, true) and out:find("T_full", 1, true) and not out:find("http", 1, true))
   os.remove(bp)
   M.cfg.liveTranscribe = true
+end
+
+-- ---------- v0.2.10: dictation-pipeline stability ----------
+do
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+
+  check("helpers live on the module (no extra main-chunk locals)",
+    type(M.keepAudioForRecovery) == "function" and type(M.jobStale) == "function"
+    and type(M.abortIfDone) == "function" and type(M.clearVoiceFlags) == "function"
+    and type(M.finish) == "function" and type(M._setCancelled) == "function")
+
+  -- 1. reload recovery order: checkRecovery before the load-time liveSweep()
+  local recAt, sweepAt
+  do
+    local i = 0
+    while true do
+      local a, b = src:find("\nM.checkRecovery()\n", i, true)
+      if not a then break end
+      recAt = a; i = b
+    end
+    i = 0
+    while true do
+      local a, b = src:find("\nM.liveSweep()\n", i, true)
+      if not a then break end
+      sweepAt = a; i = b
+    end
+  end
+  check("load recovers interrupted audio before sweeping leftover session folders",
+    recAt and sweepAt and recAt < sweepAt)
+
+  -- keepAudioForRecovery moves the wav out of tmp/s<gen>/ so a later sweep cannot delete it
+  local srcWav = os.tmpname()
+  local recoverWav = "/nonexistent-home/Library/Application Support/Taipea/tmp/recover.wav"
+  do local rf = io.open(srcWav, "wb"); if rf then rf:write("RIFF" .. string.rep("x", 100)); rf:close() end end
+  if M.keepAudioForRecovery then
+    local moved
+    local realRename = os.rename
+    os.rename = function(a, b)
+      if a == srcWav then moved = b; os.remove(a); return true end
+      return realRename(a, b)
+    end
+    local kept = M.keepAudioForRecovery(srcWav)
+    os.rename = realRename
+    check("keepAudioForRecovery moves the recording out of the session folder",
+      kept == recoverWav and moved == recoverWav)
+    check("session-folder copy is gone after keep", io.open(srcWav, "r") == nil)
+  else
+    check("keepAudioForRecovery moves the recording out of the session folder", false)
+    check("session-folder copy is gone after keep", false)
+  end
+  os.remove(srcWav)
+
+  -- 2. whisper-failure path keeps audio before liveEndSession deletes the folder
+  do
+    local i = src:find('T("trans_failed")', 1, true)
+    local fail = i and src:sub(i - 400, i) or ""
+    check("whisper failure keeps audio before deleting the session folder",
+      fail:find("keepAudioForRecovery", 1, true) ~= nil
+      and fail:find("liveEndSession", 1, true) ~= nil
+      and fail:find("keepAudioForRecovery") < fail:find("liveEndSession")
+      and fail:find("clearVoiceFlags", 1, true) ~= nil)
+  end
+
+  -- 3. cancel-then-start: leftover callbacks must not touch the new job
+  local ready = type(M.jobStale) == "function" and type(M.abortIfDone) == "function"
+    and type(M._setCancelled) == "function" and type(M.finish) == "function"
+  M.LIVE.gen = 5
+  check("jobStale: other gen", ready and M.jobStale(3) == true)
+  check("jobStale: current gen", ready and M.jobStale(5) == false)
+  check("jobStale: nil gen", ready and M.jobStale(nil) == true)
+
+  if ready then
+    M._setCancelled(false)
+    M._setState("busy")
+    check("abortIfDone: live job continues", M.abortIfDone(5) == false)
+    check("abortIfDone: replaced job is dropped", M.abortIfDone(4) == true)
+    fake.lastAlert = nil
+    M.toggle()
+    check("replaced-job abort does not force the new recording to idle", fake.lastAlert == M.T("still_processing"))
+
+    M._setCancelled(true)
+    M._setState("busy")
+    check("abortIfDone: same-gen cancel returns to idle", M.abortIfDone(5) == true)
+    fake.lastAlert = nil
+    M.toggle()
+    check("same-gen cancel leaves state idle", fake.lastAlert ~= M.T("still_processing"))
+
+    M._setCancelled(true)
+    M._dry, M._dryResult = true, nil
+    M.LIVE.gen = 8
+    M.finish("old leftover text", nil, 8)
+    check("finish does not write History or paste when cancelled", M._dryResult == nil)
+    M._setCancelled(false)
+    M.finish("old leftover text", nil, 7)
+    check("finish does not paste when the job was replaced", M._dryResult == nil)
+    M.finish("hello from this job", nil, 8)
+    check("finish pastes the live job", M._dryResult == "hello from this job")
+    M._dry, M._dryResult = nil, nil
+
+    -- recover bumps gen so leftover cleanup/finish cannot paste into it
+    M._setCancelled(true)
+    M._setState("idle")
+    local g0 = M.LIVE.gen
+    M.recoverable = { raw = "recovered words for the clipboard", wav = recoverWav, secs = 3 }
+    M.cfg.cleanup = false
+    M._dry, M._dryResult = true, nil
+    M.recover()
+    check("recover bumps live gen", M.LIVE.gen == g0 + 1)
+    check("recover runs the current job", M._dryResult == "recovered words for the clipboard")
+    local saved = M._dryResult
+    M.finish("leftover from the cancelled take", nil, g0)
+    check("recover ignores leftover finish from the replaced job", M._dryResult == saved)
+    M._dry, M._dryResult, M.cfg.cleanup = nil, nil, true
+  else
+    check("abortIfDone: live job continues", false)
+    check("abortIfDone: replaced job is dropped", false)
+    check("replaced-job abort does not force the new recording to idle", false)
+    check("abortIfDone: same-gen cancel returns to idle", false)
+    check("same-gen cancel leaves state idle", false)
+    check("finish does not write History or paste when cancelled", false)
+    check("finish does not paste when the job was replaced", false)
+    check("finish pastes the live job", false)
+    check("recover bumps live gen", false)
+    check("recover runs the current job", false)
+    check("recover ignores leftover finish from the replaced job", false)
+  end
+
+  check("stop timers ignore a replaced job",
+    src:find("if cancelled or M.jobStale(gen) then return end", 1, true) ~= nil)
+  check("dictation cleanText aborts a replaced job",
+    src:find("M.jobStale(gen) or cancelled", 1, true) ~= nil)
+
+  -- 4. a killed live-slice Whisper callback must not clear a newer full-file handle
+  local sliceTask, fullTask = { id = "slice" }, { id = "full" }
+  local item = { gen = M.LIVE.gen - 1, task = sliceTask }
+  M.wTask, M.LIVE.task, M.LIVE.cur = fullTask, fullTask, { other = true }
+  M.liveOnSlice(item, 1, "", 0)
+  check("killed slice does not clear a newer Whisper handle",
+    M.wTask == fullTask and M.LIVE.task == fullTask and M.LIVE.cur ~= nil)
+  item.task, M.wTask, M.LIVE.task, M.LIVE.cur = sliceTask, sliceTask, sliceTask, item
+  M.liveOnSlice(item, 1, "", 0)
+  check("slice clears only the handle it still owns",
+    M.wTask == nil and M.LIVE.task == nil and M.LIVE.cur == nil)
+  check("live slice stores its own task on the item", src:find("item.task = M.wTask", 1, true) ~= nil)
+
+  -- 5. long Ollama cleanup is busy work for the 60s watchdog; 180s ceiling stays
+  check("watchdog treats in-flight cleanup as busy work", src:find("or M._cleaning", 1, true) ~= nil)
+  check("watchdog keeps a 180-second hard ceiling", src:find("age > 180", 1, true) ~= nil)
+  M._cleaning = true
+  M.watchdogReset("cleanup-flag check")
+  check("watchdog reset clears the in-flight cleanup flag", M._cleaning == false)
+
+  local held
+  local realPost = hs.http.asyncPost
+  fake.ollamaList = "NAME\ngemma4:e4b x\n"
+  hs.http.asyncPost = function(_, _, _, cb) held = cb end
+  if type(M._setCancelled) == "function" then M._setCancelled(false) end
+  M._setState("busy")
+  M.cfg.cleanup = true
+  M._cleaning = false
+  M.afterWhisper("hola equipo esto es una prueba bastante larga para la limpieza")
+  check("cleanup marks the job as in-flight", M._cleaning == true)
+  local gClean = M.LIVE.gen
+  M.LIVE.gen = gClean + 1
+  M._dry, M._dryResult = true, nil
+  if held then held(200, "Hola equipo, esto es una prueba bastante larga para la limpieza.") end
+  check("stale cleanup callback does not paste into the new job", M._dryResult == nil)
+  check("stale cleanup callback does not clear a newer job's cleaning flag", M._cleaning == true)
+  M._cleaning = false
+  hs.http.asyncPost = realPost
+  M._dry, M._dryResult = nil, nil
+  M.LIVE.gen = gClean
+
+  -- 6. voice start/stop flags must not leak after watchdog, whisper fail, or empty recording
+  M._voiceSession, M._voicePrefix, M._voiceStopped = true, "hola", true
+  if M.clearVoiceFlags then M.clearVoiceFlags() end
+  check("clearVoiceFlags resets start/stop session flags",
+    type(M.clearVoiceFlags) == "function"
+    and M._voiceSession == false and M._voicePrefix == nil and M._voiceStopped == false)
+
+  M._voiceSession, M._voicePrefix, M._voiceStopped = true, "prefijo", true
+  M.watchdogReset("voice-flag check")
+  check("watchdog reset clears voice-session flags",
+    M._voiceSession == false and M._voicePrefix == nil and M._voiceStopped == false)
+
+  M._voiceStopped, M._voicePrefix, M._voiceSession = true, "x", true
+  M.nothingHeard("voice-flag check")
+  check("nothing-heard still clears voice-session flags",
+    M._voiceSession == false and M._voicePrefix == nil and M._voiceStopped == false)
+
+  local whisperBin = os.tmpname()
+  do local f = io.open(whisperBin, "w"); f:write("x"); f:close() end
+  local oldWhisper, oldAttr = M.cfg.whisper, hs.fs.attributes
+  M.cfg.whisper = whisperBin
+  hs.fs.attributes = function(p, a)
+    if p == "/tmp/empty-rec.wav" then return a and nil or { size = 44 } end
+    return oldAttr(p, a)
+  end
+  M._voiceSession, M._voicePrefix, M._voiceStopped = true, "queda", true
+  M.transcribeFile("/tmp/empty-rec.wav")
+  check("empty recording clears voice-session flags",
+    M._voiceSession == false and M._voicePrefix == nil and M._voiceStopped == false)
+  hs.fs.attributes, M.cfg.whisper = oldAttr, oldWhisper
+  os.remove(whisperBin)
+
+  check("whisper-fail and empty-recording paths call clearVoiceFlags",
+    src:find("M.clearVoiceFlags()", 1, true) ~= nil)
+
+  -- 7. failed model download is retryable; Models UI shows a Retry button
+  check("dlBusy: in-progress", type(M.dlBusy) == "function" and M.dlBusy("Starting…") == true and M.dlBusy("12.3%") == true and M.dlBusy("Empezando…") == true)
+  check("dlBusy: failed English and Spanish are retryable",
+    type(M.dlBusy) == "function" and M.dlBusy("Failed (22)") == false and M.dlBusy("Falló (22)") == false)
+  check("dlBusy: idle", type(M.dlBusy) == "function" and M.dlBusy(nil) == false)
+
+  local nTasks = #fake.tasks
+  M.cfg.uiLanguage = "es"
+  M.handle({ cmd = "dlWhisper", file = "ggml-tiny.bin" })
+  check("download starts", #fake.tasks == nTasks + 1)
+  nTasks = #fake.tasks
+  M.handle({ cmd = "dlWhisper", file = "ggml-tiny.bin" })
+  check("in-progress download is not restarted", #fake.tasks == nTasks)
+  fake.tasks[#fake.tasks].cb(22)
+  nTasks = #fake.tasks
+  M.handle({ cmd = "dlWhisper", file = "ggml-tiny.bin" })
+  check("failed download can be retried without reloading Hammerspoon", #fake.tasks == nTasks + 1)
+  fake.tasks[#fake.tasks].cb(0)
+  M.cfg.uiLanguage = "auto"
+
+  nTasks = #fake.tasks
+  M.handle({ cmd = "dlLLM", name = "gemma4:e2b" })
+  fake.tasks[#fake.tasks].cb(1)
+  nTasks = #fake.tasks
+  M.handle({ cmd = "dlLLM", name = "gemma4:e2b" })
+  check("failed Ollama pull can be retried without reloading Hammerspoon", #fake.tasks == nTasks + 1)
+
+  check("Models UI has Retry in English and Spanish",
+    ui:find("retry:'Retry'", 1, true) ~= nil and ui:find("retry:'Reintentar'", 1, true) ~= nil)
+  check("failed download shows a Retry button (large control class) instead of the failure text",
+    ui:find("t('retry')", 1, true) ~= nil and ui:find("/^Failed|^Falló/", 1, true) ~= nil
+    and ui:find("(S.dl[m.file]?t('retry'):t('download'))", 1, true) ~= nil
+    and ui:find("class=y", 1, true) ~= nil)
+  check("Retry uses the same large download button class (60px)",
+    ui:find("button class=y", 1, true) ~= nil and ui:find("button{height:60px", 1, true) ~= nil)
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

@@ -91,7 +91,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  setup:'⚠ Setup needed',wTitle:'Speech model (Whisper)',wHint:'Saved in ~/Library/Application Support/Taipea/models',lTitle:'Cleanup model (Ollama)',
  nowUsing:'Now using: ',noModel:'⚠ No cleanup model is running. Raw text still works. Start Ollama (brew services start ollama) and download a model below.',
  noOllama:'⚠ Ollama is not installed, so cleanup and styles are off. Raw dictation still works. Install it with: brew install ollama',
- inUse:'✓ In use',use:'Use',download:'Download',refresh:'Refresh list',
+ inUse:'✓ In use',use:'Use',download:'Download',retry:'Retry',refresh:'Refresh list',
  textSize:'Text size',tsNormal:'Normal',tsLarge:'Large',tsXL:'Extra large',contrast:'High contrast',hcAuto:'Auto (Mac: %s)',macOn:'on',macOff:'off',
  rmNote:'Animations follow the macOS Reduce Motion setting (now %s).',
  autoHint:'Stops and pastes by itself after you stop talking for the seconds below.',nowSec:'Now: %s seconds (set in config.lua)',sec:'%s s',
@@ -136,7 +136,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  setup:'⚠ Falta configurar algo',wTitle:'Modelo de voz (Whisper)',wHint:'Se guarda en ~/Library/Application Support/Taipea/models',lTitle:'Modelo de corrección (Ollama)',
  nowUsing:'Usando ahora: ',noModel:'⚠ No hay un modelo de corrección corriendo. El texto original sigue funcionando. Inicia Ollama (brew services start ollama) y descarga un modelo abajo.',
  noOllama:'⚠ Ollama no está instalado, así que la corrección y los estilos están apagados. El dictado original sigue funcionando. Instálalo con: brew install ollama',
- inUse:'✓ En uso',use:'Usar',download:'Descargar',refresh:'Actualizar lista',
+ inUse:'✓ En uso',use:'Usar',download:'Descargar',retry:'Reintentar',refresh:'Actualizar lista',
  textSize:'Tamaño del texto',tsNormal:'Normal',tsLarge:'Grande',tsXL:'Muy grande',contrast:'Alto contraste',hcAuto:'Automático (Mac: %s)',macOn:'sí',macOff:'no',
  rmNote:'Las animaciones siguen el ajuste Reducir movimiento de macOS (ahora: %s).',
  autoHint:'Para y pega solo cuando dejas de hablar durante los segundos de abajo.',nowSec:'Ahora: %s segundos (en config.lua)',sec:'%s s',
@@ -333,11 +333,11 @@ function renderMod(){var h='';
  h+='<div class=card><h3>'+t('wTitle')+'</h3><p class=h>'+t('wHint')+'</p>';
  (S.whisperModels||[]).forEach(m=>{h+='<div class=m><div><b>'+esc(m.name)+'</b><small>'+esc(m.size)+' · '+esc(m.note)+'</small></div>'+
  (m.installed?(S.cfg.modelName==m.file?'<button class=g>'+t('inUse')+'</button>':'<button class=b onclick="set(\'modelName\',\''+m.file+'\')">'+t('use')+'</button>'):
- (S.dl[m.file]?'<span class=prog>'+esc(S.dl[m.file])+'</span>':'<button class=y onclick="send({cmd:\'dlWhisper\',file:\''+m.file+'\'})">'+t('download')+'</button>'))+'</div>'});
+ (S.dl[m.file]&&!/^Failed|^Falló/.test(S.dl[m.file])?'<span class=prog>'+esc(S.dl[m.file])+'</span>':'<button class=y onclick="send({cmd:\'dlWhisper\',file:\''+m.file+'\'})">'+(S.dl[m.file]?t('retry'):t('download'))+'</button>'))+'</div>'});
  h+='</div><div class=card><h3>'+t('lTitle')+'</h3>'+(S.ollama?(S.activeModel?'<p class=h>'+t('nowUsing')+'<b>'+esc(S.activeModel)+'</b></p>':'<p class=h style="color:#ff9f0a">'+t('noModel')+'</p>'):'<p class=h style="color:#ff9f0a">'+t('noOllama')+'</p>');
  (S.llmModels||[]).forEach(m=>{h+='<div class=m><div><b>'+esc(m.name)+'</b><small>'+esc(m.size)+' · '+esc(m.note)+'</small></div>'+
  (m.installed?(S.cfg.ollamaModel==m.name?'<button class=g>'+t('inUse')+'</button>':'<button class=b onclick="set(\'ollamaModel\',\''+m.name+'\')">'+t('use')+'</button>'):
- (S.dl[m.name]?'<span class=prog>'+esc(S.dl[m.name])+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">'+t('download')+'</button>'))+'</div>'});
+ (S.dl[m.name]&&!/^Failed|^Falló/.test(S.dl[m.name])?'<span class=prog>'+esc(S.dl[m.name])+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">'+(S.dl[m.name]?t('retry'):t('download'))+'</button>'))+'</div>'});
  h+='</div><button onclick="send({cmd:\'refresh\'})">'+t('refresh')+'</button>';document.getElementById('ml').innerHTML=h}
 function clr(){var b=document.getElementById('clr');if(b.dataset.a){send({cmd:'clearHistory'});b.dataset.a='';b.textContent=t('clear')}else{b.dataset.a=1;b.textContent=t('clearSure');setTimeout(()=>{b.dataset.a='';b.textContent=t('clear')},4000)}}
 function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();renderPerm();renderUpd();histTop();renderHist();var ae=document.activeElement;if(!(ae&&ae.type=='color'))keepInputs(renderSet);renderMod()}

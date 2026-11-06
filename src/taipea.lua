@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.9
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.10
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -861,6 +861,53 @@ function M.checkRecovery()
 end
 function M.discardRecovery() M.recoverable = nil; clearSession(); os.remove(recoverWav); hs.alert.show(T("recover_discarded")); refresh() end
 
+-- Move the current recording out of the live session folder so liveEndSession/liveSweep
+-- cannot delete it before checkRecovery can offer it back.
+function M.keepAudioForRecovery(file)
+  local keep = file or M._sessWav or wav
+  if keep and keep ~= recoverWav and fileExists(keep) then
+    os.remove(recoverWav)
+    if os.rename(keep, recoverWav) then keep = recoverWav end
+  end
+  if keep and fileExists(keep) then
+    saveSession({ phase = "recording", wav = keep, started = os.date("%F %T") })
+  end
+  return keep
+end
+
+-- True when this callback belongs to a job that was cancelled or replaced.
+-- start, cancel, recover and watchdogReset bump M.LIVE.gen.
+function M.jobStale(gen)
+  return gen == nil or not M.LIVE or M.LIVE.gen ~= gen
+end
+
+-- For in-flight pipeline callbacks: drop a replaced job without touching the new one;
+-- if this job was cancelled, return to idle. Returns true when the caller should stop.
+function M.abortIfDone(gen)
+  if M.jobStale(gen) then return true end
+  if cancelled then
+    state = "idle"
+    if tick then tick:stop() end
+    hideOverlay()
+    clearSession()
+    M._recovering = false
+    if refresh then refresh() end
+    return true
+  end
+  return false
+end
+
+function M.clearVoiceFlags()
+  M._voiceStopped, M._voicePrefix, M._voiceSession = false, nil, false
+end
+
+-- Starting… / percent stay busy; Failed / Falló can be tried again without a reload.
+function M.dlBusy(status)
+  if status == nil or status == false then return false end
+  local s = tostring(status)
+  return not s:match("^Failed") and not s:match("^Falló")
+end
+
 -- ---------- paste last dictation again ----------
 function M.pasteLast(app)
   local e = history[1]
@@ -962,7 +1009,7 @@ local function polishRaw(out)
   if M._voiceStopped then out = stripStop(out, cfg.stopPhrases, cfg.customWords) end
   if M._voiceSession or M._voicePrefix then out = stripStart(out, cfg.startPhrases, cfg.customWords) end
   if M._voicePrefix then out = M._voicePrefix.." "..out end
-  M._voiceStopped, M._voicePrefix, M._voiceSession = false, nil, false
+  M.clearVoiceFlags()
   return out
 end
 M.polishRaw = polishRaw
@@ -1427,6 +1474,7 @@ function M.escWanted(kc, fl)
   return kc == 53 and state == "rec" and cfg.escStop ~= false and not M._capturing and not (fl.cmd or fl.alt or fl.ctrl or fl.shift) and true or false
 end
 function M._setState(s) state = s end   -- tests only
+function M._setCancelled(v) cancelled = v end   -- tests only
 function M.escTapStart()
   if M._escTap then M._escTap:stop() end
   local ty = hs.eventtap.event.types
@@ -1678,7 +1726,8 @@ end
 M.refreshUI = function() refresh() end
 
 -- ---------- pipeline ----------
-local function finish(raw, cleaned)
+local function finish(raw, cleaned, gen)
+  if M.jobStale(gen) or cancelled then return end
   M.liveLogTimes()
   M.liveEndSession()
   state="idle"; if tick then tick:stop() end; hideOverlay()
@@ -1691,11 +1740,11 @@ local function finish(raw, cleaned)
   M.micWarn = false
   addHistory((raw or ""):gsub("^%s+",""):gsub("%s+$",""), cleaned and text or nil)
   refresh()
-  if cancelled then return end
   if recovering then hs.pasteboard.setContents(text); hs.alert.show(T("recovered"), 4); log("RECOVERED: "..text)
   elseif mode=="copy" then hs.pasteboard.setContents(text); hs.alert.show(T("copied_clip")); log("COPIED: "..text)
   elseif doPaste(text, targetApp) ~= false then log("PASTED: "..text) end
 end
+M.finish = finish
 
 local STYLE = {
   light = "Fix grammar, spelling, punctuation and capitalization only. Keep the wording and structure.",
@@ -1846,13 +1895,14 @@ M.splitChunks = splitChunks
 -- clean text chunk by chunk (async, sequential); done(cleanedOrNil, stats)
 -- style: optional override (history re-conversion); such runs ignore the dictation cancel flag
 local function cleanText(raw, done, progress, style)
+  local gen = M.LIVE.gen
   local sty = style or cfg.style
   local chunks = splitChunks(raw, 250)
   local outs, stats = {}, { chunks=#chunks, fallbacks=0, failed=0, t0=hs.timer.secondsSinceEpoch() }
   local model = M._modelOverride or M.activeModel()
   if not model then stats.noModel, stats.failed, stats.secs = true, #chunks, 0; log("cleanup skipped: no Ollama model installed/running"); return done(nil, stats) end
   local function step(i)
-    if cancelled and not M._testing and not style then return done(nil, stats, true) end
+    if not style and not M._testing and (M.jobStale(gen) or cancelled) then return done(nil, stats, true) end
     if i > #chunks then
       stats.secs = hs.timer.secondsSinceEpoch()-stats.t0
       if stats.failed == #chunks then return done(nil, stats) end
@@ -1908,20 +1958,24 @@ end
 
 local warnedNoModel = false
 local function cleanup(raw)
+  local gen = M.LIVE.gen
   local model = M.activeModel()
   if not model then
     if not warnedNoModel then warnedNoModel = true; hs.alert.show(T("cleanup_unavail"), 4) end
-    log("cleanup skipped: no Ollama model; pasting raw"); return finish(raw, nil)
+    log("cleanup skipped: no Ollama model; pasting raw"); return finish(raw, nil, gen)
   end
+  M._cleaning = true
   setOverlay(T("ov_cleaning"), T("ov_fixing", model), true)
   cleanText(raw, function(out, st, wasCancelled)
+    if M.jobStale(gen) then return end
+    M._cleaning = false
     if wasCancelled or cancelled then state="idle"; hideOverlay(); refresh(); return end
     M.LIVE.tCleanup = st.secs or 0
     log(string.format("cleanup done: %d chunk(s), %d fallback(s), %d failed, %.1fs", st.chunks, st.fallbacks, st.failed, st.secs or 0))
     if st.failed==st.chunks then hs.alert.show(T("cleanup_failed"))
     elseif st.fallbacks>0 and st.chunks==1 then hs.alert.show(T("cleanup_too_much"))
     elseif st.fallbacks>0 then hs.alert.show(T("parts_kept", st.fallbacks, st.chunks)) end
-    if not out or out:match("^%s*$") then finish(raw, nil) else finish(raw, (applyWords(out, cfg.customWords))) end
+    if not out or out:match("^%s*$") then finish(raw, nil, gen) else finish(raw, (applyWords(out, cfg.customWords)), gen) end
   end, function(i, n)
     if n>1 then setOverlay(T("ov_cleaning_part", i, n), T("ov_fixing", model), true) end
   end)
@@ -2031,7 +2085,7 @@ function M.nothingHeard(why)
   log("nothing heard ("..why.."): nothing pasted")
   M.liveEndSession()
   state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false
-  M._voiceStopped, M._voicePrefix, M._voiceSession = false, nil, false
+  M.clearVoiceFlags()
   if M._dry then M._dryResult = "" end
   refresh(); hs.alert.show(T("nothing_heard"), 2)
 end
@@ -2375,7 +2429,10 @@ end
 function M.liveSlicePath(n) return (M.LIVE.dir or (DATA.."/tmp")).."/slice-"..tostring(n)..".wav" end
 function M.liveOnSlice(item, code, out, t0)
   local gen = item.gen
-  M.wTask, M.LIVE.task, M.LIVE.cur = nil, nil, nil
+  -- only release handles this slice still owns, so a killed slice cannot wipe a newer Whisper run
+  if M.wTask == item.task then M.wTask = nil end
+  if M.LIVE.task == item.task then M.LIVE.task = nil end
+  if M.LIVE.cur == item then M.LIVE.cur = nil end
   M.LIVE.tWork = (M.LIVE.tWork or 0) + (hs.timer.secondsSinceEpoch() - (t0 or hs.timer.secondsSinceEpoch()))
   if M.liveStale(gen) then return end
   if code ~= 0 then log("live:fallback whisper"); M.liveFallback("whisper"); return end
@@ -2418,6 +2475,7 @@ function M.liveRunSlice(item)
       M.LIVE.promptOverride = nil
       M.liveOnSlice(item, code, out, t0)
     end, whisperArgs(file))
+    item.task = M.wTask
     M.LIVE.task = M.wTask
     if not M.wTask:start() then M.wTask = nil; M.LIVE.task = nil; M.liveFallback("whisper-start") end
   end
@@ -2491,13 +2549,17 @@ function M.testPipeline(f, cb)
 end
 
 local function afterWhisper(out)
+  local gen = M.LIVE.gen
+  if M.abortIfDone(gen) then return end
   out = polishRaw(out)
   if not out:match("^%s*$") then saveSession({ phase="cleaning", wav=M._sessWav, raw=out }) end
-  if cfg.cleanup and not out:match("^%s*$") then cleanup(out) else finish(out, nil) end
+  if cfg.cleanup and not out:match("^%s*$") then cleanup(out) else finish(out, nil, gen) end
 end
 M.afterWhisper = afterWhisper
 -- Whisper's raw text: paste it, retry with the language forced, or drop it (silence)
 function M.afterRaw(out, file)
+  local gen = M.LIVE.gen
+  if M.abortIfDone(gen) then return end
   local lv = M._lv
   if M._voicePrefix then M.afterWhisper(out); return end
   local lang = cfg.language or "auto"
@@ -2517,7 +2579,7 @@ function M.afterRaw(out, file)
       end
       M.wTask = hs.task.new(cfg.whisper, function(code, o)
         M.wTask = nil
-        if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+        if M.abortIfDone(gen) then return end
         o = M.parseWhisper(o)
         log(string.format("whisper retry -l %s exit %d RAW: %s", l, code, o))
         if code == 0 then cands[#cands+1] = { lang = l, text = o } end
@@ -2531,11 +2593,14 @@ function M.afterRaw(out, file)
 end
 transcribe = function(file)
   file = file or wav; M._sessWav = file
+  local gen = M.LIVE.gen
   M._wdKick = true
   if not cfg.whisper or not fileExists(cfg.whisper) then M.watchdogReset("whisper-cli not found", T("wd_nowhisper")); return end
   local sz = (hs.fs.attributes(file) or {}).size or 0
   if sz <= 44 + 3200 then   -- header + 0.1 s of audio
+    if M.jobStale(gen) then return end
     log("watchdog: recording empty ("..sz.." bytes), back to idle")
+    M.clearVoiceFlags()
     M.liveEndSession()
     state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false; refresh()
     M.micProblem(T("wd_empty")); return
@@ -2550,16 +2615,23 @@ transcribe = function(file)
     if overlay then local e=math.floor(hs.timer.secondsSinceEpoch()-recStart); overlay:evaluateJavaScript(string.format("document.getElementById('t').textContent=%q", string.format("%d:%02d",e//60,e%60))) end end end)
   local function go()
   M.trimSilence(file, M._lv, function(wfile, plan)
-  if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+  if M.abortIfDone(gen) then return end
   M.wTask = hs.task.new(cfg.whisper, function(code, out, err)
     M.wTask = nil
-    if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+    if M.abortIfDone(gen) then return end
     M.LIVE.tRaw = hs.timer.secondsSinceEpoch()
     log(string.format("whisper %s exit %d %.1fs RAW: %s", cfg.modelName, code, hs.timer.secondsSinceEpoch()-t0, out or ""))
-    if code ~= 0 then M.liveEndSession(); state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh(); hs.alert.show(T("trans_failed")); return end
+    if code ~= 0 then
+      M.clearVoiceFlags()
+      M.keepAudioForRecovery(file)
+      M.liveEndSession()
+      state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh()
+      hs.alert.show(T("trans_failed"))
+      return
+    end
     local text, segs = M.parseWhisper(out)
     M.tailGuard(text, segs, wfile, plan, function(t2)
-      if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+      if M.abortIfDone(gen) then return end
       M.afterRaw(t2, wfile)
     end)
   end, whisperArgs(wfile))
@@ -2573,7 +2645,7 @@ transcribe = function(file)
     local done = false
     local function next_(lv)
       if done then return end; done = true
-      if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
+      if M.abortIfDone(gen) then return end
       M._lv = lv
       if lv then log("levels: "..M.levelsText(lv)) end
       if M.isSilent(lv) then M.nothingHeard("silent recording, "..M.levelsText(lv)); return end
@@ -2610,6 +2682,7 @@ function M.start()
   M.lastApp = targetApp
   cancelled, mode = false, (cfg.defaultAction=="copy" and "copy" or "paste")
   M.liveBegin()
+  local gen = M.LIVE.gen
   os.remove(wav)
   saveSession({ phase="recording", wav=wav, started=os.date("%F %T") })
   local args = { "-q", "-c", "1", "-r", "16000", "-b", "16", wav }
@@ -2625,7 +2698,7 @@ function M.start()
       state="busy"; sound("Pop")
       M.LIVE.stopT0 = hs.timer.secondsSinceEpoch()
       after(0.2, function()
-        if cancelled then return end
+        if cancelled or M.jobStale(gen) then return end
         if M.LIVE.on then M.liveOnStop() else transcribe() end
       end)
     end
@@ -2642,16 +2715,18 @@ function M.start()
 end
 function M.stop(m)
   if state ~= "rec" then return end
+  local gen = M.LIVE.gen
   mode = m or "paste"; state="busy"; sound("Pop")
   M.LIVE.stopT0 = hs.timer.secondsSinceEpoch()
   if recTask then recTask:interrupt() end
   after(0.3, function()
-    if cancelled then return end
+    if cancelled or M.jobStale(gen) then return end
     if M.LIVE.on then M.liveOnStop() else transcribe() end
   end); refresh()
 end
 function M.cancel()
-  cancelled = true; clearSession(); M._voiceStopped, M._voicePrefix, M._voiceSession, M._recovering = false, nil, false, false
+  cancelled = true; clearSession(); M._recovering = false; M._cleaning = false
+  M.clearVoiceFlags()
   M.LIVE.gen = (M.LIVE.gen or 0) + 1; M.LIVE.on = false; M.LIVE.finishing = false
   if recTask then local t=recTask; recTask=nil; state="busy"; t:interrupt() end
   M.liveKillTasks()
@@ -2666,13 +2741,14 @@ function M.recover()
   if not r then hs.alert.show(T("recover_none")); return end
   if state ~= "idle" then hs.alert.show(T("still_processing")); return end
   M.recoverable = nil
+  M.LIVE.gen = (M.LIVE.gen or 0) + 1
   cancelled, mode, M._recovering = false, "copy", true
   targetApp = nil
   showOverlay(); recStart = hs.timer.secondsSinceEpoch()
   setOverlay(T("recovering"), "", true)
   if type(r.raw)=="string" and r.raw:match("%S") then
     state="busy"; refresh(); M._sessWav = r.wav
-    if cfg.cleanup then cleanup(r.raw) else finish(r.raw, nil) end
+    if cfg.cleanup then cleanup(r.raw) else finish(r.raw, nil, M.LIVE.gen) end
   else fixWavHeader(r.wav); transcribe(r.wav) end
 end
 local function setOpt(k,v) cfg[k]=v; saved[k]=v; saveSettings(); refresh() end
@@ -2682,7 +2758,7 @@ function M.toggleAutoStop() setOpt("autoStop", not cfg.autoStop); hs.alert.show(
 
 -- ---------- downloads ----------
 local function dlWhisper(file)
-  if downloads[file] then return end
+  if downloads[file] and M.dlBusy(downloads[file]) then return end
   downloads[file] = T("starting"); refresh()
   local dest = DATA.."/models/"..file
   local url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"..file
@@ -2698,7 +2774,7 @@ local function dlWhisper(file)
   M["t_"..file]:start()
 end
 local function dlLLM(name)
-  if downloads[name] then return end
+  if downloads[name] and M.dlBusy(downloads[name]) then return end
   if not cfg.ollama then hs.alert.show(T("install_ollama")); return end
   downloads[name] = T("starting"); refresh()
   M["t_"..name] = hs.task.new(cfg.ollama, function(code)
@@ -2926,17 +3002,18 @@ if cfg.showAtLogin and not hs.settings.get("taipea.reloading") then
   if os.time() - up < 600 then after(3, function() M.openApp() end) end
 end
 if cfg.cleanup then M.warmModel() end
+M.checkRecovery()
 M.liveSweep()
-if M.checkRecovery() then after(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
+if M.recoverable then after(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
 -- ---------- watchdog ----------
 -- Checks every 5 s while processing. If transcription never started it starts it; if processing
 -- runs past 60 s with nothing working (or past 180 s at all) it resets to idle and keeps the audio.
 function M.watchdogReset(reason, msg)
   log("watchdog: "..reason.." – reset to idle, audio kept for recovery")
-  local keep = M._sessWav or wav
-  if keep ~= recoverWav and fileExists(keep) then os.remove(recoverWav); if os.rename(keep, recoverWav) then keep = recoverWav end end
-  local function keepIt() if fileExists(keep) then saveSession({ phase="recording", wav=keep, started=os.date("%F %T") }) end end
-  keepIt()
+  M._cleaning = false
+  M.clearVoiceFlags()
+  local keep = M.keepAudioForRecovery()
+  local function keepIt() if keep and fileExists(keep) then saveSession({ phase="recording", wav=keep, started=os.date("%F %T") }) end end
   cancelled = true
   M.LIVE.gen = (M.LIVE.gen or 0) + 1; M.LIVE.on = false; M.LIVE.finishing = false
   M.liveKillTasks()
@@ -2954,7 +3031,7 @@ M._watchdog = hs.timer.doEvery(5, function()
   local now = hs.timer.secondsSinceEpoch()
   M._wdBusy = M._wdBusy or now
   local age = now - M._wdBusy
-  local liveBusy = M.LIVE and (M.LIVE.task or M.LIVE.finishing or M.trimTask or M.lvTask)
+  local liveBusy = (M.LIVE and (M.LIVE.task or M.LIVE.finishing or M.trimTask or M.lvTask)) or M._cleaning
   if not M._wdKick and not M.wTask and not recTask and not liveBusy and age >= 4 and not M._recovering then
     M._wdKick = true; log("watchdog: transcription never started, starting it now"); transcribe(); return
   end
@@ -2967,7 +3044,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.9"
+local VERSION = "0.2.10"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end
