@@ -4,20 +4,21 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.9] - 2026-11-06
 
 ### Added
-- **Live overlapping slices while you talk** (`liveTranscribe`, on by default, no Settings toggle).
-  Taipea snapshots the growing recording every 20 s (24 s windows, 4 s overlap), runs
-  `whisper-cli` on each slice (timestamps on, language Auto, never `-nt` / `-tr`), and
-  stitches the raw text. Stop waits on the last slice. Existing Ollama cleanup still runs
-  **once** on the joined raw. Failures and more than 40 s of unprocessed audio fall back
-  to the current full-file `transcribe()`. Cancel stops slice, trim, and level tasks.
-  Each dictation uses its own `tmp/s<gen>/` folder. The log gets
-  `T_rec`, `T_live_sum`, `T_stop_to_raw`, `T_cleanup`, `T_stop_to_paste`.
-  Set `liveTranscribe = false` in `config.lua` for the old path only.
-- Offline Mac helper `scripts/bench-live.lua` and `docs/BENCH-LIVE.md` to compare live
-  slices vs full-file Whisper on the same local WAV.
+- **Live transcription while you speak** (on by default). Taipea starts turning your
+  voice into text while you are still talking, so Stop waits mainly on the last bit
+  plus cleanup. Language stays Auto (English, Spanish, or both mixed). To use the
+  previous full-file path only, set `liveTranscribe = false` in `config.lua`. There
+  is no new Settings toggle.
+
+### Fixed
+- **Session temp folders are deleted.** The `tmp/s<number>/` folders used during live
+  transcription are removed after paste, copy, nothing-heard, Cancel, an empty
+  recording, a whisper failure, or a watchdog reset. Leftover folders from an earlier
+  session are swept on load and when a new dictation starts. Only those `s*` folders
+  are touched.
 
 ## [0.2.8] - 2026-11-04
 

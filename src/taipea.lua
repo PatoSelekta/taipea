@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.4
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.9
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -1680,6 +1680,7 @@ M.refreshUI = function() refresh() end
 -- ---------- pipeline ----------
 local function finish(raw, cleaned)
   M.liveLogTimes()
+  M.liveEndSession()
   state="idle"; if tick then tick:stop() end; hideOverlay()
   clearSession()
   local recovering = M._recovering; M._recovering = false
@@ -2028,6 +2029,7 @@ function M.pickRetry(cands, lv)
 end
 function M.nothingHeard(why)
   log("nothing heard ("..why.."): nothing pasted")
+  M.liveEndSession()
   state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false
   M._voiceStopped, M._voicePrefix, M._voiceSession = false, nil, false
   if M._dry then M._dryResult = "" end
@@ -2161,6 +2163,38 @@ local function whisperArgs(f, lang)
 end
 M.whisperArgs = whisperArgs
 
+function M.liveCleanupDir(dir)
+  if type(dir) ~= "string" or dir == "" then return false end
+  local base = DATA.."/tmp/"
+  if dir:sub(1, #base) ~= base then return false end
+  local name = dir:sub(#base + 1)
+  if not name:match("^s%d+$") then return false end
+  if not hs.fs.attributes(dir) then return false end
+  for f in hs.fs.dir(dir) do
+    if f ~= "." and f ~= ".." then pcall(os.remove, dir.."/"..f) end
+  end
+  pcall(hs.fs.rmdir, dir)
+  if not hs.fs.attributes(dir) then log("live:cleanup "..name); return true end
+  return false
+end
+function M.liveSweep(keep)
+  local tmp = DATA.."/tmp"
+  if not hs.fs.attributes(tmp) then return 0 end
+  keep = keep or ""
+  local n = 0
+  for name in hs.fs.dir(tmp) do
+    if type(name) == "string" and name:match("^s%d+$") then
+      local d = tmp.."/"..name
+      if d ~= keep and M.liveCleanupDir(d) then n = n + 1 end
+    end
+  end
+  return n
+end
+function M.liveEndSession()
+  local dir = M.LIVE and M.LIVE.dir or nil
+  if M.LIVE then M.LIVE.dir = nil end
+  return M.liveCleanupDir(dir)
+end
 function M.liveSessionDir(gen) return DATA.."/tmp/s"..tostring(gen or 0) end
 function M.liveFallbackWhy(why) return why end
 function M.liveStale(gen) return M.LIVE.gen ~= gen or M.LIVE.fallback ~= nil end
@@ -2268,6 +2302,7 @@ function M.liveReset(on)
   L.lastSegs, L.lastFile, L.lastPlan, L.lastTail, L.lastOk = nil, nil, nil, nil, false
   L.finishing, L.promptOverride = false, nil
   L.stopT0, L.tRaw, L.tCleanup, L.tRec0 = nil, nil, nil, hs.timer.secondsSinceEpoch()
+  M.liveSweep(L.dir)
   if not hs.fs.attributes(L.dir) then pcall(hs.fs.mkdir, L.dir) end
   return L.gen
 end
@@ -2501,6 +2536,7 @@ transcribe = function(file)
   local sz = (hs.fs.attributes(file) or {}).size or 0
   if sz <= 44 + 3200 then   -- header + 0.1 s of audio
     log("watchdog: recording empty ("..sz.." bytes), back to idle")
+    M.liveEndSession()
     state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false; refresh()
     M.micProblem(T("wd_empty")); return
   end
@@ -2520,7 +2556,7 @@ transcribe = function(file)
     if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
     M.LIVE.tRaw = hs.timer.secondsSinceEpoch()
     log(string.format("whisper %s exit %d %.1fs RAW: %s", cfg.modelName, code, hs.timer.secondsSinceEpoch()-t0, out or ""))
-    if code ~= 0 then state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh(); hs.alert.show(T("trans_failed")); return end
+    if code ~= 0 then M.liveEndSession(); state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh(); hs.alert.show(T("trans_failed")); return end
     local text, segs = M.parseWhisper(out)
     M.tailGuard(text, segs, wfile, plan, function(t2)
       if cancelled then state="idle"; hideOverlay(); clearSession(); refresh(); return end
@@ -2619,6 +2655,7 @@ function M.cancel()
   M.LIVE.gen = (M.LIVE.gen or 0) + 1; M.LIVE.on = false; M.LIVE.finishing = false
   if recTask then local t=recTask; recTask=nil; state="busy"; t:interrupt() end
   M.liveKillTasks()
+  M.liveEndSession()
   state="idle"; if tick then tick:stop() end; hideOverlay(); sound("Basso"); refresh()
   if targetApp then targetApp:activate() end
 end
@@ -2889,6 +2926,7 @@ if cfg.showAtLogin and not hs.settings.get("taipea.reloading") then
   if os.time() - up < 600 then after(3, function() M.openApp() end) end
 end
 if cfg.cleanup then M.warmModel() end
+M.liveSweep()
 if M.checkRecovery() then after(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
 -- ---------- watchdog ----------
 -- Checks every 5 s while processing. If transcription never started it starts it; if processing
@@ -2900,7 +2938,9 @@ function M.watchdogReset(reason, msg)
   local function keepIt() if fileExists(keep) then saveSession({ phase="recording", wav=keep, started=os.date("%F %T") }) end end
   keepIt()
   cancelled = true
-  if M.wTask then local t = M.wTask; M.wTask = nil; t:terminate() end
+  M.LIVE.gen = (M.LIVE.gen or 0) + 1; M.LIVE.on = false; M.LIVE.finishing = false
+  M.liveKillTasks()
+  M.liveEndSession()
   if recTask then local t = recTask; recTask = nil; t:terminate() end
   state = "idle"; if tick then tick:stop() end; hideOverlay(); M._recovering = false
   M._wdBusy, M._wdKick = nil, false
@@ -2914,10 +2954,11 @@ M._watchdog = hs.timer.doEvery(5, function()
   local now = hs.timer.secondsSinceEpoch()
   M._wdBusy = M._wdBusy or now
   local age = now - M._wdBusy
-  if not M._wdKick and not M.wTask and not recTask and age >= 4 and not M._recovering then
+  local liveBusy = M.LIVE and (M.LIVE.task or M.LIVE.finishing or M.trimTask or M.lvTask)
+  if not M._wdKick and not M.wTask and not recTask and not liveBusy and age >= 4 and not M._recovering then
     M._wdKick = true; log("watchdog: transcription never started, starting it now"); transcribe(); return
   end
-  if (age > 60 and not M.wTask) or age > 180 then M.watchdogReset(string.format("processing for %.0f s", age)) end
+  if (age > 60 and not M.wTask and not liveBusy) or age > 180 then M.watchdogReset(string.format("processing for %.0f s", age)) end
 end)
 
 -- ---------- update check (GitHub latest release) ----------
@@ -2926,7 +2967,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.8"
+local VERSION = "0.2.9"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

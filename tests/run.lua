@@ -7,8 +7,29 @@ local function proxy()
 end
 local fake = { files = {}, ollamaList = "", post = nil, now = 0 }
 hs = proxy()
-hs.fs = { attributes = function(p, a) local m = fake.files[p]; if a then return m end; return m and { mode = m } or nil end,
-          mkdir = function() return true end, dir = function() return function() return nil end end }
+hs.fs = {
+  attributes = function(p, a) local m = fake.files[p]; if a then return m end; return m and { mode = m } or nil end,
+  mkdir = function(p) fake.files[p] = "directory"; return true end,
+  rmdir = function(p)
+    fake.files[p] = nil
+    local prefix = p .. "/"
+    for k in pairs(fake.files) do
+      if k:sub(1, #prefix) == prefix then fake.files[k] = nil end
+    end
+    return true
+  end,
+  dir = function(p)
+    local prefix = (p or ""):sub(-1) == "/" and p or ((p or "") .. "/")
+    local names, seen, i = {}, {}, 0
+    for k in pairs(fake.files) do
+      if k:sub(1, #prefix) == prefix then
+        local name = k:sub(#prefix + 1):match("^([^/]+)")
+        if name and not seen[name] then seen[name] = true; names[#names + 1] = name end
+      end
+    end
+    return function() i = i + 1; return names[i] end
+  end,
+}
 hs.execute = function(cmd) if cmd:match("list") then return fake.ollamaList end; return "" end
 hs.timer = setmetatable({ secondsSinceEpoch = function() fake.now = fake.now + 31; return fake.now end }, { __index = function() return proxy() end })
 hs.json = { encode = function() return "{}" end, decode = function(s) return { response = s } end }
@@ -684,7 +705,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.8", M.VERSION == "0.2.8")
+  check("version 0.2.9", M.VERSION == "0.2.9")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -822,6 +843,10 @@ do
   local lvT = { terminated = false, terminate = function(self) self.terminated = true end }
   local wT = { terminated = false, terminate = function(self) self.terminated = true end }
   M.trimTask, M.lvTask, M.wTask = trimT, lvT, wT
+  local cancelDir = M.liveSessionDir(7)
+  fake.files[cancelDir] = "directory"
+  fake.files[cancelDir .. "/rec.wav"] = "file"
+  M.LIVE.dir = cancelDir
   M.cancel()
   check("cancel terminates trimTask", trimT.terminated == true)
   check("cancel terminates lvTask", lvT.terminated == true)
@@ -829,6 +854,7 @@ do
   check("cancel bumps live gen so in-flight cbs are stale", M.liveStale(7) == true)
   check("cancel cleared trim/lv slots", M.trimTask == nil and M.lvTask == nil)
   check("cancel cleared live task/cur", M.LIVE.task == nil and M.LIVE.cur == nil)
+  check("cancel removes the session dir", fake.files[cancelDir] == nil and M.LIVE.dir == nil)
 
   local a = M.whisperArgs("/tmp/s1/slice.wav")
   local hasNt, hasTr, hasF, hasNp = false, false, false, false
@@ -860,6 +886,51 @@ do
   local dir = M.liveSessionDir(3)
   check("session dir is isolated under tmp/s<gen>", type(dir) == "string" and dir:find("/tmp/s3", 1, true) ~= nil)
   check("session dir is not the shared rec.wav root", not dir:match("tmp/rec%.wav$"))
+
+  local tmpRoot = dir:match("^(.*)/s3$")
+  fake.files[tmpRoot] = "directory"
+  fake.files[dir] = "directory"
+  fake.files[dir .. "/rec.wav"] = "file"
+  fake.files[tmpRoot .. "/rec.wav"] = "file"
+  fake.files[tmpRoot .. "/foo"] = "directory"
+  check("cleanup refuses empty", M.liveCleanupDir("") == false and M.liveCleanupDir(nil) == false)
+  check("cleanup refuses a path outside Taipea tmp", M.liveCleanupDir("/tmp/s3") == false and fake.files[dir] == "directory")
+  check("cleanup refuses non-s* tmp dirs", M.liveCleanupDir(tmpRoot .. "/foo") == false and fake.files[tmpRoot .. "/foo"] == "directory")
+  check("cleanup refuses the shared rec.wav", M.liveCleanupDir(tmpRoot .. "/rec.wav") == false and fake.files[tmpRoot .. "/rec.wav"] == "file")
+  check("cleanup removes only an s<gen> dir", M.liveCleanupDir(dir) == true and fake.files[dir] == nil)
+  fake.files[dir] = "directory"
+  fake.files[M.liveSessionDir(1)] = "directory"
+  fake.files[M.liveSessionDir(2)] = "directory"
+  local swept = M.liveSweep(dir)
+  check("sweep deletes other s* dirs only", swept == 2
+    and fake.files[M.liveSessionDir(1)] == nil and fake.files[M.liveSessionDir(2)] == nil
+    and fake.files[dir] == "directory" and fake.files[tmpRoot .. "/rec.wav"] == "file"
+    and fake.files[tmpRoot .. "/foo"] == "directory")
+  M.LIVE.dir = dir
+  check("end session removes the active dir", M.liveEndSession() == true and M.LIVE.dir == nil and fake.files[dir] == nil)
+  fake.files[M.liveSessionDir(1)] = "directory"
+  fake.files[M.liveSessionDir(99)] = "directory"
+  local newGen = M.liveReset(true)
+  local keepDir = M.liveSessionDir(newGen)
+  check("liveReset sweeps stale s* and keeps the new dir", fake.files[M.liveSessionDir(1)] == nil
+    and fake.files[keepDir] == "directory")
+
+  local heardDir = M.liveSessionDir(M.LIVE.gen)
+  fake.files[heardDir] = "directory"
+  M.LIVE.dir = heardDir
+  M.nothingHeard("unit test")
+  check("nothing-heard removes the session dir", fake.files[heardDir] == nil and M.LIVE.dir == nil)
+
+  local wdDir = M.liveSessionDir(M.LIVE.gen + 1)
+  fake.files[wdDir] = "directory"
+  M.LIVE.dir = wdDir
+  M.watchdogReset("unit test")
+  check("watchdog reset removes the session dir", fake.files[wdDir] == nil and M.LIVE.dir == nil)
+
+  check("finish / empty / whisper-fail / load sweep call liveEndSession or liveSweep",
+    src:find("M.liveEndSession()", 1, true) ~= nil
+    and src:find("M.liveSweep()", 1, true) ~= nil
+    and src:find("M.liveSweep(L.dir)", 1, true) ~= nil)
 
   local g0 = M.LIVE.gen
   M.cfg.liveTranscribe = true
