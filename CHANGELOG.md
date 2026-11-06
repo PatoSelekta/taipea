@@ -4,6 +4,22 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.9] - 2026-11-06
+
+### Added
+- **Live transcription while you speak** (on by default). Taipea starts turning your
+  voice into text while you are still talking, so Stop waits mainly on the last bit
+  plus cleanup. Language stays Auto (English, Spanish, or both mixed). To use the
+  previous full-file path only, set `liveTranscribe = false` in `config.lua`. There
+  is no new Settings toggle.
+
+### Fixed
+- **Session temp folders are deleted.** The `tmp/s<number>/` folders used during live
+  transcription are removed after paste, copy, nothing-heard, Cancel, an empty
+  recording, a whisper failure, or a watchdog reset. Leftover folders from an earlier
+  session are swept on load and when a new dictation starts. Only those `s*` folders
+  are touched.
+
 ## [0.2.8] - 2026-11-04
 
 ### Fixed

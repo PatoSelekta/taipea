@@ -7,8 +7,29 @@ local function proxy()
 end
 local fake = { files = {}, ollamaList = "", post = nil, now = 0 }
 hs = proxy()
-hs.fs = { attributes = function(p, a) local m = fake.files[p]; if a then return m end; return m and { mode = m } or nil end,
-          mkdir = function() return true end, dir = function() return function() return nil end end }
+hs.fs = {
+  attributes = function(p, a) local m = fake.files[p]; if a then return m end; return m and { mode = m } or nil end,
+  mkdir = function(p) fake.files[p] = "directory"; return true end,
+  rmdir = function(p)
+    fake.files[p] = nil
+    local prefix = p .. "/"
+    for k in pairs(fake.files) do
+      if k:sub(1, #prefix) == prefix then fake.files[k] = nil end
+    end
+    return true
+  end,
+  dir = function(p)
+    local prefix = (p or ""):sub(-1) == "/" and p or ((p or "") .. "/")
+    local names, seen, i = {}, {}, 0
+    for k in pairs(fake.files) do
+      if k:sub(1, #prefix) == prefix then
+        local name = k:sub(#prefix + 1):match("^([^/]+)")
+        if name and not seen[name] then seen[name] = true; names[#names + 1] = name end
+      end
+    end
+    return function() i = i + 1; return names[i] end
+  end,
+}
 hs.execute = function(cmd) if cmd:match("list") then return fake.ollamaList end; return "" end
 hs.timer = setmetatable({ secondsSinceEpoch = function() fake.now = fake.now + 31; return fake.now end }, { __index = function() return proxy() end })
 hs.json = { encode = function() return "{}" end, decode = function(s) return { response = s } end }
@@ -31,8 +52,11 @@ local scr = { frame = function() return { x = 0, y = 0, w = 1440, h = 900 } end,
 hs.screen = { mainScreen = function() return scr end, allScreens = function() return { scr } end }
 hs.drawing = { windowBehaviors = { canJoinAllSpaces = 1, stationary = 16 }, windowLevels = { floating = 3, normal = 0 } }
 fake.tasks = {}
-hs.task = { new = function(cmd, cb, args) local t = { cmd = cmd, cb = cb, args = args }
-  function t:start() fake.tasks[#fake.tasks + 1] = t; return t end; function t:terminate() end; function t:interrupt() end; return t end }
+hs.task = { new = function(cmd, cb, args) local t = { cmd = cmd, cb = cb, args = args, terminated = false, interrupted = false }
+  function t:start() fake.tasks[#fake.tasks + 1] = t; return t end
+  function t:terminate() self.terminated = true end
+  function t:interrupt() self.interrupted = true end
+  return t end }
 local front = { bundleID = function() return "com.apple.TextEdit" end, activate = function() end }
 hs.application = setmetatable({ frontmostApplication = function() return front end,
   watcher = { new = function() return { start = function() end } end, activated = 1 } }, { __index = function() return proxy() end })
@@ -681,7 +705,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.8", M.VERSION == "0.2.8")
+  check("version 0.2.9", M.VERSION == "0.2.9")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -745,6 +769,245 @@ do
   check("tail guard: phrase inside the last segment is never touched", res == " Can you check it? Thank you.")
   for _, n in ipairs({ "_rec", "_sox" }) do os.remove(b2 .. n) end; os.remove(b2)
   M.cfg.rec = oldRec2
+end
+-- ---------- live overlapping slices (Approach A) ----------
+do
+  check("liveTranscribe default on", D.liveTranscribe == true)
+  check("language still Auto", D.language == "auto")
+  check("live constants: 24 s slice, 4 s overlap, 40 s backlog", M.LIVE.SLICE == 24 and M.LIVE.OVERLAP == 4 and M.LIVE.FALLBACK_SECS == 40)
+  local w15 = M.liveWindows(15)
+  check("windows: short clip is one last slice", #w15 == 1 and w15[1].from == 0 and w15[1].to == 15 and w15[1].last)
+  local w50 = M.liveWindows(50)
+  check("windows: 50 s is 0-24, 20-44, 40-50", #w50 == 3
+    and w50[1].from == 0 and w50[1].to == 24 and not w50[1].last
+    and w50[2].from == 20 and w50[2].to == 44 and not w50[2].last
+    and w50[3].from == 40 and w50[3].to == 50 and w50[3].last)
+  local w24 = M.liveWindows(24)
+  check("windows: exactly one slice", #w24 == 1 and w24[1].to == 24 and w24[1].last)
+  local w44 = M.liveWindows(44)
+  check("windows: 44 s last window is 20-44", #w44 == 2 and w44[2].from == 20 and w44[2].to == 44 and w44[2].last)
+  local w48 = M.liveWindows(48)
+  check("windows: 48 s is 0-24, 20-44, 40-48", #w48 == 3 and w48[3].from == 40 and w48[3].to == 48 and w48[3].last)
+  check("windows: empty / zero", #M.liveWindows(0) == 0 and #M.liveWindows(nil) == 0)
+  check("backlog: 50 s with nothing done", M.liveBacklog(50, 0) == true)
+  check("backlog: 50 s after first 24 s is ok", M.liveBacklog(50, 20) == false)
+  check("backlog: 15 s whole remainder is ok", M.liveBacklog(15, 0) == false)
+  check("backlog: exactly 40 s leftover is ok", M.liveBacklog(40, 0) == false)
+  check("backlog: 40.1 s leftover falls back", M.liveBacklog(40.1, 0) == true)
+
+  M.LIVE.cur, M.LIVE.queue, M.LIVE.nextFrom = { from = 0 }, { { from = 20 } }, 40
+  check("pending: in-flight start wins", M.livePendingFrom() == 0)
+  M.LIVE.cur = nil
+  check("pending: queue head", M.livePendingFrom() == 20)
+  M.LIVE.queue = {}
+  check("pending: nextFrom when idle", M.livePendingFrom() == 40)
+  M.LIVE.nextFrom = nil
+  check("pending: zero when empty", M.livePendingFrom() == 0)
+
+  local j, k, weak = M.liveJoin("necesito the report", "the report antes del viernes")
+  check("stitch: 2-word overlap mixed EN/ES", j == "necesito the report antes del viernes" and k == 2 and not weak)
+  j, k, weak = M.liveJoin("necesito the", "the report")
+  check("stitch: 1-word overlap keeps both sides", j == "necesito the report" and k == 1 and weak)
+  j, k, weak = M.liveJoin("hola mundo", "equipo mañana")
+  check("stitch: no overlap concatenates and is weak", j == "hola mundo equipo mañana" and k == 0 and weak)
+  j, k, weak = M.liveJoin("Hola equipo. Nos vemos", "nos vemos mañana.")
+  check("stitch: folded overlap, drop older tail", j == "Hola equipo. nos vemos mañana." and k == 2 and not weak)
+  j, k, weak = M.liveJoin("áé team report", "ae team report done")
+  check("stitch: accents fold for the overlap", j == "áé team report done" and k == 3 and not weak)
+  check("stitch: empty left", M.liveJoin("", "hola") == "hola")
+  check("stitch: empty right", M.liveJoin("hola", "") == "hola")
+  check("stitch: punctuation after overlap", (M.liveJoin("Hola equipo.", "equipo. Listo.")) == "Hola equipo. Listo.")
+  local dropKeep = M.liveDropTail(
+    "Hola equipo. nos vemos mañana. Thank you.",
+    { { from = 0, to = 2, text = "nos vemos mañana." }, { from = 2, to = 3, text = "Thank you." } },
+    2)
+  check("drop tail keeps earlier live slices", dropKeep == "Hola equipo. nos vemos mañana.")
+  check("drop tail no-op without index", M.liveDropTail("hola", { { from = 0, to = 1, text = "hola" } }, nil) == "hola")
+
+  local segs = {
+    { from = 0, to = 2, text = "Hola." },
+    { from = 2, to = 4, text = "Gracias." },
+  }
+  local shifted = M.liveShiftSegs(segs, 20)
+  check("shift segs into session time", shifted[1].from == 20 and shifted[2].to == 24 and segs[1].from == 0)
+
+  M.LIVE.gen = 7
+  M.LIVE.fallback = nil
+  check("stale: other gen", M.liveStale(3) == true)
+  check("stale: current gen", M.liveStale(7) == false)
+  M.LIVE.fallback = "trim"
+  check("stale: fallback flags current gen", M.liveStale(7) == true)
+  M.LIVE.fallback = nil
+  M._setState("rec")
+  local trimT = { terminated = false, terminate = function(self) self.terminated = true end }
+  local lvT = { terminated = false, terminate = function(self) self.terminated = true end }
+  local wT = { terminated = false, terminate = function(self) self.terminated = true end }
+  M.trimTask, M.lvTask, M.wTask = trimT, lvT, wT
+  local cancelDir = M.liveSessionDir(7)
+  fake.files[cancelDir] = "directory"
+  fake.files[cancelDir .. "/rec.wav"] = "file"
+  M.LIVE.dir = cancelDir
+  M.cancel()
+  check("cancel terminates trimTask", trimT.terminated == true)
+  check("cancel terminates lvTask", lvT.terminated == true)
+  check("cancel terminates wTask", wT.terminated == true)
+  check("cancel bumps live gen so in-flight cbs are stale", M.liveStale(7) == true)
+  check("cancel cleared trim/lv slots", M.trimTask == nil and M.lvTask == nil)
+  check("cancel cleared live task/cur", M.LIVE.task == nil and M.LIVE.cur == nil)
+  check("cancel removes the session dir", fake.files[cancelDir] == nil and M.LIVE.dir == nil)
+
+  local a = M.whisperArgs("/tmp/s1/slice.wav")
+  local hasNt, hasTr, hasF, hasNp = false, false, false, false
+  for i, x in ipairs(a) do
+    if x == "-nt" then hasNt = true end
+    if x == "-tr" or x == "--translate" then hasTr = true end
+    if x == "-f" and a[i + 1] == "/tmp/s1/slice.wav" then hasF = true end
+    if x == "-np" then hasNp = true end
+  end
+  check("live whisper args: timestamps on (no -nt)", not hasNt)
+  check("live whisper args: never translate", not hasTr)
+  check("live whisper args: file and -np", hasF and hasNp)
+  check("live whisper args: language Auto", (function()
+    for i, x in ipairs(a) do if x == "-l" then return a[i + 1] == "auto" end end
+  end)())
+
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local nloc = 0
+  for line in (src .. "\n"):gmatch("([^\n]*)\n") do
+    if line:match("^local%s+function%s+") then
+      nloc = nloc + 1
+    elseif line:match("^local%s+") then
+      local left = (line:match("^local%s+([^=]+)") or ""):gsub("%-%-.*$", "")
+      for name in left:gmatch("([A-Za-z_][A-Za-z0-9_]*)") do nloc = nloc + 1 end
+    end
+  end
+  check("main-chunk locals stay at or under 200 (" .. nloc .. ")", nloc <= 200)
+
+  local dir = M.liveSessionDir(3)
+  check("session dir is isolated under tmp/s<gen>", type(dir) == "string" and dir:find("/tmp/s3", 1, true) ~= nil)
+  check("session dir is not the shared rec.wav root", not dir:match("tmp/rec%.wav$"))
+
+  local tmpRoot = dir:match("^(.*)/s3$")
+  fake.files[tmpRoot] = "directory"
+  fake.files[dir] = "directory"
+  fake.files[dir .. "/rec.wav"] = "file"
+  fake.files[tmpRoot .. "/rec.wav"] = "file"
+  fake.files[tmpRoot .. "/foo"] = "directory"
+  check("cleanup refuses empty", M.liveCleanupDir("") == false and M.liveCleanupDir(nil) == false)
+  check("cleanup refuses a path outside Taipea tmp", M.liveCleanupDir("/tmp/s3") == false and fake.files[dir] == "directory")
+  check("cleanup refuses non-s* tmp dirs", M.liveCleanupDir(tmpRoot .. "/foo") == false and fake.files[tmpRoot .. "/foo"] == "directory")
+  check("cleanup refuses the shared rec.wav", M.liveCleanupDir(tmpRoot .. "/rec.wav") == false and fake.files[tmpRoot .. "/rec.wav"] == "file")
+  check("cleanup removes only an s<gen> dir", M.liveCleanupDir(dir) == true and fake.files[dir] == nil)
+  fake.files[dir] = "directory"
+  fake.files[M.liveSessionDir(1)] = "directory"
+  fake.files[M.liveSessionDir(2)] = "directory"
+  local swept = M.liveSweep(dir)
+  check("sweep deletes other s* dirs only", swept == 2
+    and fake.files[M.liveSessionDir(1)] == nil and fake.files[M.liveSessionDir(2)] == nil
+    and fake.files[dir] == "directory" and fake.files[tmpRoot .. "/rec.wav"] == "file"
+    and fake.files[tmpRoot .. "/foo"] == "directory")
+  M.LIVE.dir = dir
+  check("end session removes the active dir", M.liveEndSession() == true and M.LIVE.dir == nil and fake.files[dir] == nil)
+  fake.files[M.liveSessionDir(1)] = "directory"
+  fake.files[M.liveSessionDir(99)] = "directory"
+  local newGen = M.liveReset(true)
+  local keepDir = M.liveSessionDir(newGen)
+  check("liveReset sweeps stale s* and keeps the new dir", fake.files[M.liveSessionDir(1)] == nil
+    and fake.files[keepDir] == "directory")
+
+  local heardDir = M.liveSessionDir(M.LIVE.gen)
+  fake.files[heardDir] = "directory"
+  M.LIVE.dir = heardDir
+  M.nothingHeard("unit test")
+  check("nothing-heard removes the session dir", fake.files[heardDir] == nil and M.LIVE.dir == nil)
+
+  local wdDir = M.liveSessionDir(M.LIVE.gen + 1)
+  fake.files[wdDir] = "directory"
+  M.LIVE.dir = wdDir
+  M.watchdogReset("unit test")
+  check("watchdog reset removes the session dir", fake.files[wdDir] == nil and M.LIVE.dir == nil)
+
+  check("finish / empty / whisper-fail / load sweep call liveEndSession or liveSweep",
+    src:find("M.liveEndSession()", 1, true) ~= nil
+    and src:find("M.liveSweep()", 1, true) ~= nil
+    and src:find("M.liveSweep(L.dir)", 1, true) ~= nil)
+
+  local g0 = M.LIVE.gen
+  M.cfg.liveTranscribe = true
+  local g1 = M.liveBegin()
+  check("liveBegin bumps gen and turns on", g1 == g0 + 1 and M.LIVE.on == true)
+  check("liveBegin session dir matches gen", M.LIVE.dir == M.liveSessionDir(g1))
+  M.cfg.liveTranscribe = false
+  local g2 = M.liveBegin()
+  check("liveBegin respects liveTranscribe=false", M.LIVE.on == false and g2 == g1 + 1)
+  M.cfg.liveTranscribe = true
+  M.liveBegin()
+
+  check("fallback reason helper", M.liveFallbackWhy("whisper") == "whisper" and M.liveFallbackWhy("backlog") == "backlog")
+  local line = M.liveTimingLine({ rec = 12.3, live = 8.1, raw = 1.4, cleanup = 2.2, paste = 3.7 })
+  check("timing log names every clock", line:find("T_rec=12.30", 1, true) and line:find("T_live_sum=8.10", 1, true)
+    and line:find("T_stop_to_raw=1.40", 1, true) and line:find("T_cleanup=2.20", 1, true)
+    and line:find("T_stop_to_paste=3.70", 1, true))
+
+  -- live finish: silent whole file still wins over stitched text
+  local realNH, heard = M.nothingHeard, nil
+  M.nothingHeard = function(why) heard = why end
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.joined, M.LIVE.lastSegs = true, nil, "Thank you.", { { from = 0, to = 1, text = "Thank you." } }
+  M.LIVE.gen = M.LIVE.gen + 1
+  local g = M.LIVE.gen
+  M.cfg.liveTranscribe = true
+  M.liveAfterSlices({ rmsPk = -45, rmsTr = -50, len = 8 }, g)
+  check("live: silent recording ignores live text", type(heard) == "string" and heard:find("silent", 1, true) ~= nil)
+  M.nothingHeard = realNH
+
+  -- stale callback after gen bump does not paste
+  local got = nil
+  local realAW = M.afterWhisper
+  M.afterWhisper = function(t) got = t end
+  M.LIVE.joined = "Hola equipo"
+  M.liveAfterSlices({ rmsPk = -14, rmsTr = -40, len = 8 }, g - 1)
+  check("live: stale gen does not continue the pipeline", got == nil)
+  M.afterWhisper = realAW
+
+  -- fallback while recording only flags; the growing wav is transcribed on stop
+  local nTasks = #fake.tasks
+  M._setState("rec")
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.finishing = true, nil, true
+  M.liveFallback("whisper")
+  check("fallback during rec does not start full transcribe", M.LIVE.fallback == "whisper" and M.LIVE.on == false and #fake.tasks == nTasks)
+  M._setState("idle")
+
+  M.LIVE.promptOverride = "the report"
+  local a2 = M.whisperArgs("/tmp/s1/slice.wav")
+  local bad = false
+  for _, x in ipairs(a2) do if x == "-nt" or x == "-tr" or x == "--translate" then bad = true end end
+  check("prompt override never adds -nt/-tr", not bad)
+  M.LIVE.promptOverride = nil
+
+  local bp = os.tmpname()
+  local bf = io.open(bp, "wb")
+  bf:write("RIFF" .. string.pack("<I4", 0) .. "WAVEfmt " .. string.pack("<I4", 16) .. string.rep("\0", 16) .. "data" .. string.pack("<I4", 0) .. string.rep("\1", 32000 * 50)); bf:close()
+  M.fixWavHeader(bp)
+  local plan = M.benchPlan(bp)
+  check("benchPlan: 50 s has three live windows", plan.secs == 50 and #plan.windows == 3 and plan.windows[1].to == 24 and plan.windows[3].last)
+  check("benchPlan: live flag follows config", plan.live == true)
+  local dest = bp .. "-copy.wav"
+  check("liveCopyWav snapshots and fixes the header", M.liveCopyWav(bp, dest) == true and M.wavSeconds(dest) == 50)
+  os.remove(dest)
+
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+  check("no liveTranscribe UI toggle", not ui:find("liveTranscribe", 1, true))
+  local ex = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/config.example.lua"):read("*a")
+  check("config.example documents liveTranscribe", ex:find("liveTranscribe", 1, true) ~= nil)
+
+  local script = (arg[0]:match("^(.*)/") or ".") .. "/../scripts/bench-live.lua"
+  local lua = arg[-1] or "lua"
+  local h = io.popen(string.format("%s %q --plan %q", lua, script, bp))
+  local out = h:read("*a") or ""
+  local okp, _, code = h:close()
+  check("bench --plan runs offline on a local wav", (okp or code == 0) and out:find("0.0-24.0", 1, true) and out:find("T_full", 1, true) and not out:find("http", 1, true))
+  os.remove(bp)
+  M.cfg.liveTranscribe = true
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

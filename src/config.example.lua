@@ -31,6 +31,10 @@ return {
   -- modelName   = "ggml-large-v3-turbo.bin",  -- file in .../Taipea/models, or a full path
   -- language    = "auto",               -- dictation language: "auto" (detects ~99 languages, incl. the English/Spanish mix), "en" or "es"
   -- maxSeconds  = 1800,                 -- longest dictation: 30 minutes
+  -- liveTranscribe = true,              -- true = transcribe overlapping 24 s slices while you talk
+  --                                     -- (stop waits on the last slice + cleanup). false = current
+  --                                     -- full-file Whisper after stop. Failures and >40 s backlog
+  --                                     -- fall back to the full-file path. No Settings toggle.
   -- autoStop    = false,                -- true = stop by itself after a pause
   -- silenceSeconds = 3,                 -- length of that pause, in seconds (Settings offers 2, 3, 5, 8)
   -- silenceThreshold = "1.5%",          -- higher = more background noise counts as silence
