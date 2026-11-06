@@ -6,7 +6,7 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 dest="${1:-$HOME/Applications/Taipea.app}"
 icon="${2:-$here/../assets/Taipea.icns}"
-version="${TAIPEA_VERSION:-0.2.10}"
+version="${TAIPEA_VERSION:-0.2.11}"
 
 if ! command -v osacompile >/dev/null 2>&1; then
   echo "osacompile not found: Taipea.app can only be built on macOS." >&2

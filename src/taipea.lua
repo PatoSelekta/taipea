@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.10
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.2.11
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -815,16 +815,16 @@ end
 local refresh
 local transcribe
 keyText = function(k) return keyLabel(k) end
--- ---------- look: text size, high contrast, reduce motion ----------
+-- ---------- look: text size, high contrast, reduce motion, reduce transparency ----------
 local function macPref(key)
   local out = hs.execute("/usr/bin/defaults read com.apple.universalaccess "..key.." 2>/dev/null") or ""
   return out:match("^%s*1") ~= nil
 end
-local look = { scale = 1, hc = false, rm = false, macHC = false, macRM = false }
+local look = { scale = 1, hc = false, rm = false, rt = false, macHC = false, macRM = false, macRT = false }
 local function updateLook()
-  look.macHC, look.macRM = macPref("increaseContrast"), macPref("reduceMotion")
+  look.macHC, look.macRM, look.macRT = macPref("increaseContrast"), macPref("reduceMotion"), macPref("reduceTransparency")
   look.hc = cfg.contrast == "on" or (cfg.contrast ~= "off" and look.macHC)
-  look.rm = look.macRM
+  look.rm, look.rt = look.macRM, look.macRT
   look.scale = ({ normal = 1, large = 1.2, xlarge = 1.4 })[cfg.textSize] or 1
 end
 updateLook()
@@ -1026,7 +1026,7 @@ M.whisperHint, M.wordsRule = whisperHint, wordsRule
 -- Idle: mic on the brand colour. Recording: green "stop & paste" (pulses gently) with two satellites,
 -- blue "stop & copy only" and red "cancel", on whichever side has room. Working: spinner.
 local fab, sats, satLabel, satTimer = nil, {}, nil, nil
--- FABG.PAD: transparent room around the circles so their drop shadow (0 3px 10px) and the recording
+-- FABG.PAD: transparent room around the circles so their drop shadow (0 3px 12px) and the recording
 -- pulse fade out inside the window instead of being cut at its edge. Saved positions and the
 -- satellite layout still use the old frame (circle + 4 px), so FABG.EXTRA converts between the two.
 -- (one table, not five locals: the main chunk is near Lua's 200-local limit)
@@ -1108,7 +1108,7 @@ local function fabTheme()
   end
   return FAB_THEMES[1]
 end
-M.FAB_THEMES, M.fabTheme, M.isHex, M.normHex = FAB_THEMES, fabTheme, isHex, normHex
+M.FAB_THEMES, M.fabTheme, M.isHex, M.normHex, M.FABG = FAB_THEMES, fabTheme, isHex, normHex, FABG
 -- A full palette from the 3 colours. Classic Blue keeps the original Taipea colours. Other sets
 -- derive the surfaces from the background, the text from the mic colour and the buttons / active
 -- tab / selected choices from the accent, then fix any text below 4.5:1 contrast (WCAG AA) by
@@ -1119,6 +1119,15 @@ local function mixC(a, b, t) local r1,g1,b1 = hexRGB(a); local r2,g2,b2 = hexRGB
 local function lumC(h) local r,g,b = hexRGB(h)
   local function ch(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
   return 0.2126*ch(r) + 0.7152*ch(g) + 0.0722*ch(b) end
+-- tinted glass fill for the floating mic (macOS-style); solid when High Contrast or Reduce Transparency is on
+function FABG.rgba(hex, a)
+  local r, g, b = hexRGB(hex)
+  return string.format("rgba(%d,%d,%d,%.2f)", r, g, b, a)
+end
+function FABG.glassBg(hex, solid)
+  if solid or type(hex) ~= "string" or not hex:match("^#%x%x%x%x%x%x$") then return hex end
+  return FABG.rgba(hex, lumC(hex) > 0.35 and 0.70 or 0.55)
+end
 local function contrastC(a, b) local x, y = lumC(a), lumC(b); if x < y then x, y = y, x end; return (x + 0.05) / (y + 0.05) end
 local function worstC(c, bgs) local w = 99; for _, b in ipairs(bgs) do w = math.min(w, contrastC(c, b)) end; return w end
 -- the colour closest to c that reaches `min` contrast against every background in bgs
@@ -1195,19 +1204,21 @@ local fabHTML = [[
 <html class="cl"><head><meta charset="utf-8"><style>
 html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;-webkit-user-select:none;cursor:default}#b,#c{cursor:pointer}
 html{--bg:#0A6CD6;--mic:#fff;--acc:rgba(255,255,255,.9);--arc:#fff}
-#b{position:absolute;inset:]]..FABG.PAD..[[px;border-radius:50%;border:4px solid var(--acc);background:var(--bg);color:var(--mic);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#b{position:absolute;inset:]]..FABG.PAD..[[px;border-radius:50%;border:4px solid var(--acc);background:var(--bg);color:var(--mic);display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%);box-shadow:0 3px 12px rgba(0,0,0,.28),inset 0 1.5px 0 rgba(255,255,255,.34),inset 0 -2px 6px rgba(0,0,0,.16)}
 #i{width:50%;height:50%;display:flex}#i svg{width:100%;height:100%}
 #b:not(.rec) #i svg path:first-of-type{stroke:var(--arc)}
 html.ol #b:not(.rec) #i svg rect{fill:none}html.ol #b:not(.rec) #i svg{stroke-linecap:butt}
 html:not(.cl) #b{border-width:5px}
-#b.rec{background:#1e8e3e;color:#fff;animation:pulse 2.4s ease-in-out infinite}
-#b.busy{background:#3a3f47;color:#fff}#b.busy #i{display:none}
+#b.rec{background:rgba(30,142,62,.62);color:#fff;animation:pulse 2.4s ease-in-out infinite}
+#b.busy{background:rgba(58,63,71,.60);color:#fff}#b.busy #i{display:none}
 #spin{display:none;width:50%;height:50%;box-sizing:border-box;border-radius:50%;border:7px solid rgba(255,255,255,.28);border-top-color:#fff;animation:spin 1s linear infinite}
 #b.busy #spin{display:block}
 #b.armed{border-color:#30d158;border-width:6px}#ear{display:none;position:absolute;right:-2px;bottom:-2px;font-size:calc(100vw*.22);background:#30d158;border-radius:50%;padding:2px 4px}
 #b.armed #ear{display:block}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,.65),0 3px 10px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 7px rgba(48,209,88,0),0 3px 10px rgba(0,0,0,.5)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,.55),0 3px 12px rgba(0,0,0,.28),inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -2px 6px rgba(0,0,0,.14)}50%{box-shadow:0 0 0 7px rgba(48,209,88,0),0 3px 12px rgba(0,0,0,.28),inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -2px 6px rgba(0,0,0,.14)}}
 @keyframes spin{to{transform:rotate(360deg)}}
+html.hc #b,html.rt #b{-webkit-backdrop-filter:none;backdrop-filter:none}
+html.rt #b.rec{background:#1e8e3e}html.rt #b.busy{background:#3a3f47}
 html.hc.cl #b{background:#000;border:5px solid #fff;box-shadow:none}html.hc #b{border-width:6px;box-shadow:none}html.hc #b.rec{background:#006b1f}html.hc #b.busy{background:#000}
 html.hc #spin{border-color:#555;border-top-color:#ffd60a}html.hc #b.armed{border-color:#30d158}
 html.rm #b,html.rm #spin{animation:none!important}html.rm #spin{border-style:dotted;border-color:#fff}
@@ -1216,10 +1227,10 @@ html.rm #b,html.rm #spin{animation:none!important}html.rm #spin{border-style:dot
 <script>var IC={mic:']]..ICON.mic..[[',rec:']]..ICON.paste..[['};
 function s(a){webkit.messageHandlers.__MSG__.postMessage(a)}
 document.getElementById('b').addEventListener('mousedown',function(e){if(e.button===0){e.preventDefault();s({cmd:'fabDown'})}});
-var cur='';function setSt(st,armed,label,hc,rm){var b=document.getElementById('b');b.className=st+(armed?' armed':'');
+var cur='';function setSt(st,armed,label,hc,rm,rt){var b=document.getElementById('b');b.className=st+(armed?' armed':'');
  var ic=st=='rec'?'rec':'mic';if(ic!=cur){document.getElementById('i').innerHTML=IC[ic];cur=ic}
  b.setAttribute('aria-label',label);
- document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
+ document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm);document.documentElement.classList.toggle('rt',!!rt)}
 function th(bg,mic,acc,cl,ol){var r=document.documentElement.style;r.setProperty('--bg',bg);r.setProperty('--mic',mic);r.setProperty('--acc',cl?'rgba(255,255,255,.9)':acc);r.setProperty('--arc',cl?mic:acc);
  document.documentElement.classList.toggle('cl',!!cl);document.documentElement.classList.toggle('ol',!!ol)}
 s({cmd:'fabReady'});</script></body></html>]]
@@ -1631,8 +1642,8 @@ function M.fabUpdate()
   local armed = M.voiceActive() and st ~= "busy"
   local label = st == "rec" and T("fab_rec") or (st == "busy" and T("fab_busy") or (armed and T("fab_listening", (cfg.startPhrases or {})[1] or "") or T("fab_idle")))
   local th = fabTheme()
-  fab:evaluateJavaScript(string.format("th(%q,%q,%q,%s,%s)", th.bg, th.mic, th.acc, th.id == "classic" and "true" or "false", th.outline and "true" or "false"))
-  fab:evaluateJavaScript(string.format("setSt(%q,%s,%q,%s,%s)", st, armed and "true" or "false", label, look.hc and "true" or "false", look.rm and "true" or "false"))
+  fab:evaluateJavaScript(string.format("th(%q,%q,%q,%s,%s)", FABG.glassBg(th.bg, look.hc or look.rt), th.mic, th.acc, th.id == "classic" and "true" or "false", th.outline and "true" or "false"))
+  fab:evaluateJavaScript(string.format("setSt(%q,%s,%q,%s,%s,%s)", st, armed and "true" or "false", label, look.hc and "true" or "false", look.rm and "true" or "false", look.rt and "true" or "false"))
   M.applyFabVis()
   if st == "rec" then showSats() else hideSats() end
 end
@@ -3044,7 +3055,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.10"
+local VERSION = "0.2.11"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

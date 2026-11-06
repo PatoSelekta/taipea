@@ -47,7 +47,8 @@ lo dejaste.
 |---|---|---|
 | <img src="images/floating-button-idle-classic.png" width="150" alt="Botón flotante en reposo: un botón redondo azul con un micrófono blanco"> | <img src="images/floating-button-idle-studio.png" width="150" alt="Botón flotante en reposo con los colores Estudio: un botón redondo oscuro con un anillo rojo y un micrófono blanco"> | <img src="images/floating-button-recording.png" width="280" alt="Botón flotante mientras graba: un botón verde grande Parar y pegar con un ícono de portapapeles, un botón azul más pequeño Parar y solo copiar, y un botón rojo más pequeño Cancelar"> |
 
-- **En reposo:** haz clic para empezar a dictar.
+- **En reposo:** haz clic para empezar a dictar. El círculo es vidrio esmerilado, así que
+  se ve el escritorio; el micrófono y el anillo de acento se quedan sólidos.
 - **Grabando:** se pone **verde**. Haz clic para parar: Taipea transcribe, corrige y pega
   en la app que estabas usando. Aparecen dos botones más pequeños al lado: **azul = Parar
   y solo copiar** (el texto va al portapapeles y al Historial, no se pega nada) y **rojo =
@@ -184,7 +185,8 @@ Cada tarjeta se explica abajo en el orden en que aparece.
   difícil de leer se ajusta solo.
 - **Tamaño del texto:** Normal, Grande o Muy grande.
 - **Alto contraste:** Automático (sigue Aumentar contraste de macOS), Sí o No. Las
-  animaciones siguen el ajuste Reducir movimiento de macOS.
+  animaciones siguen el ajuste Reducir movimiento de macOS. Reducir transparencia de
+  macOS deja el botón flotante sólido, sin desenfoque (no hay un ajuste extra en Taipea).
 
 ### Parar con el silencio y empezar / parar con la voz
 

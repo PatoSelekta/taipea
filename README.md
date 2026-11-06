@@ -75,7 +75,8 @@ Taipea is for you if:
   start. While you dictate it turns green—click it to stop and paste into the app you were
   using. Two smaller buttons appear beside it (blue = stop and copy only, red = cancel). Drag
   it anywhere; it remembers where you left it. You can also show the full recording card in
-  Settings. It looks different when idle, recording and working.
+  Settings. The circle is frosted glass (the desktop shows through) with a solid microphone
+  and ring; High Contrast and macOS Reduce Transparency keep a solid fill.
 - **Hide the floating button when you don't need it.** Press Option + Command (or use the
   menu) to hide it until you press it again; hide it by itself while an app is full screen
   (on by default) or while chosen apps are in front (for example VLC or TV). It never hides
@@ -90,7 +91,8 @@ Taipea is for you if:
   Whisper as hints and the cleanup model is told never to change them.
 - **Larger text and high contrast.** Text size Normal / Large / Extra large, and a High
   contrast theme for the window, recording panel and floating button. It follows macOS
-  Increase Contrast (Auto) and Reduce Motion.
+  Increase Contrast (Auto), Reduce Motion, and Reduce Transparency (solid floating button,
+  no blur).
 - **Recovery.** Each recording is kept until its text is pasted. If Hammerspoon crashes or
   reloads in the middle, Taipea offers **Recover last recording** and transcribes it.
 - **Paste last dictation again** with Control + Option + V, the menu, or a button in History.
