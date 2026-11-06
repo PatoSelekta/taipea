@@ -230,7 +230,7 @@ check("voice off by default", M.voiceActive() == false)
 check("start phrase while idle", M.voiceHeard("Taipea escribe.") == "start")
 -- no speech model on this fake Mac, so start() must stop at the friendly preflight message
 check("voice start uses the normal start (preflight)", #fake.tasks == n0 and (fake.lastAlert or ""):find("modelo", 1, true) ~= nil)
-check("look scale", M.look.scale == 1 and M.look.hc == false)
+check("look scale", M.look.scale == 1 and M.look.hc == false and M.look.rt == false)
 
 -- ---------- v0.2: floating button satellites and the recording card ----------
 local SR = { x = 0, y = 25, w = 1440, h = 875 }
@@ -508,13 +508,13 @@ check("older release: no banner", U.result == "ok" and M.updWanted() == false an
 check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
 M.updResult(200, gh(M.VERSION), false)
 check("same release: no banner", U.result == "ok" and M.updWanted() == false)
-M.updResult(200, gh("v0.2.11"), false)
-check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.11" and S.updLatest == "0.2.11" and M.updWanted() == true)
-check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.11" and S.updUrl == U.url)
-check("newer release: one notification", notes == 1 and S.updNotified == "0.2.11")
-M.updResult(200, gh("v0.2.11"), false)
+M.updResult(200, gh("v0.2.12"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.12" and S.updLatest == "0.2.12" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.12" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.2.12")
+M.updResult(200, gh("v0.2.12"), false)
 check("same new release again: no second notification", notes == 1)
-M.updResult(200, gh("v0.2.12", "https://evil.example/x"), false)
+M.updResult(200, gh("v0.2.13", "https://evil.example/x"), false)
 check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
 -- remind me later (7 days) / skip this version
 local now = os.time()
@@ -524,28 +524,28 @@ check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == tr
 check("remind later: alert", fake.lastAlert == M.T("upd_later"))
 S.updRemindUntil = nil
 M.updSkip()
-check("skip: this version hidden", S.updSkip == "0.2.12" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.12"))
-M.updResult(200, gh("v0.2.13"), false)
+check("skip: this version hidden", S.updSkip == "0.2.13" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.13"))
+M.updResult(200, gh("v0.2.14"), false)
 check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
 -- errors are only logged; the last good answer is kept
 for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
   { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
   fake.lastAlert = nil
   local okc = pcall(M.updResult, c[1], c[2], false)
-  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.13" and notes == 3)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.14" and notes == 3)
 end
 M.updResult(-1, nil, true)
 check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
 -- the request itself
 local got = {}
-hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.13")) end
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.14")) end
 check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
 check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
   and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
 M.cfg.checkForUpdates = false
 check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
 fake.lastAlert = nil
-check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.13"))
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.14"))
 U.checking = true
 check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
 U.checking = false
@@ -705,7 +705,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.10", M.VERSION == "0.2.10")
+  check("version 0.2.11", M.VERSION == "0.2.11")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -1252,6 +1252,91 @@ do
     and ui:find("class=y", 1, true) ~= nil)
   check("Retry uses the same large download button class (60px)",
     ui:find("button class=y", 1, true) ~= nil and ui:find("button{height:60px", 1, true) ~= nil)
+end
+
+-- ---------- v0.2.11: glass floating microphone ----------
+do
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+  local G = M.FABG
+  check("glass helpers are on FABG (no extra main-chunk locals)",
+    type(G) == "table" and type(G.glassBg) == "function" and type(G.rgba) == "function")
+  check("glass fill dark ~55%", G.glassBg("#0A6CD6") == "rgba(10,108,214,0.55)")
+  check("glass fill Studio ~55%", G.glassBg("#1A1A1A") == "rgba(26,26,26,0.55)")
+  check("glass fill Paper ~70%", G.glassBg("#F5F2EA") == "rgba(245,242,234,0.70)")
+  check("glass fill High Contrast theme ~55% when not solid", G.glassBg("#000000") == "rgba(0,0,0,0.55)")
+  check("glass fill solid when High Contrast or Reduce Transparency",
+    G.glassBg("#0A6CD6", true) == "#0A6CD6" and G.glassBg("#F5F2EA", true) == "#F5F2EA")
+  check("glass fill leaves invalid colours alone",
+    G.glassBg("red") == "red" and G.glassBg("#0A6CD") == "#0A6CD" and G.glassBg(nil) == nil)
+  check("every named theme uses a 6-digit hex that glassBg can tint", (function()
+    for _, th in ipairs(M.FAB_THEMES) do
+      if th.id ~= "custom" and G.glassBg(th.bg) == th.bg then return false end
+    end
+    return true
+  end)())
+
+  local realEx = hs.execute
+  hs.execute = function(cmd)
+    cmd = cmd or ""
+    if cmd:find("reduceTransparency", 1, true) then return "1\n" end
+    if cmd:find("increaseContrast", 1, true) then return "0\n" end
+    if cmd:find("reduceMotion", 1, true) then return "0\n" end
+    return realEx(cmd)
+  end
+  M.updateLook()
+  check("look.rt follows macOS Reduce Transparency", M.look.rt == true and M.look.macRT == true)
+  check("Reduce Transparency does not turn High Contrast on by itself", M.look.hc == false)
+  check("fabUpdate tints --bg unless HC or Reduce Transparency",
+    src:find("FABG.glassBg(th.bg, look.hc or look.rt)", 1, true) ~= nil)
+  hs.execute = function(cmd)
+    cmd = cmd or ""
+    if cmd:find("reduceTransparency", 1, true) then return "0\n" end
+    if cmd:find("increaseContrast", 1, true) then return "1\n" end
+    return realEx(cmd)
+  end
+  M.cfg.contrast = "auto"
+  M.updateLook()
+  check("look.hc still follows macOS Increase Contrast", M.look.hc == true and M.look.macHC == true)
+  check("Increase Contrast does not force Reduce Transparency", M.look.rt == false)
+  hs.execute = realEx
+  M.cfg.contrast = "auto"
+  M.updateLook()
+  check("look.rt off when macOS pref is off", M.look.rt == false and M.look.macRT == false)
+
+  check("FAB CSS has frost blur",
+    src:find("-webkit-backdrop-filter:blur(28px) saturate(160%)", 1, true)
+    and src:find("backdrop-filter:blur(28px) saturate(160%)", 1, true))
+  check("FAB CSS has glass edge",
+    src:find("inset 0 1.5px 0 rgba(255,255,255,.34)", 1, true)
+    and src:find("inset 0 -2px 6px rgba(0,0,0,.16)", 1, true))
+  check("recording and busy fills are translucent glass",
+    src:find("#b.rec{background:rgba(30,142,62,.62)", 1, true)
+    and src:find("#b.busy{background:rgba(58,63,71,.60)", 1, true))
+  check("High Contrast and Reduce Transparency drop the blur",
+    src:find("html.hc #b,html.rt #b{-webkit-backdrop-filter:none;backdrop-filter:none}", 1, true) ~= nil)
+  check("Reduce Transparency uses solid rec/busy fills",
+    src:find("html.rt #b.rec{background:#1e8e3e}", 1, true)
+    and src:find("html.rt #b.busy{background:#3a3f47}", 1, true))
+  local hcRec = src:find("html.hc #b.rec{background:#006b1f}", 1, true)
+  local rtRec = src:find("html.rt #b.rec{background:#1e8e3e}", 1, true)
+  check("High Contrast rec fill wins over Reduce Transparency in CSS order",
+    hcRec and rtRec and rtRec < hcRec)
+  check("High Contrast idle Classic stays solid black",
+    src:find("html.hc.cl #b{background:#000;", 1, true) ~= nil)
+  check("setSt receives Reduce Transparency",
+    src:find("function setSt(st,armed,label,hc,rm,rt)", 1, true)
+    and src:find("classList.toggle('rt',!!rt)", 1, true)
+    and src:find("look.rt and \"true\" or \"false\"", 1, true))
+  check("mic icon and accent stay CSS variables (solid)",
+    src:find("color:var(--mic)", 1, true) and src:find("border:4px solid var(--acc)", 1, true))
+  check("FAB circle is still 96 px; satellites stay ≥60 px",
+    src:find("math.floor(96 * (look.scale or 1) + 0.5)", 1, true)
+    and src:find("math.max(60, math.floor(64 * s + 0.5))", 1, true))
+  check("window buttons stay at least 60 px", ui:find("button{height:60px", 1, true) ~= nil)
+  check("no Settings toggle for glass or Reduce Transparency",
+    not ui:find("reduceTransparency", 1, true) and not ui:find("backdrop-filter", 1, true)
+    and not src:find('contrast = "glass"', 1, true))
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

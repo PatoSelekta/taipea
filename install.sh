@@ -12,7 +12,7 @@
 # Safe to run again: steps that are already done are skipped.
 set -euo pipefail
 
-TAIPEA_VERSION="0.2.10"
+TAIPEA_VERSION="0.2.11"
 REPO="${TAIPEA_REPO:-PatoSelekta/taipea}"
 REF="${TAIPEA_REF:-main}"
 DATA="$HOME/Library/Application Support/Taipea"

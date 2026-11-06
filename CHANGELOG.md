@@ -4,6 +4,23 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.11] - 2026-11-06
+
+### Changed
+- **Floating microphone uses a Liquid Glass look.** The 96 px circular button is a tinted,
+  frosted version of the current theme background (about 55% opacity on dark themes, about
+  70% on light themes such as Paper) so the desktop shows through. A glass edge (inset top
+  highlight, soft inner bottom shadow) and a slightly softer drop shadow complete the look.
+  The microphone icon and the accent ring stay solid. Recording (green Stop & Paste) and
+  busy (grey spinner) fills are also translucent glass. Size, hit target (at least 60 px),
+  drag, satellites and shortcuts are unchanged. This is the new default; there is no
+  Settings toggle.
+- **High Contrast stays solid.** Settings High Contrast or macOS Increase Contrast keep the
+  existing solid high-contrast fills and thicker borders, with no blur.
+- **macOS Reduce Transparency stays solid.** When Reduce Transparency is on (System Settings
+  › Accessibility › Display), the floating button uses a solid fill and no blur, including
+  solid recording green and busy grey.
+
 ## [0.2.10] - 2026-11-06
 
 ### Fixed

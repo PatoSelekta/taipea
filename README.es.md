@@ -82,7 +82,8 @@ Taipea es para ti si:
   de todo: haz clic para empezar. Mientras dictas se pone verde—haz clic para parar y pegar en la app que estabas
   usando. Al lado aparecen dos botones más pequeños (azul = parar y solo copiar, rojo = cancelar). Arrástralo
   donde quieras; recuerda dónde lo dejaste. También puedes mostrar la tarjeta de grabación completa en Ajustes.
-  Se ve distinto en reposo, grabando y trabajando.
+  El círculo es vidrio esmerilado (se ve el escritorio) con el micrófono y el anillo sólidos;
+  Alto contraste y Reducir transparencia de macOS lo dejan sólido.
 - **Oculta el botón flotante cuando no lo necesitas.** Presiona Opción + Comando (o usa el
   menú) para ocultarlo hasta que lo vuelvas a presionar; se oculta solo mientras una app está
   en pantalla completa (activado por defecto) o mientras ciertas apps están adelante (por
@@ -98,7 +99,8 @@ Taipea es para ti si:
   a Whisper como pista, y al modelo de corrección se le pide no cambiarlas nunca.
 - **Texto más grande y alto contraste.** Tamaño del texto Normal / Grande / Muy grande, y un
   tema de alto contraste para la ventana, el panel de grabación y el botón flotante. Sigue
-  los ajustes Aumentar contraste (Automático) y Reducir movimiento de macOS.
+  los ajustes Aumentar contraste (Automático), Reducir movimiento y Reducir transparencia
+  de macOS (botón flotante sólido, sin desenfoque).
 - **Recuperación.** Cada grabación se guarda hasta que su texto se pega. Si Hammerspoon se
   cierra o se recarga en medio, Taipea ofrece **Recuperar la última grabación** y la
   transcribe.

@@ -46,7 +46,8 @@ stays on top of other windows. Drag it anywhere and it remembers where you left 
 |---|---|---|
 | <img src="images/floating-button-idle-classic.png" width="150" alt="Idle floating button: a round blue button with a white microphone"> | <img src="images/floating-button-idle-studio.png" width="150" alt="Idle floating button in the Studio colors: a dark round button with a red ring and a white microphone"> | <img src="images/floating-button-recording.png" width="280" alt="Floating button while recording: a large green Stop and Paste button with a clipboard icon, a smaller blue Stop and Copy only button, and a smaller red Cancel button"> |
 
-- **Idle:** click it to start dictating.
+- **Idle:** click it to start dictating. The circle is frosted glass, so the desktop shows
+  through; the microphone and the accent ring stay solid.
 - **Recording:** it turns **green**. Click it to stop: Taipea transcribes, cleans up and
   pastes into the app you were using. Two smaller buttons appear next to it: **blue = Stop
   & Copy only** (the text goes to the clipboard and History, nothing is pasted) and **red
@@ -178,7 +179,8 @@ described below in the order it appears.
   automatically.
 - **Text size:** Normal, Large or Extra large.
 - **High contrast:** Auto (follows macOS Increase Contrast), On or Off. Animations follow
-  the macOS Reduce Motion setting.
+  the macOS Reduce Motion setting. macOS Reduce Transparency forces a solid floating button
+  with no blur (no extra Taipea setting).
 
 ### Auto-stop and voice start / stop
 
