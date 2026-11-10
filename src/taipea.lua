@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.2.12
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.3.0
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -50,7 +50,10 @@ local DEFAULTS = {
   language = "auto",                         -- dictation language: auto (detects ~99 languages, incl. the EN/ES mix) | en | es
   uiLanguage = "auto",                       -- interface language: auto (macOS language) | en | es
   defaultAction = "paste",                   -- after stopping: paste | copy
-  uiSize = "normal",                         -- normal | compact
+  uiSize = "normal",                         -- normal = Accessible (default) | compact = Standard
+  whisperGuard = true,                       -- strip Whisper sound tags and looping repeats
+  fabOpacity = 100,                          -- idle opacity of the floating button, 40–100
+  fabLabels = true,                          -- false = icons only on the Stop satellites / recording card
   pasteLastKey = { mods = {"ctrl","alt"}, key = "v" },  -- paste the last dictation again
   textSize = "normal",                       -- normal | large | xlarge (window, recording panel, floating button)
   contrast = "auto",                         -- high contrast: auto (follows macOS Increase Contrast) | on | off
@@ -168,7 +171,7 @@ local NEWSTR = {
   ov_say_stop="Say “%s” or press a button to finish",
   voice_on="Voice start/stop: ON. Say “%s” to start", voice_off="Voice start/stop: OFF", voice_paused="Voice start/stop is paused while the screen is locked",
   voice_need_phrase="Type at least one phrase", phrases_saved="Phrases saved",
-  fab_idle="Start dictation", fab_rec="Stop & Paste", sat_copy="Stop & Copy only", sat_cancel="Cancel", fab_busy="Working…", fab_listening="Listening for “%s”", fab_reset="Floating button position reset",
+  fab_size="Floating button: %s px", fab_idle="Start dictation", fab_rec="Stop & Paste", sat_copy="Stop & Copy only", sat_cancel="Cancel", fab_busy="Working…", fab_listening="Listening for “%s”", fab_reset="Floating button position reset",
   wd_reset="Processing got stuck, so it was reset. Your audio is kept: 🎙 › Recover last recording", wd_empty="The recording was empty, nothing to transcribe. Check the microphone.", wd_nowhisper="Speech engine (whisper-cli) not found. Your audio is kept for recovery.",
   fab_on="Floating button: ON", card_on="Recording card: shown with the floating button", card_off="Recording card: hidden while the floating button is on", fab_off="Floating button: OFF",
   words_saved="Custom words saved", words_bad="Fill in both boxes: what Whisper hears and what to write",
@@ -200,7 +203,7 @@ local NEWSTR = {
   ov_say_stop="Di «%s» o presiona un botón para terminar",
   voice_on="Empezar/parar con la voz: SÍ. Di «%s» para empezar", voice_off="Empezar/parar con la voz: NO", voice_paused="La voz está en pausa mientras la pantalla está bloqueada",
   voice_need_phrase="Escribe al menos una frase", phrases_saved="Frases guardadas",
-  fab_idle="Empezar a dictar", fab_rec="Parar y pegar", sat_copy="Parar y solo copiar", sat_cancel="Cancelar", fab_busy="Trabajando…", fab_listening="Escuchando «%s»", fab_reset="Posición del botón flotante restablecida",
+  fab_size="Botón flotante: %s px", fab_idle="Empezar a dictar", fab_rec="Parar y pegar", sat_copy="Parar y solo copiar", sat_cancel="Cancelar", fab_busy="Trabajando…", fab_listening="Escuchando «%s»", fab_reset="Posición del botón flotante restablecida",
   wd_reset="El procesamiento se trabó y se reinició. Tu audio está guardado: 🎙 › Recuperar la última grabación", wd_empty="La grabación quedó vacía, no hay nada que transcribir. Revisa el micrófono.", wd_nowhisper="No se encontró el motor de voz (whisper-cli). Tu audio está guardado para recuperarlo.",
   fab_on="Botón flotante: SÍ", card_on="Tarjeta de grabación: se muestra con el botón flotante", card_off="Tarjeta de grabación: oculta mientras el botón flotante está activo", fab_off="Botón flotante: NO",
   words_saved="Palabras propias guardadas", words_bad="Llena las dos casillas: lo que oye Whisper y lo que se debe escribir",
@@ -479,7 +482,8 @@ M.stripStop, M.stripStart, M.wavSeconds, M.fixWavHeader, M.splitPhrases = stripS
 -- green = stop & paste, blue = stop & copy only, red = cancel)
 local function svg(body, w) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'..(w or 2.4)..'" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'..body..'</svg>' end
 local ICON = {
-  mic = svg('<rect x="9" y="2.5" width="6" height="11.5" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21.5"/><path d="M8.5 21.5h7"/>'),
+  -- Taipea "Serif T" mark (icon B): the arc stays the FIRST path so fabHTML colours it with --arc
+  mic = svg('<path d="M5.6 10.4C5.6 14.5 8.5 17 12 17S18.4 14.5 18.4 10.4"/><path class="solid" fill="currentColor" stroke-width="1.2" d="M3.8 2.4H20.2V7.4C19.8 6 19.1 5.3 17.6 5.2H14.6V11.6A2.6 2.6 0 0 1 9.4 11.6V5.2H6.4C4.9 5.3 4.2 6 3.8 7.4Z"/><path d="M12 17V20.9M8.6 20.9H15.4"/>', 2.3),
   paste = svg('<rect x="5" y="4" width="14" height="17.5" rx="2.2"/><path d="M9 4V2.8h6V4"/><path d="M8.6 13.2l2.4 2.4 4.6-4.9"/>'),
   copy = svg('<rect x="8.5" y="8.5" width="12" height="13" rx="2"/><path d="M15.5 8.5V5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/>'),
   x = svg('<path d="M6 6l12 12M18 6L6 18"/>', 3.2),
@@ -711,11 +715,12 @@ local OW, OH = 460, 250
 local function overlayFrame()
   local p = settings.get("taipea.overlayPos")
   local sf = hs.screen.mainScreen():frame()
-  local k = (cfg.uiSize=="compact" and 0.75 or 1) * ((M.look and M.look.scale) or 1)
+  local k = ((M.look and M.look.scale) or 1)
   local w, h = OW*k, OH*k
   if p then return clampFrame({ x=p.x, y=p.y, w=w, h=h }) end
   return { x=sf.x+(sf.w-w)/2, y=sf.y+60, w=w, h=h }
 end
+M.overlayFrame = overlayFrame
 local function overlayHTML() return [[
 <html lang="]]..uiLang()..[[" class="cl"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important}
@@ -740,16 +745,18 @@ html.hc.cl #panel{background:#000;border:4px solid #fff}html.hc button{border:4p
 html.hc #stop{background:#006b1f}html.hc #copy{background:#003f8a}html.hc #cancel{background:#a00000}html.hc.cl #sub,html.hc.cl #t{color:#fff}
 html.rm *{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion: reduce){*{animation:none!important}}
+html.nolbl #b button>span:not(.ic){display:none}html.nolbl .ic svg{width:52px;height:52px}
 </style></head><body><div id=panel>
 <div id=top><div id=dot></div><div id=st>]]..T("ov_listening")..[[</div><div id=t>0:00</div></div>
 <div id=sub></div>
-<div id=b><button id=stop onclick="s('stop')"><span class=ic>]]..ICON.paste..[[</span><span>]]..T("ov_stop")..[[</span></button><button id=copy onclick="s('copy')"><span class=ic>]]..ICON.copy..[[</span><span>]]..T("ov_copy")..[[</span></button><button id=cancel onclick="s('cancel')"><span class=ic>]]..ICON.x..[[</span><span>]]..T("ov_cancel")..[[</span></button></div></div>
+<div id=b><button id=stop aria-label="]]..T("fab_rec")..[[" title="]]..T("fab_rec")..[[" onclick="s('stop')"><span class=ic>]]..ICON.paste..[[</span><span>]]..T("ov_stop")..[[</span></button><button id=copy aria-label="]]..T("sat_copy")..[[" title="]]..T("sat_copy")..[[" onclick="s('copy')"><span class=ic>]]..ICON.copy..[[</span><span>]]..T("ov_copy")..[[</span></button><button id=cancel aria-label="]]..T("sat_cancel")..[[" title="]]..T("sat_cancel")..[[" onclick="s('cancel')"><span class=ic>]]..ICON.x..[[</span><span>]]..T("ov_cancel")..[[</span></button></div></div>
 <script>document.documentElement.style.zoom=window.__tpZoom||1;function s(a){webkit.messageHandlers.taipea.postMessage(a)}
 document.getElementById('panel').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();s({cmd:'dragOverlay'})}});
 function upd(st,t,sub,busy){document.getElementById('st').textContent=st;document.getElementById('t').textContent=t;
 document.getElementById('sub').textContent=sub;document.body.classList.toggle('busy',!!busy)}
 function setLook(hc,rm){document.documentElement.classList.toggle('hc',!!hc);document.documentElement.classList.toggle('rm',!!rm)}
-function setPal(p){var r=document.documentElement;['ovbg','ovtx','ovmut','ovt'].forEach(function(k){r.style.setProperty('--'+k,p[k])});r.style.setProperty('--bd',p.cl?'transparent':p.bd2);r.classList.toggle('cl',!!p.cl)}</script></body></html>]] end
+function setPal(p){var r=document.documentElement;['ovbg','ovtx','ovmut','ovt'].forEach(function(k){r.style.setProperty('--'+k,p[k])});r.style.setProperty('--bd',p.cl?'transparent':p.bd2);r.classList.toggle('cl',!!p.cl)}
+function setLbl(on,a,b,c){document.documentElement.classList.toggle('nolbl',!on);[['stop',a],['copy',b],['cancel',c] ].forEach(function(x){var e=document.getElementById(x[0]);if(e&&x[1]){e.setAttribute('aria-label',x[1]);e.title=x[1]}})}</script></body></html>]] end
 
 -- ---------- hotkeys ----------
 local hk = {}
@@ -832,6 +839,7 @@ local function onMsg(m)
   elseif type(a)=="table" and a.cmd=="dragStart" then M.startAppDrag()
   elseif type(a)=="table" and a.cmd=="dragOverlay" then M.startOverlayDrag()
   elseif type(a)=="table" and a.cmd=="fabDown" then M.startFabDrag()
+  elseif type(a)=="table" and a.cmd=="fabResizeDown" then M.startFabResize()
   elseif type(a)=="table" and a.cmd=="fabReady" then M.fabUpdate()
   elseif type(a)=="table" and a.cmd=="satDown" then M.satPress(a.which)
   elseif type(a)=="table" then M.handle(a) end
@@ -879,10 +887,13 @@ local function showOverlay()
       :html(overlayHTML())
   end
   overlay:frame(overlayFrame()):show()
-  local z = (cfg.uiSize=="compact" and 0.75 or 1) * ((M.look and M.look.scale) or 1)
+  local z = ((M.look and M.look.scale) or 1)
   overlay:evaluateJavaScript("window.__tpZoom="..z..";document.documentElement.style.zoom=window.__tpZoom;setLook("..tostring(M.look and M.look.hc or false)..","..tostring(M.look and M.look.rm or false)..")")
   if M.overlayPal then M.overlayPal() end
+  M.ovLbl()
 end
+-- recording card: text under the icons on or off (Settings › Floating button › Text labels)
+function M.ovLbl() if overlay then overlay:evaluateJavaScript(string.format("setLbl(%s,%q,%q,%q)", tostring(cfg.fabLabels ~= false), T("fab_rec"), T("sat_copy"), T("sat_cancel"))) end end
 local function hideOverlay() if overlay then overlay:hide() end end
 M._showOverlay, M._hideOverlay = showOverlay, hideOverlay
 local function setOverlay(st, sub, busy)
@@ -1117,10 +1128,23 @@ local fab, sats, satLabel, satTimer = nil, {}, nil, nil
 -- satellite layout still use the old frame (circle + 4 px), so FABG.EXTRA converts between the two.
 -- (one table, not five locals: the main chunk is near Lua's 200-local limit)
 local FABG = { PAD = 18 }; FABG.EXTRA = FABG.PAD - 4
-local function fabSize() return math.floor(96 * (look.scale or 1) + 0.5) + 2 * FABG.PAD end
+-- size limits for the button's circle (px). 64: stays above the 60 px target minimum with its ring.
+-- 220: about 2.3x the default; bigger hides too much of a laptop screen.
+FABG.MIN, FABG.MAX, FABG.DEF = 64, 220, 96
+-- circle diameter now: the saved size (Settings or drag the ring), else the default scaled by text size
+function M.fabDiam()
+  local d = tonumber(cfg.fabSize)
+  if not d or d <= 0 then d = FABG.DEF * (look.scale or 1) end
+  return math.max(FABG.MIN, math.min(FABG.MAX, math.floor(d + 0.5)))
+end
+-- idle opacity 0.4..1 (Settings › Floating button). Recording and working always draw at full opacity.
+function M.fabOp() local n = tonumber(cfg.fabOpacity) or 100; return math.max(40, math.min(100, n)) / 100 end
+local function fabSize() return M.fabDiam() + 2 * FABG.PAD end
 function FABG.shrink(f, d) return { x = f.x + d, y = f.y + d, w = f.w - 2 * d, h = f.h - 2 * d } end
 function FABG.grow(f, d) return { x = f.x - d, y = f.y - d, w = f.w + 2 * d, h = f.h + 2 * d } end
-local function satSizes() local s = look.scale or 1; return math.max(60, math.floor(64 * s + 0.5)), math.max(80, math.floor(84 * s + 0.5)) end
+-- Stop buttons follow the main button (default 96 -> 64 / 84 px), never under 60 px, capped so they still fit
+local function satSizes() local d = M.fabDiam(); return math.max(60, math.min(120, math.floor(d * 2 / 3 + 0.5))), math.max(80, math.min(150, math.floor(d * 0.875 + 0.5))) end
+FABG.satSizes = satSizes
 function FABG.satWin0() local _, big = satSizes(); return big + 8 end
 local function satWin() return FABG.satWin0() + 2 * FABG.EXTRA end
 local function fabFrame()
@@ -1294,6 +1318,8 @@ html{--bg:#0A6CD6;--mic:#fff;--acc:rgba(255,255,255,.9);--arc:#fff}
 #i{width:50%;height:50%;display:flex}#i svg{width:100%;height:100%}
 #b:not(.rec) #i svg path:first-of-type{stroke:var(--arc)}
 html.ol #b:not(.rec) #i svg rect{fill:none}html.ol #b:not(.rec) #i svg{stroke-linecap:butt}
+html.ol #b:not(.rec) #i svg .solid{fill:none;stroke-width:1.7}html.ol #b:not(.rec) #i svg .hl{display:none}html.ol #b:not(.rec) #i svg .grille{stroke:currentColor;stroke-width:1.4}
+@media (max-width:150px){html.ol #b:not(.rec) #i svg .solid{stroke-width:2}}@media (max-width:115px){html.ol #b:not(.rec) #i svg .solid{stroke-width:2.3}}
 html:not(.cl) #b{border-width:5px}
 #b.rec{background:rgba(30,142,62,.62);color:#fff;animation:pulse 2.4s ease-in-out infinite}
 #b.busy{background:rgba(58,63,71,.60);color:#fff}#b.busy #i{display:none}
@@ -1301,6 +1327,8 @@ html:not(.cl) #b{border-width:5px}
 #b.busy #spin{display:block}
 #b.armed{border-color:#30d158;border-width:6px}#ear{display:none;position:absolute;right:-2px;bottom:-2px;font-size:calc(100vw*.22);background:#30d158;border-radius:50%;padding:2px 4px}
 #b.armed #ear{display:block}
+#b:not(.rec):not(.busy){opacity:var(--op,1)}
+#b.rs{opacity:1!important;outline:4px dashed #ffd60a;outline-offset:3px}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,.55),0 3px 12px rgba(0,0,0,.28),inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -2px 6px rgba(0,0,0,.14)}50%{box-shadow:0 0 0 7px rgba(48,209,88,0),0 3px 12px rgba(0,0,0,.28),inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -2px 6px rgba(0,0,0,.14)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 html.hc #b,html.rt #b{-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -1312,7 +1340,11 @@ html.rm #b,html.rm #spin{animation:none!important}html.rm #spin{border-style:dot
 </style></head><body><div id=b role=button aria-label=""><span id=i></span><div id=spin></div><span id=ear>👂</span></div>
 <script>var IC={mic:']]..ICON.mic..[[',rec:']]..ICON.paste..[['};
 function s(a){webkit.messageHandlers.__MSG__.postMessage(a)}
-document.getElementById('b').addEventListener('mousedown',function(e){if(e.button===0){e.preventDefault();s({cmd:'fabDown'})}});
+// press on the ring (outer band of the circle) or just outside it = resize; inside = move / tap
+function zone(e){var r=document.getElementById('b').getBoundingClientRect(),R=r.width/2,d=Math.sqrt(Math.pow(e.clientX-r.left-R,2)+Math.pow(e.clientY-r.top-R,2));return d<R-Math.max(12,R*.22)?'in':'edge'}
+document.addEventListener('mousedown',function(e){if(e.button===0){e.preventDefault();s({cmd:zone(e)=='in'?'fabDown':'fabResizeDown'})}});
+function setOp(o){document.documentElement.style.setProperty('--op',o)}
+function setRs(on){document.getElementById('b').classList.toggle('rs',!!on)}
 var cur='';function setSt(st,armed,label,hc,rm,rt){var b=document.getElementById('b');b.className=st+(armed?' armed':'');
  var ic=st=='rec'?'rec':'mic';if(ic!=cur){document.getElementById('i').innerHTML=IC[ic];cur=ic}
  b.setAttribute('aria-label',label);
@@ -1341,6 +1373,7 @@ local SAT_KINDS = { "copy", "cancel" }
 local function satText(k) return k == "copy" and T("sat_copy") or (k == "cancel" and T("sat_cancel") or T("fab_rec")) end
 -- the hover label: a canvas, so it never takes clicks or focus
 local function showLabel(kind, f, side)
+  if cfg.fabLabels == false then return end
   local txt = satText(kind)
   local fs = math.floor(20 * (look.scale or 1) + 0.5)
   local w, h = math.floor(utf8.len(txt) * fs * 0.58 + 36), fs + 24
@@ -1361,6 +1394,7 @@ local function showLabel(kind, f, side)
     textSize = fs, textColor = { white = 1, alpha = 1 }, textAlignment = "center", textFont = ".AppleSystemUIFontBold" }
   satLabel:show()
 end
+FABG.showLabel = showLabel
 local function hideLabel() if satLabel then satLabel:delete(); satLabel = nil end end
 local function inside(p, f) return p.x >= f.x and p.x < f.x + f.w and p.y >= f.y and p.y < f.y + f.h end
 local function placeSats()
@@ -1730,6 +1764,7 @@ function M.fabUpdate()
   local th = fabTheme()
   fab:evaluateJavaScript(string.format("th(%q,%q,%q,%s,%s)", FABG.glassBg(th.bg, look.hc or look.rt), th.mic, th.acc, th.id == "classic" and "true" or "false", th.outline and "true" or "false"))
   fab:evaluateJavaScript(string.format("setSt(%q,%s,%q,%s,%s,%s)", st, armed and "true" or "false", label, look.hc and "true" or "false", look.rm and "true" or "false", look.rt and "true" or "false"))
+  fab:evaluateJavaScript(string.format("if(window.setOp)setOp(%.2f)", M.fabOp()))
   M.applyFabVis()
   if st == "rec" then showSats() else hideSats() end
 end
@@ -1760,6 +1795,73 @@ function M.startFabDrag()
     if moved < 8 then fab:frame(f0); settings.set(KP.."fabPos", { x = f0.x + FABG.EXTRA, y = f0.y + FABG.EXTRA }); fabClick()
     else local f = fab:frame(); settings.set(KP.."fabPos", { x = f.x + FABG.EXTRA, y = f.y + FABG.EXTRA }); placeSats() end
   end)
+end
+-- press on the ring: resize around the centre. Nothing changes until the pointer moves 6 px toward or
+-- away from the centre; a press that barely moves is still a tap (start / Stop & Paste). Polls the mouse
+-- and also ends on the real mouse-up, like the move drag, so head mice and mouth switches work.
+function M.startFabResize()
+  if not fab then return end
+  if M._dragEnd then M._dragEnd() end
+  local f0 = fab:frame(); local c = { x = f0.x + f0.w / 2, y = f0.y + f0.h / 2 }
+  local p0 = hs.mouse.absolutePosition()
+  local function dist(p) return math.sqrt((p.x - c.x)^2 + (p.y - c.y)^2) end
+  local R = { n = 0, D0 = M.fabDiam(), d0 = dist(p0), moved = 0 }; R.D = R.D0
+  local function fin()
+    if R.done then return end; R.done = true
+    if R.tm then R.tm:stop() end; if R.tap then R.tap:stop() end; M._dragEnd = nil
+    if R.lbl then R.lbl:delete(); R.lbl = nil end
+    if not fab then return end
+    fab:evaluateJavaScript("setRs(false)")
+    if not R.active then if R.moved < 8 then fabClick() end; return end
+    local nf = clampFrame(fab:frame()); fab:frame(nf)
+    settings.set(KP.."fabPos", { x = nf.x + FABG.EXTRA, y = nf.y + FABG.EXTRA })
+    cfg.fabSize, saved.fabSize = R.D, R.D; saveSettings(); log("floating button size: "..R.D.." px (drag)")
+    if next(sats) then hideSats(); showSats() end
+    if pushState then pushState() end
+  end
+  M._dragEnd = fin
+  R.tap = hs.eventtap.new({ hs.eventtap.event.types.leftMouseUp }, function() after(0, fin); return false end); R.tap:start()
+  R.tm = hs.timer.doEvery(0.016, function()
+    R.n = R.n + 1
+    local p = hs.mouse.absolutePosition(); local d = dist(p)
+    R.moved = math.max(R.moved, math.sqrt((p.x - p0.x)^2 + (p.y - p0.y)^2))
+    if not R.active and math.abs(d - R.d0) >= 6 then R.active = true; fab:evaluateJavaScript("setRs(true)") end
+    if R.active then
+      local D = math.max(FABG.MIN, math.min(FABG.MAX, math.floor(R.D0 + 2 * (d - R.d0) + 0.5)))
+      if D ~= R.D or not R.lbl then R.D = D; local s = D + 2 * FABG.PAD
+        fab:frame({ x = math.floor(c.x - s / 2 + 0.5), y = math.floor(c.y - s / 2 + 0.5), w = s, h = s })
+        M.fabSizeLbl(R, c, s) end
+    end
+    if (R.n > 3 and not hs.eventtap.checkMouseButtons()[1]) or R.n > 1875 then fin() end
+  end)
+end
+-- "128 px" tag above the button while resizing (a canvas: never takes clicks)
+function M.fabSizeLbl(R, c, s)
+  local txt = R.D.." px"..((R.D == FABG.MIN or R.D == FABG.MAX) and " ·  "..(R.D == FABG.MIN and "min" or "max") or "")
+  local fs = 20; local w, h = 150, fs + 22
+  local fr = clampFrame({ x = c.x - w / 2, y = c.y - s / 2 - h - 2, w = w, h = h })
+  if not R.lbl then
+    R.lbl = hs.canvas.new(fr):level(hs.canvas.windowLevels.floating + 1)
+    R.lbl:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces + hs.drawing.windowBehaviors.stationary)
+    R.lbl[1] = { type = "rectangle", action = "strokeAndFill", roundedRectRadii = { xRadius = 10, yRadius = 10 }, fillColor = { white = 0, alpha = .9 }, strokeColor = { red = 1, green = .84, blue = .04, alpha = 1 }, strokeWidth = 3 }
+    R.lbl[2] = { type = "text", text = txt, frame = { x = 0, y = (h - fs * 1.25) / 2, w = w, h = fs * 1.4 }, textSize = fs, textColor = { white = 1, alpha = 1 }, textAlignment = "center", textFont = ".AppleSystemUIFontBold" }
+    R.lbl:show()
+  else R.lbl:frame(fr); R.lbl[2].text = txt end
+end
+-- size from Settings (n <= 0 = back to the default), kept centred on where the button is now
+function M.setFabSize(v)
+  local n = tonumber(v)
+  if not n or n <= 0 then cfg.fabSize, saved.fabSize = nil, nil
+  else n = math.max(FABG.MIN, math.min(FABG.MAX, math.floor(n + 0.5))); cfg.fabSize, saved.fabSize = n, n end
+  saveSettings(); log("floating button size: "..M.fabDiam().." px (settings)")
+  if fab then
+    local f0, s = fab:frame(), fabSize()
+    if type(f0) == "table" and type(f0.x) == "number" and type(f0.w) == "number" then
+      local nf = clampFrame({ x = math.floor(f0.x + (f0.w - s) / 2 + 0.5), y = math.floor(f0.y + (f0.h - s) / 2 + 0.5), w = s, h = s })
+      fab:frame(nf); settings.set(KP.."fabPos", { x = nf.x + FABG.EXTRA, y = nf.y + FABG.EXTRA })
+      if next(sats) then hideSats(); showSats() end
+    end
+  end
 end
 -- press on a satellite: it acts when the mouse is released less than 8 px from where it went down
 function M.satPress(which)
@@ -2154,6 +2256,79 @@ function M.judgeRaw(text, lv, lang)
   if M.isHallucination(text, lv) then return "hallucination" end
   return "ok"
 end
+
+-- Whisper sound tags (*Music*, *Pongebob*) and bracket/paren non-speech markers.
+-- Tag checks do not use audio levels (live slices pass fake levels).
+function M.stripSoundTags(text)
+  text = text or ""
+  local n = 0
+  local function hit() n = n + 1; return " " end
+  -- *non-speech markers* (spaces allowed inside)
+  text = text:gsub("%*[^*]+%*", hit)
+  -- known paren markers only (not ordinary parentheses in real sentences)
+  text = text:gsub("%(%s*[Mm][Uu][Ss][Ii][Cc]%s*%)", hit)
+  text = text:gsub("%(%s*[Aa][Pp][Pp][Ll][Aa][Uu][Ss][Ee]%s*%)", hit)
+  text = text:gsub("%(%s*[Aa][Pp][Ll][Aa][Uu][Ss][Oo][Ss]%s*%)", hit)
+  -- known bracket non-speech tokens
+  text = text:gsub("%[%s*[Bb][Ll][Aa][Nn][Kk][_%- ]?[Aa][Uu][Dd][Ii][Oo]%s*%]", hit)
+  text = text:gsub("%[%s*[Ii][Nn][Aa][Uu][Dd][Ii][Bb][Ll][Ee]%s*%]", hit)
+  text = text:gsub("%[%s*[Ss][Ii][Ll][Ee][Nn][Cc][Ee]%s*%]", hit)
+  text = text:gsub("%[%s*[Mm][Uu][Ss][Ii][Cc]%s*%]", hit)
+  text = text:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+  return text, n
+end
+function M.stripSoundTagsFromSegs(segs)
+  local out = {}
+  for _, s in ipairs(segs or {}) do
+    local t = M.stripSoundTags(s.text or "")
+    if t:match("%S") and M.hasLetters(t) then
+      out[#out+1] = { from = s.from, to = s.to, text = t }
+    end
+  end
+  return out
+end
+-- true when leftover after tag strip is tiny vs how many tags were removed
+-- needs ≥2 tags so "Hello *Music*" (1 tag) is kept; "*A* *B* *C* Dale" is dropped
+function M.isTagHallucination(cleaned, nTags)
+  nTags = nTags or 0
+  if nTags < 2 then return false end
+  local w = wordsOf(cleaned)
+  if #w == 0 then return true end
+  if #w <= 2 and #w <= nTags then return true end
+  return false
+end
+-- single unknown word repeated 3+ times, ≥70% of a short (≤6 word) output
+function M.isRepeatHallucination(text)
+  local w = wordsOf(text)
+  if #w < 3 or #w > 6 then return false end
+  local counts, top, topN = {}, nil, 0
+  for _, x in ipairs(w) do
+    counts[x] = (counts[x] or 0) + 1
+    if counts[x] > topN then top, topN = x, counts[x] end
+  end
+  if not top or topN < 3 or (topN / #w) < 0.70 then return false end
+  if EN_W[top] or ES_W[top] then return false end
+  for _, cw in ipairs(cfg.customWords or {}) do
+    if type(cw) == "table" then
+      for _, hw in ipairs(wordsOf(cw.heard or "")) do if hw == top then return false end end
+      for _, hw in ipairs(wordsOf(cw.replace or "")) do if hw == top then return false end end
+    end
+  end
+  return true
+end
+-- strip tags from text/segs; empty them when the result is empty or a tag/repeat hallucination
+-- returns text, segs, kind ("ok"|"empty"|"hallucination"). Off in Settings: pass through.
+function M.guardWhisperOutput(text, segs)
+  if cfg.whisperGuard == false then return text or "", segs or {}, "ok" end
+  local cleaned, nTags = M.stripSoundTags(text or "")
+  local newSegs = segs and M.stripSoundTagsFromSegs(segs) or {}
+  if not M.hasLetters(cleaned) then return "", {}, "empty" end
+  if M.isTagHallucination(cleaned, nTags) then return "", {}, "hallucination" end
+  if M.isRepeatHallucination(cleaned) then return "", {}, "hallucination" end
+  -- also catch repeats that were written with asterisks still on the words before strip counted them as tags
+  if nTags == 0 and M.isRepeatHallucination(text) then return "", {}, "hallucination" end
+  return cleaned, newSegs, "ok"
+end
 -- share of a text's words that are common words of the language (0..1)
 function M.langFit(text, lang)
   local set = lang == "en" and EN_W or ES_W
@@ -2534,6 +2709,9 @@ function M.liveOnSlice(item, code, out, t0)
   if M.liveStale(gen) then return end
   if code ~= 0 then log("live:fallback whisper"); M.liveFallback("whisper"); return end
   local text, segs = M.parseWhisper(out)
+  local kind
+  text, segs, kind = M.guardWhisperOutput(text, segs)
+  if kind ~= "ok" then log("live:sound-tag "..kind) end
   local lv = { rmsPk = -14, rmsTr = -40, len = (item.to - item.from) }
   local j = M.judgeRaw(text, lv, cfg.language or "auto")
   if j == "empty" or j == "hallucination" then text, segs = "", {}
@@ -2659,6 +2837,11 @@ function M.afterRaw(out, file)
   if M.abortIfDone(gen) then return end
   local lv = M._lv
   if M._voicePrefix then M.afterWhisper(out); return end
+  do
+    local t2, _, kind = M.guardWhisperOutput(out, nil)
+    if kind ~= "ok" then M.nothingHeard(kind == "hallucination" and "sound-tag / repeat hallucination" or kind); return end
+    out = t2
+  end
   local lang = cfg.language or "auto"
   local j = M.judgeRaw(out, lv, lang)
   if j == "ok" then M.afterWhisper(out); return end
@@ -2678,6 +2861,7 @@ function M.afterRaw(out, file)
         M.wTask = nil
         if M.abortIfDone(gen) then return end
         o = M.parseWhisper(o)
+        o = (M.guardWhisperOutput(o, nil))
         log(string.format("whisper retry -l %s exit %d RAW: %s", l, code, o))
         if code == 0 then cands[#cands+1] = { lang = l, text = o } end
         run(i + 1)
@@ -2727,6 +2911,9 @@ transcribe = function(file)
       return
     end
     local text, segs = M.parseWhisper(out)
+    local kind
+    text, segs, kind = M.guardWhisperOutput(text, segs)
+    if kind ~= "ok" then log("sound-tag "..kind..": "..tostring(out):gsub("%s+"," "):sub(1,120)) end
     M.tailGuard(text, segs, wfile, plan, function(t2)
       if M.abortIfDone(gen) then return end
       M.afterRaw(t2, wfile)
@@ -2908,6 +3095,8 @@ pushState = function()
      voiceControl=cfg.voiceControl, startPhrases=cfg.startPhrases, stopPhrases=cfg.stopPhrases, floatButton=cfg.floatButton, cardWithFab=(cfg.cardWithFab==true), textSize=cfg.textSize, contrast=cfg.contrast, customWords=cfg.customWords,
      hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id, escStop=(cfg.escStop~=false), micKey=(cfg.micKey==true),
      inputDevice=(cfg.inputDevice or ""), inputDeviceName=(cfg.inputDeviceName or ""),
+     fabSize=M.fabDiam(), fabSizeCustom=((tonumber(cfg.fabSize) or 0) > 0), fabMin=FABG.MIN, fabMax=FABG.MAX, fabOpacity=math.floor(M.fabOp() * 100 + 0.5), fabLabels=(cfg.fabLabels ~= false),
+     whisperGuard=(cfg.whisperGuard ~= false),
      customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
      look=look, perm={ ax=M.permAx, mic=M.micWarn, axPane=axEn, axPaneEs=axEs },
      mics=mics, micDefault=M.micDefaultName(), micActive=M.micActive(),
@@ -3033,6 +3222,10 @@ function M.handle(a)
       if not col then hs.alert.show(T("color_bad")); pushState(); return end
       setOpt(k, col); M.fabUpdate(); M.overlayPal(); pushState()
     elseif k=="hideFullscreen" then setOpt(k, v and true or false); M.applyFabVis(); pushState()
+    elseif k=="fabSize" then M.setFabSize(v); hs.alert.show(T("fab_size", M.fabDiam())); pushState()
+    elseif k=="fabOpacity" then setOpt(k, math.max(40, math.min(100, math.floor((tonumber(v) or 100) + 0.5)))); M.fabUpdate(); pushState()
+    elseif k=="fabLabels" then setOpt(k, v and true or false); hideLabel(); M._satLbl = nil; M.ovLbl(); pushState()
+    elseif k=="whisperGuard" then setOpt(k, v and true or false); pushState()
     elseif k=="checkForUpdates" then setOpt(k, v and true or false); hs.alert.show(v and T("upd_on") or T("upd_off")); if v then M.checkUpdates(false) end; pushState()
     elseif k=="startPhrases" or k=="stopPhrases" then
       local list = type(v)=="table" and v or splitPhrases(v)
@@ -3041,11 +3234,10 @@ function M.handle(a)
     elseif k=="silenceSeconds" then local n = tonumber(v); if n and n>=1 and n<=30 then setOpt(k, n) end
     elseif k=="contrast" then setOpt(k, (v=="on" or v=="off") and v or "auto"); updateLook(); if overlay then overlay:delete(); overlay=nil end; M.fabUpdate(); pushState()
     elseif k=="uiSize" or k=="textSize" then
-      if k=="uiSize" then setOpt(k, v=="compact" and "compact" or "normal")
+      if k=="uiSize" then setOpt(k, (v=="compact" or v=="standard") and "compact" or "normal")
       else setOpt(k, (v=="large" or v=="xlarge") and v or "normal"); updateLook(); if overlay then overlay:delete(); overlay=nil end; if fab then fab:frame(fabFrame()) end; M.fabUpdate() end
       if appWin then local f=appWin:frame(); local scr=screenFor(f); local sf=scr:frame()
-        local nw = math.min((cfg.uiSize=="compact" and 520 or 760) * look.scale, sf.w-40)
-        local nh = cfg.uiSize=="compact" and math.min(700, sf.h-80) or sf.h-80
+        local nw, nh = M.appSize(sf)
         local nf = clampFrame({x=f.x, y=f.y, w=nw, h=nh}, scr); appWin:frame(nf); settings.set("taipea.appPos", {x=nf.x, y=nf.y}) end
       pushState()
     elseif k=="uiLanguage" then
@@ -3056,6 +3248,13 @@ function M.handle(a)
   end
 end
 
+-- app window size. uiSize "normal" = Accessible (default): 760 wide, full height, 60 px targets.
+-- uiSize "compact" = Standard: a regular Mac-app window, 640 x 680. Text size scales both.
+function M.appSize(sf)
+  local k = look.scale or 1
+  if cfg.uiSize == "compact" then return math.min(math.floor(640 * k + 0.5), sf.w - 40), math.min(math.floor(680 * k + 0.5), sf.h - 80) end
+  return math.min(760 * k, sf.w - 40), sf.h - 80
+end
 function M.openApp()
   local front = hs.application.frontmostApplication()
   if front and front:bundleID() ~= "org.hammerspoon.Hammerspoon" then M.lastApp = front end
@@ -3063,7 +3262,7 @@ function M.openApp()
     local ap = settings.get("taipea.appPos")
     local scr = ap and screenFor({x=ap.x, y=ap.y, w=1, h=1}, {x=ap.x+20, y=ap.y+20}) or hs.screen.mainScreen()
     local sf = scr:frame()
-    local w, h = math.min((cfg.uiSize=="compact" and 520 or 760) * look.scale, sf.w-40), cfg.uiSize=="compact" and math.min(700, sf.h-80) or sf.h-80
+    local w, h = M.appSize(sf)
     ap = ap or {x=sf.x+(sf.w-w)/2, y=sf.y+30}
     appWin = hs.webview.new(clampFrame({x=ap.x, y=ap.y, w=w, h=h}), {}, uc)
       :windowStyle({"borderless","resizable"}):windowTitle("Taipea"):transparent(true):shadow(true):level(hs.drawing.windowLevels.normal)
@@ -3157,7 +3356,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.2.12"
+local VERSION = "0.3.0"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

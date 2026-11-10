@@ -1,90 +1,168 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Taipea</title><style>
+<html lang="en"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:transparent!important;overflow:hidden}
-/* Colours come from the palette Taipea sends (Settings › Colors); these are the Classic Blue values */
-body{--panel:#1C1C20;--bar:#2A2A30;--tabs:#111;--tab:#333;--tabtx:#fff;--btn:#3A3A40;--btntx:#fff;--acc:#0A6CD6;--acctx:#fff;--input:#2A2A30;--inbd:#555;--card:#2C2C32;--inner:#24242A;--tx:#EEE;--mut:#999;--mut2:#AAA;--bd:#3A3A40;--bd2:#444;--ring:#fff;--focus:#0A84FF;--warn:#FFCC00;--sb:#55555A}
-body{font:17px -apple-system;color:var(--tx)}
-#scroll::-webkit-scrollbar{width:14px}#scroll::-webkit-scrollbar-track{background:transparent}#scroll::-webkit-scrollbar-thumb{background:var(--sb);border-radius:7px;border:3px solid var(--panel)}
+body{--panel:#1C1C20;--bar:#2A2A30;--tabs:#111;--tab:#333;--tabtx:#fff;--btn:#3A3A40;--btntx:#fff;--acc:#0A6CD6;--acctx:#fff;--input:#2A2A30;--inbd:#555;--card:#2C2C32;--inner:#24242A;--tx:#EEE;--mut:#A3A3A8;--mut2:#AAA;--bd:#3A3A40;--bd2:#444;--ring:#fff;--focus:#4DA3FF;--warn:#FFCC00;--sb:#55555A;
+ /* fixed action colours: all reach 4.5:1 with white text (were 2.1–3.4:1) */
+ --go:#1B7F3B;--stop:#C9302C;--amber:#A85200;--dtx:#FF8A80;--gotx:#6EDC8C;
+ --line:color-mix(in srgb,var(--tx) 40%,var(--card));
+ --gap:12px;--pad:16px;--fs:18px;--fsh:16px;--fsx:19px;--r:14px;--z:1}
+body.lt{--dtx:#B3261E;--gotx:#17692F;--line:color-mix(in srgb,var(--tx) 55%,var(--card))}
+body{font:var(--fs)/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,sans-serif;color:var(--tx)}
+#scroll::-webkit-scrollbar{width:16px}#scroll::-webkit-scrollbar-track{background:transparent}#scroll::-webkit-scrollbar-thumb{background:var(--sb);border-radius:8px;border:3px solid var(--panel)}
 #panel{width:100%;height:100%;background:var(--panel);border:2px solid var(--bd);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+/* header + tabs live OUTSIDE the scroller: they never move, never get pushed down by banners */
+#chrome{flex:none;background:var(--bar);border-bottom:2px solid var(--bd2);zoom:var(--z);position:relative;z-index:3}
+#bar{display:flex;align-items:center;gap:16px;padding:8px 10px 16px 14px}
+#grip{flex:1;min-width:0;min-height:60px;display:flex;align-items:center;gap:10px;cursor:grab;-webkit-user-select:none;user-select:none;border-radius:12px;padding:0 8px}
+#grip .dots{font-size:22px;color:var(--mut);letter-spacing:-2px}
+#grip .t{font:700 20px/1.2 -apple-system,BlinkMacSystemFont,Inter,sans-serif}#grip .t small{display:block;font:500 14px/1.2 -apple-system,BlinkMacSystemFont,Inter,sans-serif;color:var(--mut)}
+#bar button{min-width:76px;font-size:22px}
+#tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap);padding:0 var(--pad) var(--pad)}
+@media (max-width:640px){#grip .t small{display:none}}
+@media (max-width:480px){.tab .ti{display:none}}
+.tab{min-height:64px;background:var(--tab);color:var(--tabtx);font-size:19px;display:flex;align-items:center;justify-content:center;gap:8px}
+.tab[aria-selected=true]{background:var(--acc);color:var(--acctx);border-color:var(--ring);box-shadow:inset 0 -6px 0 var(--ring)}
 #scroll{flex:1;min-height:0;overflow-y:auto}
-#bar{flex:none;height:68px;display:flex;align-items:center;gap:10px;padding:0 12px 0 18px;background:var(--bar);border-bottom:1px solid var(--bd2);cursor:grab;-webkit-user-select:none;z-index:3}
-#bar .t{flex:1;font:700 20px -apple-system;padding:4px 0}#bar .t small{font:400 14px -apple-system;color:var(--mut);margin-left:10px}
-#bar button{height:60px;min-width:72px;padding:0 14px;font-size:22px}
-#tabs{display:flex;gap:8px;padding:12px;background:var(--tabs);position:sticky;top:0;z-index:2}
-.tab{flex:1;height:64px;border:0;border-radius:12px;background:var(--tab);color:var(--tabtx);font:700 20px -apple-system;cursor:pointer}
-.tab.on{background:var(--acc);color:var(--acctx)}.tab.g{background:#34c759;color:#fff}
-section{display:none;padding:14px}section.on{display:block}
-button{height:60px;min-width:120px;padding:0 18px;border:0;border-radius:12px;font:700 18px -apple-system;color:var(--btntx);cursor:pointer;background:var(--btn)}
-button:hover{filter:brightness(1.25)}body.lt button:hover{filter:brightness(.92)}.b{background:var(--acc);color:var(--acctx)}.g{background:#34c759;color:#fff}.r{background:#ff453a;color:#fff}.y{background:#ff9f0a;color:#fff}
-:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-/* History Copy keeps the fixed copy blue in every colour set (blue = copy) */body:not(.cl) .cpy{background:#0A6CD6;color:#fff}
-input[type=text],input[type=number],textarea{font:18px -apple-system;min-height:60px;padding:14px;border-radius:10px;border:1px solid var(--inbd);background:var(--input);color:var(--tx)}
-.e{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}.h{color:var(--mut);font-size:14px}
-.x{font-size:19px;margin:8px 0;white-space:pre-wrap}
-.sty{margin-top:10px}.sty .opt{min-width:110px}.sty .lbl{width:100%;color:var(--mut);font-size:14px}
-.e.busy .sty .opt{opacity:.4;pointer-events:none}.conv{color:var(--warn);font-weight:700;font-size:18px}.raw{color:var(--mut2);font-size:15px;margin-bottom:8px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px}.card h3{margin:0 0 10px}
-.opts{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
-.opt{flex:1 1 180px;min-width:min(100%,160px);min-height:60px;height:auto;padding:10px 14px;white-space:normal;overflow-wrap:anywhere;line-height:1.25;text-align:center}.opt.on{background:var(--acc);color:var(--acctx);outline:3px solid var(--ring)}
-.opt small{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:2px;line-height:1.2}
-.m{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--inner);border-radius:10px;padding:12px 16px;margin:8px 0}
-.m small{color:var(--mut2);display:block;font-size:14px}.prog{color:var(--warn);font-weight:700}
-/* Size: compact scales the whole UI via one variable; the Size card stays full size */
-body{--z:1}#bar,#inner{zoom:var(--z)}
-body.compact #sizecard,body.compact #langcard,body.compact #miccard,body.compact #permcard{zoom:calc(1/var(--z))}
-.big{font:700 22px -apple-system;margin:4px 0}.kd{background:var(--inner);border-radius:10px;padding:14px 16px;margin:8px 0}
-.wr{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:8px 0;align-items:center}.wr input{width:100%}.wh span{color:var(--mut);font-size:14px}
-button:disabled{opacity:.45;pointer-events:none}
-.sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;margin:8px 0}
-.sw{height:128px;min-width:0;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--inner);border:3px solid transparent;font:700 16px -apple-system;line-height:1.15}
-.sw.on{background:var(--acc);color:var(--acctx);border-color:var(--ring);outline:3px solid var(--ring)}
-.pv{width:64px;height:64px;flex:none;border-radius:50%;box-sizing:border-box;border:4px solid;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.45)}
-.pv svg{width:52%;height:52%}
-.cc{display:grid;grid-template-columns:1fr auto 170px auto;gap:10px;align-items:center;margin:8px 0}
-.cc input[type=color]{width:110px;height:64px;padding:2px;border:2px solid var(--inbd);border-radius:12px;background:var(--input);cursor:pointer}
-.cc input[type=text]{width:170px}
-.pm{flex:1;height:auto;min-height:72px;padding:12px 18px;white-space:normal}
-/* High contrast: Classic Blue keeps the black / white / yellow look; other colour sets get thick borders in their own text colour */
-body.hc.cl .sw{background:#000;border:3px solid #fff}body.hc.cl .sw.on{background:#ffd60a!important;color:#000;outline:4px solid #fff}body.hc.cl .cc input[type=color]{border:3px solid #fff}
-body.hc.cl #panel{background:#000;border:3px solid #fff}body.hc.cl{color:#fff}
-body.hc.cl .h,body.hc.cl small,body.hc.cl .raw,body.hc.cl .wh span,body.hc.cl .lbl{color:#fff!important}
-body.hc.cl .card,body.hc.cl .e,body.hc.cl .m,body.hc.cl .kd{background:#000;border:2px solid #fff}
-body.hc.cl #bar,body.hc.cl #tabs{background:#000;border-bottom:3px solid #fff}
-body.hc.cl button{border:3px solid #fff;background:#1a1a1a}body.hc.cl .b{background:#003f8a}body.hc.cl .g{background:#006b1f}body.hc.cl .r{background:#a00000}body.hc.cl .y{background:#7a4a00}
-body.hc.cl .tab.on,body.hc.cl .opt.on{background:#ffd60a!important;color:#000;outline:4px solid #fff}
-body.hc.cl input[type=text]{background:#000;border:3px solid #fff;color:#fff}
-body.hc.cl :focus-visible{outline:4px solid #ffd60a;outline-offset:2px}
-body.hc:not(.cl) #panel{border:3px solid var(--tx)}body.hc:not(.cl) #bar,body.hc:not(.cl) #tabs{border-bottom:3px solid var(--tx)}
-body.hc:not(.cl) .card,body.hc:not(.cl) .e,body.hc:not(.cl) .m,body.hc:not(.cl) .kd{border:2px solid var(--tx)}
-body.hc:not(.cl) button,body.hc:not(.cl) .sw{border:3px solid var(--tx)}body.hc:not(.cl) .tab.on,body.hc:not(.cl) .opt.on,body.hc:not(.cl) .sw.on{outline:4px solid var(--ring)}
-body.hc:not(.cl) input[type=text],body.hc:not(.cl) .cc input[type=color]{border:3px solid var(--tx)}body.hc:not(.cl) :focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+#inner{zoom:var(--z);padding:var(--pad)}
+section{display:none}section.on{display:block}
+button{min-height:60px;height:auto;min-width:60px;padding:10px 18px;border:2px solid var(--line);border-radius:var(--r);font:700 var(--fs)/1.2 -apple-system,BlinkMacSystemFont,Inter,sans-serif;color:var(--btntx);background:var(--btn);cursor:pointer;white-space:normal;overflow-wrap:anywhere;text-align:center}
+button:hover{filter:brightness(1.15)}body.lt button:hover{filter:brightness(.94)}button:active{filter:brightness(.85)}
+.b{background:var(--acc);color:var(--acctx);border-color:transparent}.g{background:var(--go);color:#fff;border-color:transparent}.r{background:var(--stop);color:#fff;border-color:transparent}.y{background:var(--amber);color:#fff;border-color:transparent}
+.dz{background:transparent;color:var(--dtx);border:2px solid var(--dtx)}
+body:not(.cl) .cpy{background:#0A6CD6;color:#fff}
+button:disabled,button[aria-disabled=true]{opacity:1;color:var(--mut);background:transparent;border:2px dashed var(--line);pointer-events:none}
+:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+input[type=text],input[type=number],input[type=search],textarea{font:var(--fs) -apple-system,BlinkMacSystemFont,Inter,sans-serif;min-height:60px;padding:14px 16px;border-radius:12px;border:2px solid var(--line);background:var(--input);color:var(--tx);width:100%}
+input[type=search]{-webkit-appearance:none;appearance:none}input::placeholder{color:var(--mut);opacity:1}
+.card,.e{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:var(--pad);margin-bottom:var(--gap)}
+.card h3{margin:0 0 6px;font-size:20px;line-height:1.25}.card h3+.opts,.card h3+.row{margin-top:10px}
+.h{color:var(--mut);font-size:var(--fsh);line-height:1.45;margin:4px 0 12px;max-width:68ch}
+.big{font:700 22px -apple-system,BlinkMacSystemFont,Inter,sans-serif;margin:4px 0}
+.row{display:flex;gap:var(--gap);flex-wrap:wrap;align-items:center}.row>button{flex:1 1 180px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:var(--gap)}
+.opt{min-height:60px;line-height:1.25}
+.opt small{display:block;font-size:14px;font-weight:600;opacity:.9;margin-top:3px}
+.opt[aria-pressed=true]{background:var(--acc);color:var(--acctx);border-color:var(--ring);box-shadow:0 0 0 3px var(--ring)}
+.kd{background:var(--inner);border-radius:12px;padding:12px;margin:10px 0}
+.m{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--gap);align-items:center;background:var(--inner);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin:10px 0}
+.m b{font-size:var(--fsx)}.m small{color:var(--mut);display:block;font-size:var(--fsh);margin-top:2px}.m .act{min-width:150px;display:flex;flex-direction:column;gap:8px;align-items:stretch}
+@media (max-width:560px){.m{grid-template-columns:1fr}.m .act{min-width:0}}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:8px 16px;border-radius:999px;border:2px solid var(--gotx);color:var(--gotx);font-weight:700}
+.pbar{height:14px;border-radius:7px;background:var(--panel);border:1px solid var(--line);overflow:hidden}.pbar i{display:block;height:100%;background:var(--acc)}
+.prog{font-weight:700;color:var(--tx)}.err{color:var(--warn);font-weight:700}
+.sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:var(--gap);margin:8px 0}
+.sw{height:128px;min-width:0;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--inner);font-size:16px;line-height:1.15}
+.sw.on{background:var(--acc);color:var(--acctx);border-color:var(--ring);box-shadow:0 0 0 3px var(--ring)}
+.pv{width:64px;height:64px;flex:none;border-radius:50%;border:4px solid;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.45)}.pv svg{width:52%;height:52%}
+.cc{display:flex;flex-wrap:wrap;gap:var(--gap);align-items:center;margin:10px 0}.cc .big{flex:1 1 100%}
+.cc input[type=color]{width:110px;height:64px;padding:2px;border:2px solid var(--line);border-radius:12px;background:var(--input);cursor:pointer}.cc input[type=text]{flex:1 1 140px;width:auto}
+.wr{display:grid;grid-template-columns:1fr 1fr auto;gap:var(--gap);margin:10px 0;align-items:center}.wh span{color:var(--mut);font-size:var(--fsh)}
+@media (max-width:560px){.wr{grid-template-columns:1fr 1fr}.wr button{grid-column:1/-1}}
+details>summary{min-height:60px;display:flex;align-items:center;gap:8px;font-size:var(--fsh);font-weight:600;color:var(--tx);cursor:pointer;border:2px dashed var(--line);border-radius:12px;padding:0 16px;margin-top:10px;list-style:none}details>summary::before{content:'▸';font-size:18px}details[open]>summary::before{content:'▾'}
+/* History */
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--mut);font-size:var(--fsh)}
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--tx);font-size:14px;font-weight:600}
+.x{font-size:var(--fsx);line-height:1.45;margin:8px 0 4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.x.clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap);margin-top:12px}
+.more{margin-top:var(--gap);padding:var(--pad);background:var(--inner);border-radius:12px}
+.more .raw{color:var(--tx);font-size:var(--fsh);white-space:pre-wrap;margin:4px 0 12px}.lbl{color:var(--mut);font-size:var(--fsh);margin:14px 0 8px}
+.danger{margin-top:24px;padding-top:16px;border-top:2px dashed var(--line)}
+.ask{font-weight:700;margin:12px 0}
+.conv{color:var(--warn);font-weight:700}
+/* Settings */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:var(--gap)}
+.tile{min-height:96px;display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px}
+.tile .ic{font-size:30px;flex:none}.tile span{display:block}.tile small{display:block;font-weight:500;font-size:15px;color:var(--mut);margin-top:4px}
+.tile:hover small{color:inherit}
+.gh{display:flex;flex-wrap:wrap;gap:var(--gap);align-items:center;margin-bottom:var(--gap)}.gh h2{margin:4px 0 0;font-size:24px;flex:1 1 100%}
+.gt{font-size:22px;margin:22px 0 10px}
+.pl{flex:1;min-height:72px;font-size:20px}
+.sa{min-height:60px;background:transparent;border-style:dashed;width:100%}body.compact .sa{min-height:28px;width:auto}
+/* ===== Standard layout (uiSize 'compact'): regular Mac-app density, explicit opt-in. The 60 px rule does not apply here,
+   except the layout switch itself (44 px) so anyone who lands here by accident can get back to Accessible. ===== */
+body.compact{--gap:8px;--pad:12px;--fs:13px;--fsh:12px;--fsx:13.5px;--r:7px}
+body.compact #panel{border-width:1px;border-radius:12px}
+body.compact button{min-height:28px;min-width:0;padding:4px 12px;border-width:1px;border-radius:6px;font-weight:600;line-height:1.25}
+body.compact :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+body.compact #chrome{border-bottom-width:1px}
+body.compact #bar{min-height:44px;padding:4px 8px 4px 10px;gap:6px}
+body.compact #grip{min-height:36px;padding:0 4px;gap:6px;border-radius:6px}
+body.compact #grip .dots{font-size:14px}
+body.compact #grip .t{font-size:14px;display:flex;align-items:baseline;gap:8px}body.compact #grip .t small{display:inline;font-size:11.5px}
+body.compact #bar button{min-width:32px;min-height:28px;font-size:13px;padding:2px 8px}
+body.compact #tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 10px 10px}
+body.compact .tab{min-height:32px;font-size:13px;padding:4px 8px;gap:6px}
+body.compact .tab[aria-selected=true]{box-shadow:inset 0 -3px 0 var(--ring)}
+body.compact input[type=text],body.compact input[type=number],body.compact input[type=search],body.compact textarea{font-size:13px;min-height:30px;padding:5px 10px;border-radius:6px;border-width:1px}
+body.compact .card,body.compact .e{border-radius:10px;padding:12px;margin-bottom:8px}
+body.compact .card h3{font-size:14px;margin:0 0 3px}body.compact .card h3+.opts,body.compact .card h3+.row{margin-top:6px}
+body.compact .h{font-size:12px;line-height:1.4;margin:2px 0 8px}
+body.compact .big{font-size:15px}
+body.compact .row{gap:6px}body.compact .row>button{flex:0 1 auto}
+body.compact .opts{grid-template-columns:repeat(auto-fit,minmax(min(100%,96px),1fr));gap:6px}
+body.compact .opt{min-height:28px}body.compact .opt small{font-size:11px;margin-top:1px}
+body.compact .opt[aria-pressed=true]{box-shadow:0 0 0 1px var(--ring)}
+body.compact .kd{padding:8px 10px;border-radius:8px;margin:6px 0}
+body.compact .m{padding:8px 10px;border-radius:8px;margin:6px 0;gap:8px}body.compact .m .act{min-width:110px;gap:6px}
+body.compact .badge{min-height:24px;padding:2px 10px;font-size:12px;border-width:1px}
+body.compact .pbar{height:8px}
+body.compact .sws{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;margin:6px 0}
+body.compact .sw{height:76px;font-size:12px;gap:4px;padding:6px 4px}body.compact .sw.on{box-shadow:0 0 0 2px var(--ring)}
+body.compact .pv{width:34px;height:34px;border-width:3px}
+body.compact .cc{gap:6px;margin:6px 0}body.compact .cc input[type=color]{width:60px;height:30px;border-width:1px;border-radius:6px}
+body.compact .wr{gap:6px;margin:6px 0}
+body.compact details>summary{min-height:30px;font-size:12px;padding:0 10px;border-width:1px;border-radius:6px;margin-top:6px}body.compact details>summary::before{font-size:12px}
+body.compact .meta{gap:6px}body.compact .chip{font-size:11px;padding:0 8px}
+body.compact .x{font-size:13.5px;margin:6px 0 2px}
+body.compact .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}body.compact .acts>button{flex:0 0 auto}
+body.compact .more{margin-top:8px;padding:10px;border-radius:8px}body.compact .more .raw{margin:2px 0 8px}body.compact .lbl{margin:10px 0 6px}
+body.compact .danger{margin-top:14px;padding-top:10px;border-top-width:1px}body.compact .ask{margin:8px 0}
+body.compact .tiles{grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:6px}
+body.compact .tile{min-height:46px;padding:6px 10px;gap:10px}
+body.compact .tile .ic{font-size:18px}body.compact .tile small{font-size:11.5px;margin-top:1px;font-weight:500}
+body.compact .gh{gap:8px;margin-bottom:8px}body.compact .gh h2{font-size:17px;margin:2px 0 0}body.compact .gh>button{flex:0 0 auto!important}
+body.compact .gt{font-size:15px;margin:14px 0 6px}
+body.compact #scroll::-webkit-scrollbar{width:10px}body.compact #scroll::-webkit-scrollbar-thumb{border-width:2px}
+/* the layout switch keeps a 44 px target in Standard */
+body.compact .pl{flex:0 1 auto;min-height:32px;font-size:13.5px;padding:4px 16px}
+body.compact #sizecard .opt{min-height:44px;font-size:14px}
+body.compact.hc button,body.compact.hc input[type=text],body.compact.hc input[type=search]{border-width:2px}
+/* High contrast (macOS Increase Contrast or the app's High contrast) */
+body.hc{--line:var(--tx)}
+body.hc .card,body.hc .e,body.hc .m,body.hc .kd,body.hc .more{border:2px solid var(--tx)}
+body.hc button,body.hc input[type=text],body.hc .cc input[type=color]{border-width:3px}body.hc #chrome{border-bottom:3px solid var(--tx)}
+body.hc.cl{--panel:#000!important;--card:#000!important;--inner:#000!important;--bar:#000!important;--tab:#1a1a1a!important;--btn:#1a1a1a!important;--tx:#fff!important;--mut:#fff!important;--line:#fff!important;--focus:#FFD60A!important;--ring:#fff!important;--go:#006b1f!important;--stop:#a00000!important;--amber:#7a4a00!important;--acc:#003f8a!important}
+body.hc.cl #panel{border:3px solid #fff}body.hc.cl .tab[aria-selected=true],body.hc.cl .opt[aria-pressed=true],body.hc.cl .sw.on{background:#FFD60A!important;color:#000;box-shadow:0 0 0 4px #fff}
 body.rm *{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
-</style></head><body class=cl><div id=panel>
-<div id=bar><div class=t>🎙 Taipea<small id=s_drag></small></div><button id=b_hide onclick="send({cmd:'mini'})">—</button><button id=b_close class=r onclick="send({cmd:'close'})">✕</button></div>
+</style></head><body><div id=panel>
+<div id=chrome>
+ <div id=bar><div id=grip title="Drag to move"><span class=dots aria-hidden=true>⠿</span><div class=t>🎙 <span id=ttl>Taipea</span><small id=s_drag></small></div></div>
+  <button id=b_hide onclick="send({cmd:'mini'})">—</button><button id=b_close class=r onclick="send({cmd:'close'})">✕</button></div>
+ <div id=tabs role=tablist>
+  <button class=tab role=tab data-t=hist aria-selected=true onclick="showTab('hist')" id=t_hist></button><button class=tab role=tab data-t=set aria-selected=false onclick="showTab('set')" id=t_set></button><button class=tab role=tab data-t=mod aria-selected=false onclick="showTab('mod')" id=t_mod></button></div>
+</div>
 <div id=scroll><div id=inner><div id=perm></div><div id=upd></div>
-<div id=tabs><button class="tab on" data-t=hist id=t_hist></button><button class=tab data-t=set id=t_set></button><button class=tab data-t=mod id=t_mod></button><button class="tab g" id=t_dict onclick="send({cmd:'dictate'})" style="flex:.8"></button></div>
-<section id=hist class=on>
- <div id=htop></div>
- <div class=row style="margin-bottom:12px"><input id=q type=text style="flex:1" oninput="renderHist()"><button class=r id=clr onclick="clr()"></button></div>
- <div id=hl></div></section>
-<section id=set><div id=sl></div></section>
-<section id=mod><div id=ml></div></section>
+<section id=hist class=on role=tabpanel><div id=htop></div>
+ <input id=q type=search oninput="renderHist()">
+ <div id=hcount class=h style="margin:8px 2px 12px"></div><div id=hl></div><div id=hclr></div></section>
+<section id=set role=tabpanel><input id=sq type=search oninput="UI.sq=this.value;delete this.dataset.dirty;renderSet()" style="margin-bottom:var(--gap)"><div id=sl></div></section>
+<section id=mod role=tabpanel><div id=ml></div></section>
 </div></div></div>
 <script>
-// Interface strings. Keep both languages with the same keys (tests/run.lua checks this).
+// Interface strings. Keep both languages with the same keys (tests/ui_strings.js parses var L=).
+
 var L={
-en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'History',set:'Settings',mod:'Models',dict:'🎙 Dictate',
- search:'Search…',searchLbl:'Search history',clear:'Clear all',clearSure:'Tap again to DELETE ALL',none:'No dictations yet.',noneMatch:'No dictations match.',
- cleaned:'cleaned',raw:'raw',rawLbl:'Raw:',converting:'⏳ Converting to %s…',copy:'Copy',paste:'Paste',copyRaw:'Copy raw',del:'Delete',convertTo:'Convert raw text to:',
+en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'History',set:'Settings',mod:'Models',
+ search:'Search dictations…',searchLbl:'Search history',clear:'Clear all',clearSure:'Tap again to DELETE ALL',none:'No dictations yet.',noneMatch:'No dictations match.',
+ cleaned:'cleaned',raw:'raw',rawLbl:'Raw:',converting:'⏳ Converting to %s…',copy:'Copy',paste:'Paste',copyRaw:'Copy raw text',del:'Delete',convertTo:'Convert raw text to:',
  light:'Light',paragraphs:'Paragraph',bullets:'Bullets',formal:'Formal',
  lang:'Interface language',langAuto:'Auto (Mac: %s)',english:'English',spanish:'Español',
- size:'Size',normal:'Normal',compact:'Compact',login:'Open at login',on:'On',off:'Off',
+ size:'Layout',normal:'Normal',compact:'Compact',login:'Open at login',on:'On',off:'Off',
  loginOk:'Dictation shortcut is ready after every login',reg:' ✓ (registered)',notReg:' ⚠ not registered yet',
  loginWarn:'⚠ When off, dictation won\'t work after restarting until you open Hammerspoon or the Taipea app.',showLogin:'Show window at login',
  keys:'Shortcuts',kHint:'Click ⏺ Record shortcut, then press the keys you want and click Save. Shortcuts made only of modifier keys (like Control + Command) act as soon as you press them; on the Accessibility Keyboard, click both keys so they stay latched.',kStart2:'Start / stop and paste (backup)',kListening:'Press your keys now… (Esc to cancel)',kCancel:'Cancel',kAgain:'Record again',kRecord:'Record shortcut',kTyped:'Type it instead',kFormat:'Like ctrl+cmd or ctrl+alt+space (keys: ctrl, alt = Option, shift, cmd, plus an optional key) and press Save.',chordOff:'⚠ Taipea\'s key watcher needs Accessibility permission. Until then, Control + Command, Option + Command, Escape and the Mic key don\'t work: use Control + Option + Space or the menu.',kEsc:'Escape while recording',kEscInfo:'Press Escape (alone) while recording to stop and paste. To throw a recording away, use the Cancel button.',kMic:'Mic (Dictation) key 🎙 (F5)',kMicInfo:'Start and stop Taipea with the 🎙 key (F5) on recent Apple keyboards. macOS uses that key for its own Dictation, so first free it:',kMic1:'System Settings › Keyboard › Dictation › Shortcut: choose Off (or turn Dictation off).',kMic2:'Here, set Mic key to On.',kMicUndo:'To undo: set Mic key to Off, then in System Settings › Keyboard › Dictation set Shortcut back to “Press 🎤”.',
-
  kToggle:'Start / stop and paste',kMode:'Cleanup on / off (raw)',kHist:'Open this window',def:'Default: %s',save:'Save',resetKeys:'Reset shortcuts to defaults',
  cleanup:'Cleanup (grammar fix)',offRaw:'Off (raw)',style:'Style',sLight:'Light fix',sPar:'Paragraphs',sBul:'Bullet points',sFor:'Formal',
  dlang:'Dictation language',dAuto:'Auto (any language; EN/ES mix)',after:'After stopping',pasteCur:'Paste at cursor',copyOnly:'Copy only',
@@ -93,7 +171,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  setup:'⚠ Setup needed',wTitle:'Speech model (Whisper)',wHint:'Saved in ~/Library/Application Support/Taipea/models',lTitle:'Cleanup model (Ollama)',
  nowUsing:'Now using: ',noModel:'⚠ No cleanup model is running. Raw text still works. Start Ollama (brew services start ollama) and download a model below.',
  noOllama:'⚠ Ollama is not installed, so cleanup and styles are off. Raw dictation still works. Install it with: brew install ollama',
- inUse:'✓ In use',use:'Use',download:'Download',retry:'Retry',refresh:'Refresh list',
+ inUse:'✓ In use',use:'Use this model',download:'Download',retry:'Try download again',refresh:'Refresh list',
  textSize:'Text size',tsNormal:'Normal',tsLarge:'Large',tsXL:'Extra large',contrast:'High contrast',hcAuto:'Auto (Mac: %s)',macOn:'on',macOff:'off',
  rmNote:'Animations follow the macOS Reduce Motion setting (now %s).',
  autoHint:'Stops and pastes by itself after you stop talking for the seconds below.',nowSec:'Now: %s seconds (set in config.lua)',sec:'%s s',
@@ -101,7 +179,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  voiceNow:'👂 Listening now (speech model: %s). The menu bar shows 👂 while it listens.',voicePaused:'Paused (screen locked or busy).',
  startP:'Start phrases',stopP:'Stop phrases',phrasesFmt:'Separate phrases with commas. Say a stop phrase alone, after a short pause.',
  voicePrivacy:'Privacy: everything stays on this Mac. A small recorder waits for sound; only short bursts (up to 4 seconds) are transcribed by Whisper here, and each burst is deleted right after it is checked. Nothing is saved or sent. macOS shows the orange microphone dot while this is on.',
- recCtl:'Recording controls',fab:'Floating button',fabHint:'A round mic button that stays on top of other windows. Click it to start. While you dictate it turns green: click it to stop and paste into the app you were using. Two smaller buttons appear next to it: blue = stop and copy only, red = cancel. Drag it to move it.',resetFab:'Reset button position',
+ recCtl:'Recording controls',fab:'Floating button',fabHint:'A round mic button that stays on top of other windows. Click it to start. While you dictate it turns green: click it to stop and paste into the app you were using. Two smaller buttons appear next to it: blue = stop and copy only, red = cancel. Drag it to move it. Press the outer ring and drag to resize.',resetFab:'Reset button position',
  fabColors:'Colors',fabColorsHint:'Applies to the whole app: this window, the recording card and the floating button. In every color set, green = Stop & Paste, blue = Stop & Copy only and red = Cancel, and warnings stay orange or red.',
  thclassic:'Classic Blue',thstudio:'Studio',thmidnight:'Midnight',thforest:'Forest',thsunset:'Sunset',thcontrast:'High Contrast',thpaper:'Paper',thcustom:'Custom',
  ccBg:'Background',ccMic:'Microphone and text',ccAcc:'Accent (buttons, ring)',ccHint:'Click a color square to open the color picker; the colors change as you pick. Text that would be hard to read is adjusted automatically. Or type a code like #E8503A and press Save.',
@@ -122,17 +200,30 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  pasteLast:'📋 Paste last dictation again',kPaste:'Paste last dictation again',
  updTitle:'⬆️ New version available: v%s',updInfo:'You have v%s. Nothing is downloaded or installed by itself: the button opens the release page on GitHub.',updSee:'See what\'s new',updLater:'Remind me later',updSkip:'Skip this version',
  updCard:'Updates',updAuto:'Check for updates automatically',updAutoHint:'30 seconds after start and then once a day, Taipea asks GitHub for the latest release. Nothing else is sent. To update, run the installer again: your settings, history and models are kept.',updCur:'Current version: v%s',updLast:'Last checked: %s',updNever:'never',updNow:'Check now',updChecking:'⏳ Checking…',updOk:'✓ You have the latest version',updNewR:'⬆️ New version available: v%s',updErr:'⚠ Couldn\'t check (offline or GitHub not answering). Try again later.',
- recTitle:'♻️ A recording was interrupted',recInfo:'The audio was kept (%s). Recover it to get the text in History and on the clipboard.',recover:'Recover last recording',discard:'Discard'},
-es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventana',hist:'Historial',set:'Ajustes',mod:'Modelos',dict:'🎙 Dictar',
- search:'Buscar…',searchLbl:'Buscar en el historial',clear:'Borrar todo',clearSure:'Toca otra vez para BORRAR TODO',none:'Aún no hay dictados.',noneMatch:'Ningún dictado coincide.',
- cleaned:'corregido',raw:'original',rawLbl:'Original:',converting:'⏳ Convirtiendo a %s…',copy:'Copiar',paste:'Pegar',copyRaw:'Copiar original',del:'Borrar',convertTo:'Convertir el texto original a:',
+ recTitle:'♻️ A recording was interrupted',recInfo:'The audio was kept (%s). Recover it to get the text in History and on the clipboard.',recover:'Recover last recording',discard:'Discard',
+ fbSize:'Button size',fbSizeHint:'Or drag the button’s outer ring in or out. Limits: %s.',fbSmaller:'Smaller',fbLarger:'Larger',fbDefault:'Default size',fbNow:'Now',
+ fbOp:'Opacity when idle',fbOpHint:'While you dictate or it is working, the button is always fully visible.',
+ fbLbl:'Text labels on the Stop buttons',fbLblHint:'Off: icons only on Stop & Paste, Stop & Copy only and Cancel. Colors, size and the spoken names stay the same.',fbLblOn:'Show text',fbLblOff:'Icons only',
+ nDict:'%s dictations',nMatch:'%s matching',more:'More ▾',less:'Less ▴',rawL:'Raw (before cleanup)',
+ delete:'🗑 Delete this dictation…',delQ:'Delete this dictation? This can’t be undone.',delYes:'Yes, delete it',keep:'Keep it',
+ clrAll:'🗑 Clear all history…',clrQ:'Delete all %s dictations? This can’t be undone.',clrYes:'Yes, delete everything',
+ showAll:'Show all text ▾',showLess:'Show less ▴',rawTag:'raw',cleanTag:'cleaned',
+ setSearch:'Search settings…',allSet:'‹ All settings',noSetMatch:'No settings match “%s”.',
+ gdict:'Dictation',gmic:'Microphone & permissions',glook:'Size, text & colors',gfab:'Floating button',gvoice:'Voice start / stop',gkeys:'Shortcuts',gwords:'Custom words',gapp:'Startup & updates',
+ szNormal:'Accessible',szCompact:'Standard',szNormalS:'Big buttons, at least 60 px. Easiest with a head mouse or switch.',szCompactS:'Regular Mac app size: smaller text and buttons.',
+ szHint:'Accessible is the default. Standard looks like a normal Mac app, with smaller text and buttons; this switch stays big in both.',
+ dlFail:'⚠ Download failed: %s',dling:'Downloading… %s',inst:'Installed',avail:'Available to download',words0:'%s words',
+ whisperGuard:'Remove Whisper hallucinations (sound tags, repeated loops)',
+ whisperGuardHint:'On by default. After Whisper and before cleanup, Taipea strips made-up sound tags such as [Music] or (applause), and discards output that is only tags or a looping repeated phrase. Your real words, including brackets and short repeats like “the the”, are kept.'},
+es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventana',hist:'Historial',set:'Ajustes',mod:'Modelos',
+ search:'Buscar dictados…',searchLbl:'Buscar en el historial',clear:'Borrar todo',clearSure:'Toca otra vez para BORRAR TODO',none:'Aún no hay dictados.',noneMatch:'Ningún dictado coincide.',
+ cleaned:'corregido',raw:'original',rawLbl:'Original:',converting:'⏳ Convirtiendo a %s…',copy:'Copiar',paste:'Pegar',copyRaw:'Copiar texto sin corregir',del:'Borrar',convertTo:'Convertir el texto original a:',
  light:'Ligero',paragraphs:'Párrafos',bullets:'Viñetas',formal:'Formal',
  lang:'Idioma de la interfaz',langAuto:'Automático (Mac: %s)',english:'English',spanish:'Español',
- size:'Tamaño',normal:'Normal',compact:'Compacto',login:'Abrir al iniciar sesión',on:'Sí',off:'No',
+ size:'Diseño',normal:'Normal',compact:'Compacto',login:'Abrir al iniciar sesión',on:'Sí',off:'No',
  loginOk:'El atajo de dictado queda listo en cada inicio de sesión',reg:' ✓ (registrado)',notReg:' ⚠ aún no registrado',
  loginWarn:'⚠ Si está apagado, el dictado no funciona después de reiniciar hasta que abras Hammerspoon o la app Taipea.',showLogin:'Mostrar la ventana al iniciar sesión',
  keys:'Atajos',kHint:'Haz clic en ⏺ Grabar atajo, presiona las teclas que quieras y haz clic en Guardar. Los atajos hechos solo de teclas modificadoras (como Control + Comando) actúan apenas las presionas; en el Teclado de accesibilidad, haz clic en las dos teclas para que queden fijas.',kStart2:'Empezar / parar y pegar (respaldo)',kListening:'Presiona tus teclas ahora… (Esc para cancelar)',kCancel:'Cancelar',kAgain:'Grabar otra vez',kRecord:'Grabar atajo',kTyped:'Escribirlo',kFormat:'Como ctrl+cmd o ctrl+alt+space (teclas: ctrl, alt = Opción, shift, cmd, más una tecla opcional) y presiona Guardar.',chordOff:'⚠ El vigilante de teclas de Taipea necesita el permiso de Accesibilidad. Mientras tanto, Control + Comando, Opción + Comando, Escape y la tecla Micrófono no funcionan: usa Control + Opción + Espacio o el menú.',kEsc:'Escape al grabar',kEscInfo:'Presiona Escape (sola) mientras grabas para detener y pegar. Para descartar una grabación, usa el botón Cancelar.',kMic:'Tecla Micrófono (Dictado) 🎙 (F5)',kMicInfo:'Empieza y detén Taipea con la tecla 🎙 (F5) de los teclados Apple recientes. macOS usa esa tecla para su propio Dictado, así que primero libérala:',kMic1:'Ajustes del Sistema › Teclado › Dictado › Atajo: elige Desactivada (o apaga Dictado).',kMic2:'Aquí, pon Tecla Micrófono en Sí.',kMicUndo:'Para deshacerlo: pon Tecla Micrófono en No y luego, en Ajustes del Sistema › Teclado › Dictado, vuelve a poner Atajo en “Presionar 🎤”.',
-
  kToggle:'Empezar / parar y pegar',kMode:'Corrección sí / no (original)',kHist:'Abrir esta ventana',def:'De fábrica: %s',save:'Guardar',resetKeys:'Restablecer los atajos de fábrica',
  cleanup:'Corrección (gramática)',offRaw:'No (original)',style:'Estilo',sLight:'Ligero',sPar:'Párrafos',sBul:'Viñetas',sFor:'Formal',
  dlang:'Idioma del dictado',dAuto:'Automático (cualquier idioma; mezcla ES/EN)',after:'Al parar',pasteCur:'Pegar en el cursor',copyOnly:'Solo copiar',
@@ -141,7 +232,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  setup:'⚠ Falta configurar algo',wTitle:'Modelo de voz (Whisper)',wHint:'Se guarda en ~/Library/Application Support/Taipea/models',lTitle:'Modelo de corrección (Ollama)',
  nowUsing:'Usando ahora: ',noModel:'⚠ No hay un modelo de corrección corriendo. El texto original sigue funcionando. Inicia Ollama (brew services start ollama) y descarga un modelo abajo.',
  noOllama:'⚠ Ollama no está instalado, así que la corrección y los estilos están apagados. El dictado original sigue funcionando. Instálalo con: brew install ollama',
- inUse:'✓ En uso',use:'Usar',download:'Descargar',retry:'Reintentar',refresh:'Actualizar lista',
+ inUse:'✓ En uso',use:'Usar este modelo',download:'Descargar',retry:'Reintentar la descarga',refresh:'Actualizar lista',
  textSize:'Tamaño del texto',tsNormal:'Normal',tsLarge:'Grande',tsXL:'Muy grande',contrast:'Alto contraste',hcAuto:'Automático (Mac: %s)',macOn:'sí',macOff:'no',
  rmNote:'Las animaciones siguen el ajuste Reducir movimiento de macOS (ahora: %s).',
  autoHint:'Para y pega solo cuando dejas de hablar durante los segundos de abajo.',nowSec:'Ahora: %s segundos (en config.lua)',sec:'%s s',
@@ -149,7 +240,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  voiceNow:'👂 Escuchando (modelo de voz: %s). La barra de menús muestra 👂 mientras escucha.',voicePaused:'En pausa (pantalla bloqueada u ocupado).',
  startP:'Frases de inicio',stopP:'Frases de parada',phrasesFmt:'Separa las frases con comas. Di la frase de parada sola, después de una pausa corta.',
  voicePrivacy:'Privacidad: todo se queda en este Mac. Una grabadora pequeña espera sonido; solo los fragmentos cortos (hasta 4 segundos) los transcribe Whisper aquí, y cada fragmento se borra apenas se revisa. No se guarda ni se envía nada. macOS muestra el punto naranja del micrófono mientras esto está activo.',
- recCtl:'Controles de grabación',fab:'Botón flotante',fabHint:'Un botón redondo con micrófono que queda encima de las demás ventanas. Haz clic para empezar. Mientras dictas se pone verde: haz clic para parar y pegar en la app que estabas usando. Al lado aparecen dos botones más pequeños: azul = parar y solo copiar, rojo = cancelar. Arrástralo para moverlo.',resetFab:'Restablecer la posición del botón',
+ recCtl:'Controles de grabación',fab:'Botón flotante',fabHint:'Un botón redondo con micrófono que queda encima de las demás ventanas. Haz clic para empezar. Mientras dictas se pone verde: haz clic para parar y pegar en la app que estabas usando. Al lado aparecen dos botones más pequeños: azul = parar y solo copiar, rojo = cancelar. Arrástralo para moverlo. Presiona el anillo exterior y arrastra para cambiar el tamaño.',resetFab:'Restablecer la posición del botón',
  fabColors:'Colores',fabColorsHint:'Se aplica a toda la app: esta ventana, la tarjeta de grabación y el botón flotante. En todos los juegos de colores, verde = Parar y pegar, azul = Parar y solo copiar y rojo = Cancelar, y los avisos siguen en naranja o rojo.',
  thclassic:'Azul clásico',thstudio:'Estudio',thmidnight:'Medianoche',thforest:'Bosque',thsunset:'Atardecer',thcontrast:'Alto contraste',thpaper:'Papel',thcustom:'Personalizado',
  ccBg:'Fondo',ccMic:'Micrófono y texto',ccAcc:'Acento (botones, aro)',ccHint:'Haz clic en un cuadro de color para abrir el selector; los colores cambian mientras eliges. El texto difícil de leer se ajusta solo. O escribe un código como #E8503A y presiona Guardar.',
@@ -170,39 +261,118 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  pasteLast:'📋 Pegar otra vez el último dictado',kPaste:'Pegar otra vez el último dictado',
  updTitle:'⬆️ Nueva versión disponible: v%s',updInfo:'Tienes la v%s. No se descarga ni se instala nada solo: el botón abre la página de la versión en GitHub.',updSee:'Ver las novedades',updLater:'Recordármelo después',updSkip:'Omitir esta versión',
  updCard:'Actualizaciones',updAuto:'Buscar actualizaciones automáticamente',updAutoHint:'30 segundos después de iniciar y luego una vez al día, Taipea le pregunta a GitHub por la última versión. No se envía nada más. Para actualizar, vuelve a ejecutar el instalador: se conservan tus ajustes, tu historial y tus modelos.',updCur:'Versión actual: v%s',updLast:'Última revisión: %s',updNever:'nunca',updNow:'Buscar ahora',updChecking:'⏳ Buscando…',updOk:'✓ Tienes la última versión',updNewR:'⬆️ Nueva versión disponible: v%s',updErr:'⚠ No se pudo revisar (sin internet o GitHub no responde). Inténtalo más tarde.',
- recTitle:'♻️ Se interrumpió una grabación',recInfo:'Se guardó el audio (%s). Recupéralo para tener el texto en el Historial y en el portapapeles.',recover:'Recuperar la última grabación',discard:'Descartar'}};
-var S={},LANG='en';
+ recTitle:'♻️ Se interrumpió una grabación',recInfo:'Se guardó el audio (%s). Recupéralo para tener el texto en el Historial y en el portapapeles.',recover:'Recuperar la última grabación',discard:'Descartar',
+ fbSize:'Tamaño del botón',fbSizeHint:'O arrastra el anillo exterior del botón hacia fuera o hacia dentro. Límites: %s.',fbSmaller:'Más pequeño',fbLarger:'Más grande',fbDefault:'Tamaño normal',fbNow:'Ahora',
+ fbOp:'Opacidad en reposo',fbOpHint:'Mientras dictas o mientras procesa, el botón siempre se ve al 100 %.',
+ fbLbl:'Texto en los botones de parar',fbLblHint:'Desactivado: solo iconos en Parar y pegar, Parar y solo copiar y Cancelar. Los colores, el tamaño y los nombres para lectores de pantalla no cambian.',fbLblOn:'Mostrar texto',fbLblOff:'Solo iconos',
+ nDict:'%s dictados',nMatch:'%s coinciden',more:'Más ▾',less:'Menos ▴',rawL:'Sin corregir (antes de la corrección)',
+ delete:'🗑 Borrar este dictado…',delQ:'¿Borrar este dictado? No se puede deshacer.',delYes:'Sí, borrarlo',keep:'Conservarlo',
+ clrAll:'🗑 Borrar todo el historial…',clrQ:'¿Borrar los %s dictados? No se puede deshacer.',clrYes:'Sí, borrar todo',
+ showAll:'Ver todo el texto ▾',showLess:'Ver menos ▴',rawTag:'sin corregir',cleanTag:'corregido',
+ setSearch:'Buscar ajustes…',allSet:'‹ Todos los ajustes',noSetMatch:'Ningún ajuste coincide con «%s».',
+ gdict:'Dictado',gmic:'Micrófono y permisos',glook:'Tamaño, texto y colores',gfab:'Botón flotante',gvoice:'Empezar / parar con la voz',gkeys:'Atajos',gwords:'Palabras propias',gapp:'Inicio y actualizaciones',
+ szNormal:'Accesible',szCompact:'Estándar',szNormalS:'Botones grandes, de al menos 60 px. Lo más fácil con ratón de cabeza o pulsador.',szCompactS:'Tamaño normal de app de Mac: texto y botones más pequeños.',
+ szHint:'Accesible es el modo predeterminado. Estándar se ve como una app normal de Mac, con texto y botones más pequeños; este selector sigue siendo grande en los dos.',
+ dlFail:'⚠ Falló la descarga: %s',dling:'Descargando… %s',inst:'Instalados',avail:'Disponibles para descargar',words0:'%s palabras',
+ whisperGuard:'Quitar alucinaciones de Whisper (etiquetas de sonido, bucles repetidos)',
+ whisperGuardHint:'Activado de fábrica. Después de Whisper y antes de la corrección, Taipea quita etiquetas de sonido inventadas como [Music] o (applause), y descarta el texto que es solo etiquetas o una frase repetida en bucle. Tus palabras reales, incluidos corchetes y repeticiones cortas como «el el», se conservan.'}};
+var S={},UI={tab:'hist',setg:null,sq:'',more:{},del:{},full:{},clr:0},LANG='en';
 function t(k,a){var s=(L[LANG]&&L[LANG][k])||L.en[k]||k;return a!==undefined?s.replace('%s',a):s}
 function send(o){webkit.messageHandlers.taipea.postMessage(o)}
-// ---- v0.2 settings cards ----
-function palApply(){var p=S.pal;if(!p)return;var b=document.body;for(var k in p){if(typeof p[k]=='string')b.style.setProperty('--'+k,p[k])}b.classList.toggle('cl',!!p.cl);b.classList.toggle('lt',!!p.light);document.documentElement.style.colorScheme=p.light?'light':'dark'}
-function lookApply(){var lk=S.look||{};palApply();var z=((S.cfg&&S.cfg.uiSize)=='compact'?.65:1)*(lk.scale||1);
- document.body.style.setProperty('--z',z);document.body.classList.toggle('hc',!!lk.hc);document.body.classList.toggle('rm',!!lk.rm)}
-// keep what you typed (and the focus) when the window refreshes
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function stKey(st){return {light:'sLight',paragraphs:'sPar',bullets:'sBul',formal:'sFor'}[st]||st}
+function palApply(){var p=S.pal;if(!p)return;var b=document.body;for(var k in p){if(typeof p[k]=='string'&&k!='mut'&&k!='mut2'&&k!='focus')b.style.setProperty('--'+k,p[k])}
+ if(!p.cl){b.style.setProperty('--mut',p.mut);b.style.setProperty('--focus',p.focus)}else{b.style.removeProperty('--mut');b.style.removeProperty('--focus')}
+ b.classList.toggle('cl',!!p.cl);b.classList.toggle('lt',!!p.light);document.documentElement.style.colorScheme=p.light?'light':'dark'}
+function lookApply(){var lk=S.look||{};palApply();document.body.style.setProperty('--z',Math.max(1,lk.scale||1));
+ document.body.classList.toggle('compact',(S.cfg&&S.cfg.uiSize)=='compact');document.body.classList.toggle('hc',!!lk.hc);document.body.classList.toggle('rm',!!lk.rm)}
 function keepInputs(fn){var ae=document.activeElement,id=ae&&ae.id,ss=ae&&ae.selectionStart,dirty={};
  document.querySelectorAll('input[data-dirty]').forEach(function(i){if(i.id)dirty[i.id]=i.value});fn();
  for(var k in dirty){var el=document.getElementById(k);if(el){el.value=dirty[k];el.dataset.dirty=1}}
- if(id){var el=document.getElementById(id);if(el&&el.tagName=='INPUT'){el.focus();try{el.setSelectionRange(ss,ss)}catch(e){}}}}
-document.addEventListener('input',function(e){if(e.target.tagName=='INPUT')e.target.dataset.dirty=1});
+ if(id){var el=document.getElementById(id);if(el&&el.tagName=='INPUT'&&document.activeElement!==el){el.focus();try{el.setSelectionRange(ss,ss)}catch(e){}}}}
+document.addEventListener('input',function(e){if(e.target.tagName=='INPUT'&&e.target.id!='q'&&e.target.id!='sq')e.target.dataset.dirty=1});
+document.getElementById('grip').addEventListener('mousedown',e=>{if(e.button===0){e.preventDefault();send({cmd:'dragStart'})}});
+function showTab(tb){UI.tab=tb;document.querySelectorAll('.tab[data-t]').forEach(x=>x.setAttribute('aria-selected',x.dataset.t==tb?'true':'false'));
+ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==tb));document.getElementById('scroll').scrollTop=0}
+function chrome(){document.documentElement.lang=LANG;document.getElementById('ttl').textContent='Taipea';document.getElementById('s_drag').textContent=t('drag');
+ var q=document.querySelectorAll('.tab[data-t]');[['hist','🕘'],['set','⚙️'],['mod','🧠']].forEach(function(x,i){q[i].innerHTML='<span class=ti aria-hidden=true>'+x[1]+'</span><span>'+esc(t(x[0]))+'</span>'});
+ document.getElementById('b_hide').setAttribute('aria-label',t('hide'));document.getElementById('b_hide').title=t('hide');
+ document.getElementById('b_close').setAttribute('aria-label',t('close'));document.getElementById('b_close').title=t('close');
+ document.getElementById('q').placeholder=t('search');document.getElementById('q').setAttribute('aria-label',t('searchLbl'));
+ document.getElementById('sq').placeholder=t('setSearch');document.getElementById('sq').setAttribute('aria-label',t('setSearch'))}
+function opts(key,list){return '<div class=opts>'+list.map(o=>{var on=S.cfg[key]==o[0];return '<button class=opt aria-pressed='+on+' onclick="set(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,'&quot;')+')">'+(on?'<span aria-hidden=true>✓ </span>':'')+o[1]+'</button>'}).join('')+'</div>'}
+function set(k,v){send({cmd:'set',key:k,value:v})}
+function fin(e){return e.cleaned||e.raw}
+var PEND={};
+function restyle(i,st){PEND[i]=st;renderHist();send({cmd:'restyle',i:i,style:st})}
+function tog(map,i){UI[map][i]=!UI[map][i];if(map=='more')UI.del={};renderHist()}
+function askDel(i){UI.del={};UI.del[i]=1;renderHist();setTimeout(function(){if(UI.del[i]){UI.del={};renderHist()}},8000)}
+function doDel(i){UI.del={};UI.more={};UI.full={};send({cmd:'del',i:i})}
+function histTop(){var h='<div class=row style="margin-bottom:var(--gap)"><button class="g pl" onclick="send({cmd:\'pasteLast\'})"'+((S.history||[]).length?'':' disabled')+'>'+t('pasteLast')+'</button></div>';
+ if(S.recover)h='<div class=card role=alert style="border:4px solid var(--amber)"><h3>'+t('recTitle')+'</h3><p>'+esc(t('recInfo',S.recover))+'</p><div class=row>'+
+  '<button class=y onclick="send({cmd:\'recover\'})">'+t('recover')+'</button><button onclick="send({cmd:\'discardRecovery\'})">'+t('discard')+'</button></div></div>'+h;
+ document.getElementById('htop').innerHTML=h}
+function renderHist(){var q=document.getElementById('q').value.toLowerCase(),h='',n=0,all=(S.history||[]);
+ all.forEach((e,i0)=>{var i=i0+1;if(q&&!((e.raw||'')+' '+(e.cleaned||'')).toLowerCase().includes(q))return;n++;
+  var cv=(S.conv||{})[i]||PEND[i],txt=fin(e)||'',long=txt.length>320||(txt.match(/\n/g)||[]).length>4,hasRaw=e.cleaned&&e.cleaned!=e.raw;
+  h+='<div class=e><div class=meta><span>'+esc(e.time)+'</span><span class=chip>'+(e.cleaned?esc(t(stKey(e.style))||t('cleaned')):t('raw'))+'</span></div>'+
+  (cv?'<div class=conv role=status>'+esc(t('converting',t(stKey(cv))))+'</div>':'')+
+  '<div class="x'+(long&&!UI.full[i]?' clamp':'')+'">'+esc(txt)+'</div>'+
+  (long?'<button class=sa onclick="tog(\'full\','+i+')">'+(UI.full[i]?t('showLess'):t('showAll'))+'</button>':'')+
+  '<div class=acts><button class=g onclick="send({cmd:\'paste\',i:'+i+'})">'+t('paste')+'</button><button class="b cpy" onclick="send({cmd:\'copy\',i:'+i+'})">'+t('copy')+'</button>'+
+  '<button aria-expanded='+(!!UI.more[i])+' onclick="tog(\'more\','+i+')">'+(UI.more[i]?t('less'):t('more'))+'</button></div>';
+  if(UI.more[i]){h+='<div class=more>'+(hasRaw?'<div class=lbl style="margin-top:0">'+t('rawL')+'</div><div class=raw>'+esc(e.raw)+'</div><div class=row><button onclick="send({cmd:\'copyRaw\',i:'+i+'})">'+t('copyRaw')+'</button></div>':'')+
+   '<div class=lbl>'+t('convertTo')+'</div><div class=opts>'+['light','paragraphs','bullets','formal'].map(st=>{var on=e.cleaned&&e.style==st;return '<button class=opt aria-pressed='+!!on+(cv?' aria-disabled=true':'')+' onclick="restyle('+i+',\''+st+'\')">'+(on?'✓ ':'')+t(stKey(st))+'</button>'}).join('')+'</div>'+
+   '<div class=danger>'+(UI.del[i]?'<div class=row><button onclick="UI.del={};renderHist()">'+t('keep')+'</button></div><p class=ask role=alert>'+t('delQ')+'</p><div class=row><button class=r onclick="doDel('+i+')">'+t('delYes')+'</button></div>':
+   '<div class=row><button class=dz onclick="askDel('+i+')">'+t('delete')+'</button></div>')+'</div></div>'}
+  h+='</div>'});
+ document.getElementById('hl').innerHTML=h||'<p>'+(q?t('noneMatch'):t('none'))+'</p>';
+ document.getElementById('hcount').textContent=q?t('nMatch',n):t('nDict',all.length);
+ var c='';if(all.length)c='<div class=danger style="margin-top:12px">'+(UI.clr?'<div class=row><button onclick="UI.clr=0;renderHist()">'+t('keep')+'</button></div><p class=ask role=alert>'+esc(t('clrQ',all.length))+'</p><div class=row><button class=r onclick="UI.clr=0;send({cmd:\'clearHistory\'})">'+t('clrYes')+'</button></div>':
+  '<div class=row><button class=dz onclick="UI.clr=1;renderHist();setTimeout(function(){if(UI.clr){UI.clr=0;renderHist()}},8000)">'+t('clrAll')+'</button></div>')+'</div>';
+ document.getElementById('hclr').innerHTML=c}
 function lookCard(){var lk=S.look||{};return '<div class=card id=lookcard><h3>'+t('textSize')+'</h3>'+opts('textSize',[['normal',t('tsNormal')],['large',t('tsLarge')],['xlarge',t('tsXL')]])+
- '<h3 style="margin-top:14px">'+t('contrast')+'</h3>'+opts('contrast',[['auto',t('hcAuto',lk.macHC?t('macOn'):t('macOff'))],['on',t('on')],['off',t('off')]])+
- '<p class=h>'+t('rmNote',lk.macRM?t('macOn'):t('macOff'))+'</p></div>'}
+ '<h3 style="margin-top:18px">'+t('contrast')+'</h3>'+opts('contrast',[['auto',t('hcAuto',lk.macHC?t('macOn'):t('macOff'))],['on',t('on')],['off',t('off')]])+
+ '<p class=h style="margin-top:12px">'+t('rmNote',lk.macRM?t('macOn'):t('macOff'))+'</p></div>'}
+function sizeCard(){return '<div class=card id=sizecard><h3>'+t('size')+'</h3><p class=h>'+t('szHint')+'</p>'+opts('uiSize',[['normal',t('szNormal')+'<small>'+t('szNormalS')+'</small>'],['compact',t('szCompact')+'<small>'+t('szCompactS')+'</small>']])+
+ '<span hidden>accessible accessibility accesible accesibilidad big large grande mobility movilidad normal standard estándar estandar compact compacto small pequeño density densidad layout diseño</span></div>'}
+function langCard(){return '<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en',t('english')],['es',t('spanish')]])+
+ '<span hidden>language idioma english español</span></div>'}
+function axPane(){var p=S.perm||{};return LANG=='es'?(p.axPaneEs||'Accesibilidad'):(p.axPane||'Accessibility')}
+function micCard(){var c=S.cfg||{},mics=S.mics||[],def=S.micDefault||'',uid=c.inputDevice||'',list=[['',t('micDefault')+(def?'<small>'+esc(def)+'</small>':'')]];
+ mics.forEach(function(m){list.push([m.uid,'🎤 '+esc(m.name)])});
+ var h='<div class=card id=miccard><h3>'+t('micCard')+'</h3><p class=h>'+t('micHint')+'</p>'+opts('inputDevice',list);
+ if(uid&&!mics.some(function(m){return m.uid==uid}))h+='<p class=err role=status>'+esc(t('micGone'))+'</p>';
+ return h+'</div>'}
+function permCard(){return '<div class=card id=permcard><h3>'+t('permCard')+'</h3><p class=h>'+esc(t('permHint',axPane()))+'</p>'+
+ '<div class=row><button class="r pl" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button>'+
+ '<button class="y pl" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button></div></div>'}
 function autoCard(){var c=S.cfg;return '<div class=card><h3>'+t('auto')+'</h3><p class=h>'+t('autoHint')+'</p>'+opts('autoStop',[[true,t('on')],[false,t('off')]])+
- '<h3 style="margin-top:14px">'+t('silSec')+'</h3>'+opts('silenceSeconds',[2,3,5,8].map(function(n){return [n,t('sec',n)]}))+
+ '<h3 style="margin-top:18px">'+t('silSec')+'</h3>'+opts('silenceSeconds',[2,3,5,8].map(function(n){return [n,t('sec',n)]}))+
  ([2,3,5,8].indexOf(c.silenceSeconds)<0?'<p class=h>'+esc(t('nowSec',c.silenceSeconds))+'</p>':'')+
- '<div class=row style="margin-top:10px"><span>'+t('sens')+'</span>'+['0.5%','1%','1.5%','3%','5%'].map(function(x){return '<button class="opt'+(c.silenceThreshold==x?' on':'')+'" onclick="set(\'silenceThreshold\',\''+x+'\')">'+x+'</button>'}).join('')+'</div><p class=h>'+t('sensHint')+'</p></div>'}
+ '<h3 style="margin-top:18px">'+t('sens')+'</h3>'+opts('silenceThreshold',['0.5%','1%','1.5%','3%','5%'].map(function(x){return [x,x]}))+'<p class=h style="margin-top:10px">'+t('sensHint')+'</p></div>'}
 function pset(k,id){var el=document.getElementById(id);delete el.dataset.dirty;set(k,el.value)}
 function voiceCard(){var c=S.cfg,v=S.voice||{};
- var row=function(k,id,lbl){return '<div class=kd><div>'+t(lbl)+'</div><div class=row><input type=text id='+id+' aria-label="'+esc(t(lbl))+'" value="'+esc((c[k]||[]).join(', '))+'" style="flex:1"><button class=b onclick="pset(\''+k+'\',\''+id+'\')">'+t('save')+'</button></div></div>'};
+ var row=function(k,id,lbl){return '<div class=kd><div style="font-weight:700;margin-bottom:8px">'+t(lbl)+'</div><div class=row><input type=text id='+id+' aria-label="'+esc(t(lbl))+'" value="'+esc((c[k]||[]).join(', '))+'" style="flex:1 1 240px"><button class=b style="flex:0 1 140px" onclick="pset(\''+k+'\',\''+id+'\')">'+t('save')+'</button></div></div>'};
  return '<div class=card id=voicecard><h3>'+t('voice')+'</h3><p class=h>'+t('voiceHint')+'</p>'+opts('voiceControl',[[true,t('on')],[false,t('off')]])+
- (c.voiceControl?'<p class=big style="font-size:18px">'+esc(v.active?t('voiceNow',v.model):t('voicePaused'))+'</p>':'')+
- row('startPhrases','sp_start','startP')+row('stopPhrases','sp_stop','stopP')+'<p class=h>'+t('phrasesFmt')+'</p><p class=h>'+t('voicePrivacy')+'</p></div>'}
-function recCard(){var c=S.cfg,h='<div class=card id=reccard><h3>'+t('recCtl')+'</h3><h3 style="margin-top:6px">'+t('fab')+'</h3><p class=h>'+t('fabHint')+'</p>'+opts('floatButton',[[true,t('on')],[false,t('off')]]);
- if(c.floatButton)h+='<h3 style="margin-top:14px">'+t('cardToo')+'</h3><p class=h>'+t('cardTooHint')+'</p>'+opts('cardWithFab',[[true,t('on')],[false,t('off')]])+hideSection();
- else if(c.showOverlay!==undefined)h+='<h3 style="margin-top:14px">'+t('overlay')+'</h3><p class=h>'+t('overlayHint')+'</p>'+opts('showOverlay',[[true,t('on')],[false,t('off')]]);
+ (c.voiceControl?'<p class=big role=status style="font-size:18px">'+esc(v.active?t('voiceNow',v.model):t('voicePaused'))+'</p>':'')+
+ row('startPhrases','sp_start','startP')+row('stopPhrases','sp_stop','stopP')+'<p class=h>'+t('phrasesFmt')+'</p><details><summary>🔒 Privacy / Privacidad</summary><p class=h>'+t('voicePrivacy')+'</p></details></div>'}
+function recCard(){var c=S.cfg,h='<div class=card id=reccard><h3>'+t('fab')+'</h3><p class=h>'+t('fabHint')+'</p>'+opts('floatButton',[[true,t('on')],[false,t('off')]]);
+ if(c.floatButton)h+='<h3 style="margin-top:18px">'+t('cardToo')+'</h3><p class=h>'+t('cardTooHint')+'</p>'+opts('cardWithFab',[[true,t('on')],[false,t('off')]])+fabLook()+hideSection();
+ else if(c.showOverlay!==undefined)h+='<h3 style="margin-top:18px">'+t('overlay')+'</h3><p class=h>'+t('overlayHint')+'</p>'+opts('showOverlay',[[true,t('on')],[false,t('off')]]);
  else h+='<p class=h style="margin-top:14px">'+t('cardFabOff')+'</p>';
- return h+'<div class=row style="margin-top:10px"><button class=y onclick="send({cmd:\'resetFab\'})">'+t('resetFab')+'</button><button class=y onclick="send({cmd:\'resetOverlay\'})">'+t('resetCard')+'</button></div></div>'}
-var MICSVG=function(ol){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="'+(ol?'butt':'round')+'" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11.5" rx="3" fill="'+(ol?'none':'currentColor')+'"/><path class=arc d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21.5"/><path d="M8.5 21.5h7"/></svg>'};
+ return h+'<div class=row style="margin-top:16px"><button onclick="send({cmd:\'resetFab\'})">↺ '+t('resetFab')+'</button><button onclick="send({cmd:\'resetOverlay\'})">↺ '+t('resetCard')+'</button></div></div>'}
+function fabLook(){var c=S.cfg;if(c.fabSize===undefined)return '';var sz=c.fabSize,mn=c.fabMin||64,mx=c.fabMax||220,st=16;
+ var h='<h3 style="margin-top:18px">'+t('fbSize')+'</h3><p class=h>'+esc(t('fbSizeHint',mn+'–'+mx+' px'))+'</p>'+
+ '<div class=row><button aria-label="'+esc(t('fbSmaller'))+'" onclick="set(\'fabSize\','+Math.max(mn,sz-st)+')"'+(sz<=mn?' disabled':'')+'>− '+t('fbSmaller')+'</button>'+
+ '<p class=big role=status style="flex:0 1 150px;margin:0;text-align:center">'+t('fbNow')+': '+sz+' px</p>'+
+ '<button aria-label="'+esc(t('fbLarger'))+'" onclick="set(\'fabSize\','+Math.min(mx,sz+st)+')"'+(sz>=mx?' disabled':'')+'>+ '+t('fbLarger')+'</button></div>'+
+ '<div style="margin-top:10px">'+opts('fabSize',[[72,'S · 72'],[96,'M · 96'],[128,'L · 128'],[160,'XL · 160'],[200,'XXL · 200']])+'</div>'+
+ '<div class=row style="margin-top:10px"><button onclick="set(\'fabSize\',0)"'+(c.fabSizeCustom?'':' disabled')+'>↺ '+t('fbDefault')+'</button></div>';
+ h+='<h3 style="margin-top:18px">'+t('fbOp')+'</h3><p class=h>'+t('fbOpHint')+'</p>'+opts('fabOpacity',[[40,'40 %'],[55,'55 %'],[70,'70 %'],[85,'85 %'],[100,'100 %']]);
+ h+='<h3 style="margin-top:18px">'+t('fbLbl')+'</h3><p class=h>'+t('fbLblHint')+'</p>'+opts('fabLabels',[[true,t('fbLblOn')],[false,t('fbLblOff')]]);
+ return h}
+var MICSVG=function(ol){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="'+(ol?'butt':'round')+'" stroke-linejoin="round" aria-hidden="true"><path class=arc d="M5.6 10.4C5.6 14.5 8.5 17 12 17S18.4 14.5 18.4 10.4"/><path fill="'+(ol?'none':'currentColor')+'" stroke-width="'+(ol?'2.3':'1.2')+'" d="M3.8 2.4H20.2V7.4C19.8 6 19.1 5.3 17.6 5.2H14.6V11.6A2.6 2.6 0 0 1 9.4 11.6V5.2H6.4C4.9 5.3 4.2 6 3.8 7.4Z"/><path d="M12 17V20.9M8.6 20.9H15.4"/></svg>'};
 function thCols(th){var c=S.cfg;if(th.id=='custom')return {bg:c.customBg,mic:c.customMic,acc:c.customAccent};return th}
 function pv(th){var k=thCols(th),cl=th.id=='classic';
  return '<span class=pv style="background:'+k.bg+';color:'+k.mic+';border-color:'+(cl?'rgba(255,255,255,.9)':k.acc)+'">'+MICSVG(th.outline).replace('class=arc','stroke="'+(cl?k.mic:k.acc)+'"')+'</span>'}
@@ -225,39 +395,21 @@ var SUGG=[['TV','com.apple.TV'],['VLC','org.videolan.vlc'],['QuickTime Player','
 function jsq(v){return JSON.stringify(v).replace(/"/g,'&quot;')}
 function hadd(n,id){send({cmd:'hideAppAdd',name:n,id:id})}
 function hideSection(){var c=S.cfg,list=c.hideApps||[],why={shortcut:t('whyShortcut'),fullscreen:t('whyFull'),app:t('whyApp')}[S.fabHidden];
- var h='<div class=kd style="margin-top:14px"><h3 style="margin:4px 0 8px">'+t('hideT')+'</h3><p class=h>'+t('hideHint')+'</p>';
- h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>'+(S.fabTapOK===false?'<p style="color:var(--warn);font-weight:700">'+esc(t('tapOff',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>':'');
- if(why)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('hiddenNow',why))+'</p>';
- h+='<div class=row><button class=b style="flex:1" onclick="send({cmd:\'fabHideToggle\'})">'+(S.fabSessionHidden?t('showNow'):t('hideNow'))+'</button></div>';
- h+='<h3 style="margin-top:14px">'+t('hideFull')+'</h3><p class=h>'+t('hideFullHint')+'</p>'+opts('hideFullscreen',[[true,t('on')],[false,t('off')]]);
- h+='<h3 style="margin-top:14px">'+t('hideApps')+'</h3><p class=h>'+t('hideAppsHint')+'</p>';
+ var h='<div class=kd style="margin-top:18px"><h3 style="margin:4px 0 8px">'+t('hideT')+'</h3><p class=h>'+t('hideHint')+'</p>';
+ h+='<p class=big style="font-size:18px">'+esc(t('hideKeyInfo',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>'+(S.fabTapOK===false?'<p class=err>'+esc(t('tapOff',(S.keyLabels||{}).fabHideKey||'Option + Command'))+'</p>':'');
+ if(why)h+='<p class=err>'+esc(t('hiddenNow',why))+'</p>';
+ h+='<div class=row><button class=b onclick="send({cmd:\'fabHideToggle\'})">'+(S.fabSessionHidden?t('showNow'):t('hideNow'))+'</button></div>';
+ h+='<h3 style="margin-top:18px">'+t('hideFull')+'</h3><p class=h>'+t('hideFullHint')+'</p>'+opts('hideFullscreen',[[true,t('on')],[false,t('off')]]);
+ h+='<h3 style="margin-top:18px">'+t('hideApps')+'</h3><p class=h>'+t('hideAppsHint')+'</p>';
  if(!list.length)h+='<p>'+t('hideNone')+'</p>';
- list.forEach(function(e,i){h+='<div class=m><div><b style="font-size:19px">'+esc(e.name)+'</b><small>'+esc(e.id||'')+'</small></div><button class=r onclick="send({cmd:\'hideAppDel\',i:'+(i+1)+'})">'+t('remove')+'</button></div>'});
+ list.forEach(function(e,i){h+='<div class=m><div><b>'+esc(e.name)+'</b><small>'+esc(e.id||'')+'</small></div><div class=act><button class=dz onclick="send({cmd:\'hideAppDel\',i:'+(i+1)+'})">'+t('remove')+'</button></div></div>'});
  var has=function(id,n){return list.some(function(e){return e.id==id||(e.name||'').toLowerCase()==n.toLowerCase()})};
  var q=SUGG.filter(function(x){return !has(x[1],x[0])});
- if(q.length)h+='<div class=lbl style="color:var(--mut);font-size:14px;margin-top:8px">'+t('quick')+'</div><div class=row>'+q.map(function(x){return '<button class=opt onclick="hadd('+jsq(x[0])+','+jsq(x[1])+')">+ '+esc(x[0])+'</button>'}).join('')+'</div>';
- if(S.runApps){h+='<p class=h>'+t('pickApp')+'</p><div class=sws>'+S.runApps.filter(function(x){return !has(x.id,x.name)}).map(function(x){return '<button class=sw style="height:88px;background:var(--btn);border-color:var(--inbd)" onclick="hadd('+jsq(x.name)+','+jsq(x.id)+')">'+esc(x.name)+'</button>'}).join('')+
-  '</div><div class=row><button class=y style="flex:1" onclick="send({cmd:\'closeApps\'})">'+t('closeList')+'</button></div>'}
- else h+='<div class=row style="margin-top:10px"><button class=g style="flex:1" onclick="send({cmd:\'listApps\'})">'+t('addRunning')+'</button></div>';
+ if(q.length)h+='<div class=lbl>'+t('quick')+'</div><div class=opts>'+q.map(function(x){return '<button class=opt onclick="hadd('+jsq(x[0])+','+jsq(x[1])+')">+ '+esc(x[0])+'</button>'}).join('')+'</div>';
+ if(S.runApps){h+='<p class=h>'+t('pickApp')+'</p><div class=sws>'+S.runApps.filter(function(x){return !has(x.id,x.name)}).map(function(x){return '<button class=sw style="height:88px" onclick="hadd('+jsq(x.name)+','+jsq(x.id)+')">'+esc(x.name)+'</button>'}).join('')+
+  '</div><div class=row><button onclick="send({cmd:\'closeApps\'})">'+t('closeList')+'</button></div>'}
+ else h+='<div class=row style="margin-top:12px"><button class=b onclick="send({cmd:\'listApps\'})">+ '+t('addRunning')+'</button></div>';
  return h+'</div>'}
-function renderUpd(){var u=S.upd||{},h='';
- if(u.banner)h='<div class=card role=status style="border:4px solid var(--acc)"><h3 style="font-size:22px">'+esc(t('updTitle',u.latest))+'</h3><p>'+esc(t('updInfo',u.cur))+'</p>'+
-  '<div class=row><button class="b pm" onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button><button class=pm onclick="send({cmd:\'updLater\'})">'+esc(t('updLater'))+'</button>'+
-  '<button class=pm onclick="send({cmd:\'updSkip\'})">'+esc(t('updSkip'))+'</button></div></div>';
- document.getElementById('upd').innerHTML=h}
-function updCard(){var u=S.upd||{},r=u.checking?t('updChecking'):u.result=='new'?t('updNewR',u.latest):u.result=='ok'?t('updOk'):u.result=='err'?t('updErr'):'';
- return '<div class=card id=updcard><h3>'+t('updCard')+'</h3><p class=big style="font-size:19px">'+esc(t('updCur',u.cur||''))+'</p><p class=h>'+esc(t('updLast',u.last||t('updNever')))+'</p>'+
- '<h3 style="margin-top:14px">'+t('updAuto')+'</h3><p class=h>'+t('updAutoHint')+'</p>'+opts('checkForUpdates',[[true,t('on')],[false,t('off')]])+
- '<div class=row style="margin-top:10px"><button class=b style="flex:1"'+(u.checking?' disabled':'')+' onclick="send({cmd:\'updCheck\'})">'+t('updNow')+'</button></div>'+
- (r?'<p class=big role=status style="font-size:18px;'+(u.result=='err'?'color:var(--warn)':'')+'">'+esc(r)+'</p>':'')+
- (u.result=='new'&&!u.banner?'<div class=row><button class=b style="flex:1" onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button></div>':'')+'</div>'}
-function axPane(){var p=S.perm||{};return LANG=='es'?(p.axPaneEs||'Accesibilidad'):(p.axPane||'Accessibility')}
-function renderPerm(){var p=S.perm||{},h='';
- if(p.ax===false)h+='<div class=card role=alert style="border:4px solid #ff453a"><h3>'+esc(t('axTitle'))+'</h3><p>'+esc(t('axInfo'))+'</p><p class=h>'+esc(t('axPath',axPane()))+'</p>'+
-  '<div class=row><button class="r pm" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button></div></div>';
- if(p.mic)h+='<div class=card role=alert style="border:4px solid #ff9f0a"><h3>'+esc(t('micTitle'))+'</h3><p>'+esc(t('micInfo'))+'</p><p class=h>'+esc(t('micPath'))+'</p>'+
-  '<div class=row><button class="y pm" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button><button style="min-height:72px;height:auto" onclick="send({cmd:\'hideMic\'})">'+esc(t('hideBanner'))+'</button></div></div>';
- document.getElementById('perm').innerHTML=h}
 function wset(i){var h=document.getElementById('w_h_'+i),r=document.getElementById('w_r_'+i);delete h.dataset.dirty;delete r.dataset.dirty;send({cmd:'setWord',i:i+1,heard:h.value,replace:r.value})}
 function wadd(){var h=document.getElementById('w_new_h'),r=document.getElementById('w_new_r');if(!h.value.trim()||!r.value.trim()){send({cmd:'wordsBad'});return}
  send({cmd:'addWord',heard:h.value,replace:r.value});h.value='';r.value='';delete h.dataset.dirty;delete r.dataset.dirty}
@@ -266,98 +418,95 @@ function wordsCard(){var w=S.cfg.customWords||[],h='<div class=card id=wordscard
  if(!w.length)h+='<p>'+t('wordsNone')+'</p>';
  w.forEach(function(x,i){h+='<div class=wr><input type=text id="w_h_'+i+'" aria-label="'+esc(t('heard'))+'" value="'+esc(x.heard)+'" onchange="wset('+i+')">'+
   '<input type=text id="w_r_'+i+'" aria-label="'+esc(t('replace'))+'" value="'+esc(x.replace)+'" onchange="wset('+i+')">'+
-  '<button class=r onclick="send({cmd:\'delWord\',i:'+(i+1)+'})">'+t('del')+'</button></div>'});
- return h+'<div class=wr><input type=text id=w_new_h placeholder="select dev" aria-label="'+esc(t('heard'))+'"><input type=text id=w_new_r placeholder="selektdev" aria-label="'+esc(t('replace'))+'">'+
-  '<button class=g onclick="wadd()">'+t('add')+'</button></div></div>'}
-function histTop(){var h='<div class=row style="margin-bottom:12px"><button class=g style="flex:1" onclick="send({cmd:\'pasteLast\'})"'+((S.history||[]).length?'':' disabled')+'>'+t('pasteLast')+'</button></div>';
- if(S.recover)h='<div class=card style="border:3px solid #ff9f0a"><h3>'+t('recTitle')+'</h3><p>'+esc(t('recInfo',S.recover))+'</p><div class=row>'+
-  '<button class=y style="flex:1" onclick="send({cmd:\'recover\'})">'+t('recover')+'</button><button onclick="send({cmd:\'discardRecovery\'})">'+t('discard')+'</button></div></div>'+h;
- document.getElementById('htop').innerHTML=h}
-document.getElementById('bar').addEventListener('mousedown',e=>{if(e.button===0&&!e.target.closest('button')){e.preventDefault();send({cmd:'dragStart'})}});
-document.querySelectorAll('.tab[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab[data-t]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
- document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==b.dataset.t))});
-function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function staticText(){document.documentElement.lang=LANG;
- var set=(id,k)=>{document.getElementById(id).textContent=t(k)};
- set('s_drag','drag');set('t_hist','hist');set('t_set','set');set('t_mod','mod');set('t_dict','dict');
- var c=document.getElementById('clr');if(!c.dataset.a)c.textContent=t('clear');
- var q=document.getElementById('q');q.placeholder=t('search');q.setAttribute('aria-label',t('searchLbl'));
- [['b_hide','hide'],['b_close','close']].forEach(x=>{var b=document.getElementById(x[0]);b.title=t(x[1]);b.setAttribute('aria-label',t(x[1]))})}
-function fin(e){return e.cleaned||e.raw}
-var PEND={};
-function restyle(i,st){PEND[i]=st;renderHist();send({cmd:'restyle',i:i,style:st})}
-function renderHist(){var q=document.getElementById('q').value.toLowerCase(),h='';
- (S.history||[]).forEach((e,i)=>{if(q&&!((e.raw||'')+' '+(e.cleaned||'')).toLowerCase().includes(q))return;
-  var cv=(S.conv||{})[i+1]||PEND[i+1];
- h+='<div class="e'+(cv?' busy':'')+'"><div class=h>'+esc(e.time)+(e.cleaned?' · '+(e.style?t(e.style):t('cleaned')):' · '+t('raw'))+'</div>'+
- (cv?'<div class=conv>'+esc(t('converting',t(cv)))+'</div>':'')+'<div class=x>'+esc(fin(e))+'</div>'+
- (e.cleaned&&e.cleaned!=e.raw?'<div class=raw><b>'+t('rawLbl')+'</b> '+esc(e.raw)+'</div>':'')+
- '<div class=row><button class="b cpy" onclick="send({cmd:\'copy\',i:'+(i+1)+'})">'+t('copy')+'</button><button class=g onclick="send({cmd:\'paste\',i:'+(i+1)+'})">'+t('paste')+'</button>'+
- (e.cleaned&&e.cleaned!=e.raw?'<button onclick="send({cmd:\'copyRaw\',i:'+(i+1)+'})">'+t('copyRaw')+'</button>':'')+
- '<button class=r onclick="send({cmd:\'del\',i:'+(i+1)+'})">'+t('del')+'</button></div>'+
- '<div class="row sty"><span class=lbl>'+t('convertTo')+'</span>'+['light','paragraphs','bullets','formal'].map(st=>'<button class="opt'+(e.cleaned&&e.style==st?' on':'')+'" onclick="restyle('+(i+1)+',\''+st+'\')">'+t(st)+'</button>').join('')+'</div></div>'});
- document.getElementById('hl').innerHTML=h||'<p>'+t(q?'noneMatch':'none')+'</p>'}
-function opts(key,list){return '<div class=opts>'+list.map(o=>'<button class="opt'+(S.cfg[key]==o[0]?' on':'')+'" onclick="set(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,'&quot;')+')">'+o[1]+'</button>').join('')+'</div>'}
-function micCard(){var c=S.cfg||{},mics=S.mics||[],def=S.micDefault||'',uid=c.inputDevice||'',list=[['',t('micDefault')+(def?'<small>'+esc(def)+'</small>':'')]];
- mics.forEach(function(m){list.push([m.uid,'🎤 '+esc(m.name)])});
- var h='<div class=card id=miccard><h3>'+t('micCard')+'</h3><p class=h>'+t('micHint')+'</p>'+opts('inputDevice',list);
- if(uid&&!mics.some(function(m){return m.uid==uid}))h+='<p style="color:var(--warn);font-weight:700">'+esc(t('micGone'))+'</p>';
- return h+'</div>'}
-function permCard(){return '<div class=card id=permcard><h3>'+t('permCard')+'</h3><p class=h>'+esc(t('permHint',axPane()))+'</p>'+
- '<div class=row><button class="r pm" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button>'+
- '<button class="y pm" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button></div></div>'}
-function set(k,v){send({cmd:'set',key:k,value:v})}
+  '<button class=dz onclick="send({cmd:\'delWord\',i:'+(i+1)+'})">'+t('del')+'</button></div>'});
+ return h+'<div class=wr style="margin-top:18px"><input type=text id=w_new_h placeholder="select dev" aria-label="'+esc(t('heard'))+'"><input type=text id=w_new_r placeholder="selektdev" aria-label="'+esc(t('replace'))+'">'+
+  '<button class=g onclick="wadd()">+ '+t('add')+'</button></div></div>'}
 var OT={};
-function keysCard(){var K=S.keys||{},P=S.keySyms||{},L=S.keyLabels||{},D=S.defaultKeys||{},cap=S.cap||null,listening=!!(cap&&cap.phase=='listen');
+function keysCard(){var K=S.keys||{},P=S.keySyms||S.keysP||{},Lbl=S.keyLabels||{},D=S.defaultKeys||{},cap=S.cap||null,listening=!!(cap&&cap.phase=='listen');
  var rows=[['toggleKey','kToggle'],['toggleKey2','kStart2'],['modeKey','kMode'],['historyKey','kHist'],['pasteLastKey','kPaste'],['fabHideKey','kFabHide']];
  var h='<div class=card id=keyscard><h3>'+t('keys')+'</h3><p class=h>'+esc(t('kHint'))+'</p>';
  rows.forEach(function(r){var k=r[0],q="'"+k+"'";
   h+='<div class=kd id="kd_'+k+'"><div style="font-weight:700">'+esc(t(r[1]))+'</div>';
   if(cap&&cap.target==k&&listening){
-   h+='<p class=big role=status style="font-size:24px;color:var(--warn)">'+esc(t('kListening'))+'</p><div class=row><button style="flex:1" onclick="send({cmd:\'capCancel\'})">'+t('kCancel')+'</button></div>';
+   h+='<p class=big role=status style="font-size:22px;color:var(--warn)">'+esc(t('kListening'))+'</p><div class=row><button onclick="send({cmd:\'capCancel\'})">'+t('kCancel')+'</button></div>';
   }else if(cap&&cap.target==k&&cap.phase=='result'){
-   h+='<p class=big role=status style="font-size:30px;margin:6px 0">'+esc(cap.sym||'')+'</p><p class=h>'+esc(cap.label||'')+'</p>'+(cap.err?'<p style="color:var(--warn);font-weight:700">⚠ '+esc(cap.err)+'</p>':'');
-   h+='<div class=row>'+(cap.err?'':'<button class=g style="flex:1" onclick="send({cmd:\'capSave\'})">'+t('save')+'</button>')+
-    '<button class=b style="flex:1" onclick="send({cmd:\'capStart\',key:'+q+'})">'+t('kAgain')+'</button><button style="flex:1" onclick="send({cmd:\'capCancel\'})">'+t('kCancel')+'</button></div>';
+   h+='<p class=big role=status style="font-size:28px;margin:6px 0">'+esc(cap.sym||cap.text||'')+'</p><p class=h>'+esc(cap.label||'')+'</p>'+(cap.err?'<p class=err>⚠ '+esc(cap.err)+'</p>':'');
+   h+='<div class=row>'+(cap.err?'':'<button class=g onclick="send({cmd:\'capSave\'})">'+t('save')+'</button>')+
+    '<button class=b onclick="send({cmd:\'capStart\',key:'+q+'})">'+t('kAgain')+'</button><button onclick="send({cmd:\'capCancel\'})">'+t('kCancel')+'</button></div>';
   }else{
-   h+='<p class=big style="font-size:30px;margin:6px 0" aria-label="'+esc(L[k]||'')+'">'+esc(P[k]||'')+'</p><p class=h>'+esc(L[k]||'')+'</p>'+
-    (L[k]!=D[k]?'<p class=h>'+esc(t('def',D[k]||''))+'</p>':'')+
-    '<div class=row><button class=b style="flex:1"'+(listening?' disabled':'')+' onclick="send({cmd:\'capStart\',key:'+q+'})">⏺ '+t('kRecord')+'</button></div>';
-   h+='<details'+(OT[k]?' open':'')+' ontoggle="OT['+q+']=this.open" style="margin-top:8px"><summary class=h style="min-height:60px;line-height:60px;cursor:pointer">'+t('kTyped')+'</summary>'+
-    '<div class=row><input type=text id="k_'+k+'" aria-label="'+esc(t(r[1]))+'" value="'+esc(K[k]||'')+'" style="flex:1"><button onclick="set('+q+',document.getElementById(\'k_'+k+'\').value)">'+t('save')+'</button></div><p class=h>'+t('kFormat')+'</p></details>';
+   h+='<p class=big style="font-size:28px;margin:6px 0" aria-label="'+esc(Lbl[k]||'')+'">'+esc(P[k]||'')+'</p><p class=h>'+esc(Lbl[k]||'')+'</p>'+
+    (Lbl[k]&&D[k]&&Lbl[k]!=D[k]?'<p class=h>'+esc(t('def',D[k]||''))+'</p>':'')+
+    '<div class=row><button class=b'+(listening?' disabled':'')+' onclick="send({cmd:\'capStart\',key:'+q+'})">⏺ '+t('kRecord')+'</button></div>';
+   h+='<details'+(OT[k]?' open':'')+' ontoggle="OT['+q+']=this.open"><summary>'+t('kTyped')+'</summary>'+
+    '<div class=row><input type=text id="k_'+k+'" aria-label="'+esc(t(r[1]))+'" value="'+esc(K[k]||'')+'" style="flex:1 1 200px"><button onclick="set('+q+',document.getElementById(\'k_'+k+'\').value)">'+t('save')+'</button></div><p class=h>'+t('kFormat')+'</p></details>';
   }
   h+='</div>'});
- if(S.fabTapOK===false)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('chordOff'))+'</p>';
- h+='<div class=row style="margin-top:8px"><button class=y style="flex:1"'+(listening?' disabled':'')+' onclick="send({cmd:\'resetKeys\'})">'+t('resetKeys')+'</button></div>';
- h+='<h3 style="margin-top:16px">'+esc(t('kEsc'))+'</h3><p class=h>'+esc(t('kEscInfo'))+'</p>'+opts('escStop',[[true,t('on')],[false,t('off')]]);
- h+='<h3 style="margin-top:16px" id=mickey>'+esc(t('kMic'))+'</h3><p class=h>'+esc(t('kMicInfo'))+'</p><ol class=h style="margin:6px 0 8px 22px;line-height:1.5"><li>'+esc(t('kMic1'))+'</li><li>'+esc(t('kMic2'))+'</li></ol><p class=h>'+esc(t('kMicUndo'))+'</p>'+opts('micKey',[[true,t('on')],[false,t('off')]]);
- if(S.cfg.micKey&&S.micTapOK===false)h+='<p style="color:var(--warn);font-weight:700">'+esc(t('chordOff'))+'</p>';
+ if(S.fabTapOK===false)h+='<p class=err>'+esc(t('chordOff'))+'</p>';
+ h+='<div class=row style="margin-top:12px"><button'+(listening?' disabled':'')+' onclick="send({cmd:\'resetKeys\'})">↺ '+t('resetKeys')+'</button></div>';
+ h+='<h3 style="margin-top:22px">'+esc(t('kEsc'))+'</h3><p class=h>'+esc(t('kEscInfo'))+'</p>'+opts('escStop',[[true,t('on')],[false,t('off')]]);
+ h+='<h3 style="margin-top:22px" id=mickey>'+esc(t('kMic'))+'</h3><p class=h>'+esc(t('kMicInfo'))+'</p><ol class=h style="margin:6px 0 8px 22px;line-height:1.5"><li>'+esc(t('kMic1'))+'</li><li>'+esc(t('kMic2'))+'</li></ol><p class=h>'+esc(t('kMicUndo'))+'</p>'+opts('micKey',[[true,t('on')],[false,t('off')]]);
+ if(S.cfg.micKey&&S.micTapOK===false)h+='<p class=err>'+esc(t('chordOff'))+'</p>';
  return h+'</div>'}
-function renderSet(){var c=S.cfg,h='';
- h+='<div class=card id=langcard><h3>'+t('lang')+'</h3>'+opts('uiLanguage',[['auto',t('langAuto',S.sysLang=='es'?'Español':'English')],['en','English'],['es','Español']])+'</div>';
- h+='<div class=card id=sizecard><h3>'+t('size')+'</h3>'+opts('uiSize',[['normal',t('normal')],['compact',t('compact')]])+'</div>';
- h+=micCard()+permCard()+colorCard()+lookCard()+autoCard()+voiceCard()+recCard()+wordsCard()+updCard();
- h+=keysCard();
- h+='<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:14px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>';
- h+='<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>';
- h+='<div class=card><h3>'+t('after')+'</h3>'+opts('defaultAction',[['paste',t('pasteCur')],['copy',t('copyOnly')]])+'</div>';
- h+='<div class=card><h3>'+t('login')+'</h3>'+opts('openAtLogin',[[true,t('on')],[false,t('off')]])+
- (c.openAtLogin?'<p class=h>'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=h style="color:var(--warn)!important">'+t('loginWarn')+'</p>')+
- '<h3 style="margin-top:14px">'+t('showLogin')+'</h3>'+opts('showAtLogin',[[true,t('on')],[false,t('off')]])+'</div>';
- document.getElementById('sl').innerHTML=h}
+function updCard(){var u=S.upd||{},r=u.checking?t('updChecking'):u.result=='new'?t('updNewR',u.latest):u.result=='ok'?t('updOk'):u.result=='err'?t('updErr'):'';
+ return '<div class=card id=updcard><h3>'+t('updCard')+'</h3><p class=big style="font-size:19px">'+esc(t('updCur',u.cur||''))+'</p><p class=h>'+esc(t('updLast',u.last||t('updNever')))+'</p>'+
+ '<h3 style="margin-top:18px">'+t('updAuto')+'</h3><p class=h>'+t('updAutoHint')+'</p>'+opts('checkForUpdates',[[true,t('on')],[false,t('off')]])+
+ '<div class=row style="margin-top:12px"><button class=b'+(u.checking?' disabled':'')+' onclick="send({cmd:\'updCheck\'})">'+t('updNow')+'</button></div>'+
+ (r?'<p class=big role=status style="font-size:18px;'+(u.result=='err'?'color:var(--warn)':'')+'">'+esc(r)+'</p>':'')+
+ (u.result=='new'&&!u.banner?'<div class=row><button class=b onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button></div>':'')+'</div>'}
+function loginCard(){var c=S.cfg;return '<div class=card><h3>'+t('login')+'</h3>'+opts('openAtLogin',[[true,t('on')],[false,t('off')]])+
+ (c.openAtLogin?'<p class=h style="margin-top:10px">'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=err role=status>'+t('loginWarn')+'</p>')+
+ '<h3 style="margin-top:18px">'+t('showLogin')+'</h3>'+opts('showAtLogin',[[true,t('on')],[false,t('off')]])+'</div>'}
+function dictCards(){return '<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>'+
+ '<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:18px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>'+
+ '<div class=card><h3>'+t('after')+'</h3>'+opts('defaultAction',[['paste',t('pasteCur')],['copy',t('copyOnly')]])+'</div>'+
+ '<div class=card><h3>'+t('whisperGuard')+'</h3><p class=h>'+t('whisperGuardHint')+'</p>'+opts('whisperGuard',[[true,t('on')],[false,t('off')]])+'</div>'+autoCard()}
+function onoff(v){return v?t('on'):t('off')}
+function micName(){var c=S.cfg,m=(S.mics||[]).filter(x=>x.uid==c.inputDevice)[0];return m?m.name:t('micDefault')+' ('+(S.micDefault||'?')+')'}
+var GN={dict:'gdict',mic:'gmic',look:'glook',fab:'gfab',voice:'gvoice',keys:'gkeys',words:'gwords',app:'gapp'};
+var G=[['dict','🗣',dictCards,function(c){return ({auto:t('dAuto'),en:'English',es:'Español'})[c.language]+' · '+(c.cleanup?t(stKey(c.style)):t('offRaw'))+' · '+(c.defaultAction=='copy'?t('copyOnly'):t('pasteCur'))}],
+ ['mic','🎤',function(){return micCard()+permCard()},function(){return micName()}],
+ ['look','🎨',function(){return langCard()+sizeCard()+lookCard()+colorCard()},function(c){return t(c.uiSize=='compact'?'szCompact':'szNormal')+' · Aa '+t(({normal:'tsNormal',large:'tsLarge',xlarge:'tsXL'})[c.textSize]||'tsNormal')+' · '+t(thKey({id:c.floatingTheme}))}],
+ ['fab','⭕',recCard,function(c){return onoff(c.floatButton)+(c.floatButton&&c.fabSize?' · '+c.fabSize+' px · '+(c.fabOpacity||100)+' %':'')}],
+ ['voice','👂',voiceCard,function(c){return onoff(c.voiceControl)}],
+ ['keys','⌨️',keysCard,function(){return t('kToggle')+': '+((S.keyLabels||S.keysP||{}).toggleKey||'')}],
+ ['words','📝',wordsCard,function(c){return t('words0',(c.customWords||[]).length)}],
+ ['app','⬆️',function(){return loginCard()+updCard()},function(c){return 'v'+((S.upd||{}).cur||'')+' · '+t('login')+': '+onoff(c.openAtLogin)}]];
+function openG(id){UI.setg=id;renderSet();document.getElementById('scroll').scrollTop=0}
+function renderSet(){var c=S.cfg,h='',q=(UI.sq||'').trim().toLowerCase();
+ if(q){G.forEach(function(g){h+='<div class=sg><h2 class=gt>'+g[1]+' '+t(GN[g[0]])+'</h2>'+g[2]()+'</div>'})}
+ else if(!UI.setg){h='<div class=tiles>'+G.map(function(g){return '<button class=tile onclick="openG(\''+g[0]+'\')"><span class=ic aria-hidden=true>'+g[1]+'</span><span><span>'+t(GN[g[0]])+'</span><small>'+esc(g[3](c))+'</small></span></button>'}).join('')+'</div>'}
+ else{var g=G.filter(function(x){return x[0]==UI.setg})[0];h='<div class=gh><button onclick="UI.setg=null;renderSet()" style="flex:0 1 260px">'+t('allSet')+'</button><h2>'+g[1]+' '+t(GN[g[0]])+'</h2></div>'+g[2]()}
+ var sl=document.getElementById('sl');sl.innerHTML=h;
+ if(q){var any=false;sl.querySelectorAll('.sg').forEach(function(sg){var vis=0;sg.querySelectorAll('.card').forEach(function(cd){var m=cd.textContent.toLowerCase().indexOf(q)>=0;cd.style.display=m?'':'none';if(m)vis++});sg.style.display=vis?'':'none';if(vis)any=true});
+  if(!any)sl.innerHTML='<p>'+esc(t('noSetMatch',UI.sq))+'</p>'}}
+function isDlFail(st){return st&&(/^Failed|^Falló/.test(String(st)))}
+function mrow(m,key,inUse,cmdUse,cmdDl){var st=(S.dl||{})[key],fail=isDlFail(st),pct=parseFloat(st),name=String(m.name).replace(/ \(download\)$/,''),a;
+ if(m.installed)a=inUse?'<span class=badge role=status>'+t('inUse')+'</span>':'<button class=b onclick="set(\''+cmdUse+'\',\''+esc(key)+'\')">'+t('use')+'</button>';
+ else if(st&&!fail)a='<div role=progressbar aria-valuemin=0 aria-valuemax=100 aria-valuenow='+(pct||0)+' aria-label="'+esc(name)+'"><div class=prog>'+esc(t('dling',st))+'</div><div class=pbar><i style="width:'+(pct||0)+'%"></i></div></div>';
+ else a=(fail?'<div class=err>'+esc(t('dlFail',String(st).replace(/^Failed:?\s*|^Falló:?\s*/,'')))+'</div>':'')+'<button class=y onclick="send('+cmdDl+')">'+(fail?t('retry'):t('download'))+'</button>';
+ return '<div class=m><div><b>'+esc(name)+'</b><small>'+esc(m.size)+(m.size?' · ':'')+esc(m.note)+'</small></div><div class=act>'+a+'</div></div>'}
+function modelList(list,cur,keyf,useK,dlf){var ins=list.filter(m=>m.installed),av=list.filter(m=>!m.installed);ins.sort((a,b)=>(keyf(b)==cur)-(keyf(a)==cur));
+ return (ins.length?'<div class=lbl>'+t('inst')+'</div>'+ins.map(m=>mrow(m,keyf(m),keyf(m)==cur,useK,'')).join(''):'')+(av.length?'<div class=lbl>'+t('avail')+'</div>'+av.map(m=>mrow(m,keyf(m),false,useK,dlf(m))).join(''):'')}
 function renderMod(){var h='';
- if(S.missing)h+='<div class=card style="border:2px solid #ff9f0a"><h3>'+t('setup')+'</h3><p>'+esc(S.missing)+'</p></div>';
- h+='<div class=card><h3>'+t('wTitle')+'</h3><p class=h>'+t('wHint')+'</p>';
- (S.whisperModels||[]).forEach(m=>{h+='<div class=m><div><b>'+esc(m.name)+'</b><small>'+esc(m.size)+' · '+esc(m.note)+'</small></div>'+
- (m.installed?(S.cfg.modelName==m.file?'<button class=g>'+t('inUse')+'</button>':'<button class=b onclick="set(\'modelName\',\''+m.file+'\')">'+t('use')+'</button>'):
- (S.dl[m.file]&&!/^Failed|^Falló/.test(S.dl[m.file])?'<span class=prog>'+esc(S.dl[m.file])+'</span>':'<button class=y onclick="send({cmd:\'dlWhisper\',file:\''+m.file+'\'})">'+(S.dl[m.file]?t('retry'):t('download'))+'</button>'))+'</div>'});
- h+='</div><div class=card><h3>'+t('lTitle')+'</h3>'+(S.ollama?(S.activeModel?'<p class=h>'+t('nowUsing')+'<b>'+esc(S.activeModel)+'</b></p>':'<p class=h style="color:#ff9f0a">'+t('noModel')+'</p>'):'<p class=h style="color:#ff9f0a">'+t('noOllama')+'</p>');
- (S.llmModels||[]).forEach(m=>{h+='<div class=m><div><b>'+esc(m.name)+'</b><small>'+esc(m.size)+' · '+esc(m.note)+'</small></div>'+
- (m.installed?(S.cfg.ollamaModel==m.name?'<button class=g>'+t('inUse')+'</button>':'<button class=b onclick="set(\'ollamaModel\',\''+m.name+'\')">'+t('use')+'</button>'):
- (S.dl[m.name]&&!/^Failed|^Falló/.test(S.dl[m.name])?'<span class=prog>'+esc(S.dl[m.name])+'</span>':'<button class=y onclick="send({cmd:\'dlLLM\',name:\''+m.name+'\'})">'+(S.dl[m.name]?t('retry'):t('download'))+'</button>'))+'</div>'});
- h+='</div><button onclick="send({cmd:\'refresh\'})">'+t('refresh')+'</button>';document.getElementById('ml').innerHTML=h}
-function clr(){var b=document.getElementById('clr');if(b.dataset.a){send({cmd:'clearHistory'});b.dataset.a='';b.textContent=t('clear')}else{b.dataset.a=1;b.textContent=t('clearSure');setTimeout(()=>{b.dataset.a='';b.textContent=t('clear')},4000)}}
-function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';document.body.classList.toggle('compact',(d.cfg&&d.cfg.uiSize)=='compact');lookApply();staticText();renderPerm();renderUpd();histTop();renderHist();var ae=document.activeElement;if(!(ae&&ae.type=='color'))keepInputs(renderSet);renderMod()}
-staticText();
+ if(S.missing)h+='<div class=card style="border:2px solid var(--amber)"><h3>'+t('setup')+'</h3><p>'+esc(S.missing)+'</p></div>';
+ h+='<div class=card><h3>'+t('wTitle')+'</h3><p class=h>'+t('wHint')+'</p>'+modelList(S.whisperModels||[],S.cfg.modelName,m=>m.file,'modelName',m=>"{cmd:'dlWhisper',file:'"+m.file+"'}")+'</div>';
+ if(S.ollama){if(S.activeModel)h+='<div class=card><h3>'+t('lTitle')+'</h3><p class=h>'+t('nowUsing')+'<b>'+esc(S.activeModel)+'</b></p>';
+  else h+='<div class=card><h3>'+t('lTitle')+'</h3><p class=err>'+t('noModel')+'</p>';}
+ else h+='<div class=card><h3>'+t('lTitle')+'</h3><p class=err>'+t('noOllama')+'</p>';
+ h+=modelList(S.llmModels||[],S.cfg.ollamaModel,m=>m.name,'ollamaModel',m=>"{cmd:'dlLLM',name:'"+m.name+"'}")+'</div>';
+ h+='<div class=row><button onclick="send({cmd:\'refresh\'})">↻ '+t('refresh')+'</button></div>';document.getElementById('ml').innerHTML=h}
+function renderUpd(){var u=S.upd||{},h='';
+ if(u.banner)h='<div class=card role=status style="border:4px solid var(--acc)"><h3 style="font-size:22px">'+esc(t('updTitle',u.latest))+'</h3><p class=h>'+esc(t('updInfo',u.cur))+'</p>'+
+  '<div class=row><button class=b onclick="send({cmd:\'updOpen\'})">'+esc(t('updSee'))+'</button><button onclick="send({cmd:\'updLater\'})">'+esc(t('updLater'))+'</button>'+
+  '<button onclick="send({cmd:\'updSkip\'})">'+esc(t('updSkip'))+'</button></div></div>';
+ document.getElementById('upd').innerHTML=h}
+function renderPerm(){var p=S.perm||{},h='';
+ if(p.ax===false)h+='<div class=card role=alert style="border:4px solid var(--stop)"><h3>'+esc(t('axTitle'))+'</h3><p>'+esc(t('axInfo'))+'</p><p class=h>'+esc(t('axPath',axPane()))+'</p>'+
+  '<div class=row><button class="r pl" onclick="send({cmd:\'openAx\'})">'+esc(t('axOpen'))+'</button></div></div>';
+ if(p.mic)h+='<div class=card role=alert style="border:4px solid var(--amber)"><h3>'+esc(t('micTitle'))+'</h3><p>'+esc(t('micInfo'))+'</p><p class=h>'+esc(t('micPath'))+'</p>'+
+  '<div class=row><button class="y pl" onclick="send({cmd:\'openMic\'})">'+esc(t('micOpen'))+'</button><button onclick="send({cmd:\'hideMic\'})">'+esc(t('hideBanner'))+'</button></div></div>';
+ document.getElementById('perm').innerHTML=h}
+function render(d){S=d;PEND={};LANG=(d.lang=='es')?'es':'en';lookApply();chrome();renderPerm();renderUpd();histTop();renderHist();var ae=document.activeElement;if(!(ae&&ae.type=='color'))keepInputs(renderSet);renderMod()}
+chrome();
 if(window.webkit)send({cmd:'refresh'});
 </script></body></html>

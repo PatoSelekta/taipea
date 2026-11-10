@@ -66,7 +66,7 @@ Taipea is for you if:
   overlay) and no tiny targets. Windows move by dragging their title bar, and this also
   works with head mice that don't send normal drag events.
 - **English or Spanish interface** (follows your Mac, or pick one in Settings).
-- **Normal or Compact size**, overlay you can place anywhere, opens at login.
+- **Accessible or Standard layout**, overlay you can place anywhere, opens at login.
 - **Optional auto-stop** after 2, 3, 5 or 8 seconds of silence (a big On/Off in Settings).
 - **Voice start / stop (optional, off by default).** Say "Taipea escribe" or "Taipea write"
   to start, and "listo", "done" or "Taipea listo" to stop and paste. The phrases are
@@ -74,9 +74,10 @@ Taipea is for you if:
 - **Floating mic button (on by default).** A round 96 px button that stays on top: click to
   start. While you dictate it turns green—click it to stop and paste into the app you were
   using. Two smaller buttons appear beside it (blue = stop and copy only, red = cancel). Drag
-  it anywhere; it remembers where you left it. You can also show the full recording card in
-  Settings. The circle is frosted glass (the desktop shows through) with a solid microphone
-  and ring; High Contrast and macOS Reduce Transparency keep a solid fill.
+  it anywhere; it remembers where you left it. Resize it by dragging the outer ring (64–220
+  px), or from Settings. You can also show the full recording card in Settings. The circle
+  is frosted glass (the desktop shows through) with a solid Serif T microphone mark and
+  ring; High Contrast and macOS Reduce Transparency keep a solid fill.
 - **Hide the floating button when you don't need it.** Press Option + Command (or use the
   menu) to hide it until you press it again; hide it by itself while an app is full screen
   (on by default) or while chosen apps are in front (for example VLC or TV). It never hides
@@ -324,8 +325,8 @@ No keyboard? Everything also works with clicks:
   **Cancel** (they grow and show a label when the pointer is over them).
 - With the floating button off (or "Show the recording card too" on), a floating card shows
   three big buttons in the same colours: **Stop & Paste**, **Stop & Copy only**, and **Cancel**.
-- Open **Taipea.app** (in `~/Applications`, add it to your Dock) to open the window.
-  It has a big **🎙 Dictate** button.
+- Open **Taipea.app** (in `~/Applications`, add it to your Dock) to open the window
+  (History, Settings, Models).
 - The 🎙 icon in the menu bar has the same actions.
 
 ### Change your shortcuts
@@ -430,7 +431,11 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | After stopping | Paste at the cursor | Paste / Copy only |
 | Restore clipboard after pasting | On | On / Off |
 | Recording panel (overlay) | On | On / Off |
-| Window size | Normal | Normal / Compact |
+| Layout | Accessible | Accessible / Standard (`normal` / `compact` in config.lua) |
+| Floating button size | 96 px | 64–220 px (drag the ring, or Settings) |
+| Floating button idle opacity | 100 % | 40–100 % |
+| Text labels on Stop buttons | Show text | Show text / Icons only |
+| Remove Whisper hallucinations | On | On / Off (`whisperGuard` in config.lua) |
 | Text size | Normal | Normal / Large / Extra large |
 | High contrast | Auto (follows macOS Increase Contrast) | Auto / On / Off |
 | Floating mic button | On | On / Off |

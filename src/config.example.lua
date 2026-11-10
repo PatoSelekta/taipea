@@ -44,7 +44,11 @@ return {
   -- restoreClipboard = true,            -- put back what was on the clipboard after pasting
   -- showOverlay = true,                 -- floating panel with big Stop & Paste / Copy only / Cancel buttons
   -- uiLanguage  = "auto",               -- interface language: "auto" (follows macOS), "en" or "es"
-  -- uiSize      = "normal",             -- "normal" or "compact"
+  -- uiSize      = "normal",             -- "normal" = Accessible (default) | "compact" = Standard
+  -- whisperGuard = true,                -- strip Whisper sound tags ([Music], (applause)) and looping repeats
+  -- fabSize     = nil,                  -- floating button diameter in px (64–220); nil = 96 × text size
+  -- fabOpacity  = 100,                  -- idle opacity of the floating button, 40–100
+  -- fabLabels   = true,                 -- false = icons only on the Stop buttons / recording card
   -- textSize    = "normal",             -- "normal", "large" or "xlarge" (window, panel and floating button)
   -- contrast    = "auto",               -- high contrast: "auto" (follows macOS Increase Contrast), "on" or "off"
   -- floatButton = true,                 -- round always-on-top mic button: click to start; green while recording = stop and paste

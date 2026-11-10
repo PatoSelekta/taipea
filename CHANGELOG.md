@@ -4,6 +4,30 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-10
+
+### Added
+- **New app window built for accessibility.** The header and the History / Settings / Models tabs stay fixed while the content scrolls. Every button is at least 60 px tall, has a visible keyboard focus ring and a clear text label, and all colors meet WCAG AA contrast (4.5:1 for text) in every color set, including High contrast.
+- **Settings in 8 groups.** Settings opens on a grid of large tiles (Dictation, Microphone & permissions, Size, text & colors, Floating button, Voice start / stop, Shortcuts, Custom words, Startup & updates). Each tile shows a one-line summary of its current values. A search box finds any setting by name or keyword, and **‹ All settings** goes back to the tiles.
+- **History cards.** Each dictation is a card with the time, the style, the cleaned text and three large buttons: **Paste**, **Copy** and **More** (raw text, copy raw, convert to another style, delete). Long texts fold with Show all / Show less.
+- **Safer delete.** Deleting a dictation asks first. The **Keep it** button appears exactly where Delete was, so a double click or a tremor keeps the dictation instead of removing it.
+- **Models tab.** The model in use has an **In use** badge. Downloads show a progress bar with a percentage, and a failed download shows the error with a **Try download again** button.
+- **Two layouts: Accessible and Standard.** Settings › Size, text & colors › Layout. **Accessible** (the default) is the full-height 760 px window with 60 px targets. **Standard** is a regular 640 × 680 Mac window with smaller text and buttons that fits a 13-inch MacBook. Text size (Large, Extra large) scales both layouts.
+- **Resize the floating button by dragging its ring.** Press on the outer ring and drag out or in (64–220 px). A tag shows the size while you drag; a press that does not move is still a normal click. Settings › Floating button › Button size has Smaller / Larger, presets (S 72, M 96, L 128, XL 160, XXL 200) and Default size. The Stop buttons scale with it and never get smaller than 60 px.
+- **Idle opacity for the floating button.** 40 %, 55 %, 70 %, 85 % or 100 % while it waits. While you record or it is working, it is always fully visible.
+- **Icons-only Stop buttons.** Settings › Floating button › Text labels on the Stop buttons: Show text or Icons only. The spoken names (VoiceOver), colors and sizes stay the same.
+- **New Taipea icon and mark.** A new app icon for Taipea.app and the Dock, and the "Serif T" mark on the floating button (a T whose stem is a microphone). It is drawn as an outline in the outline color sets (Studio, Paper and others).
+- **Remove Whisper hallucinations (sound tags, repeated loops).** On by default (Settings › Dictation). After Whisper and before cleanup, Taipea strips made-up sound or event tags such as `[Music]`, `(applause)` and `[BLANK_AUDIO]`, and discards output that is only tags or a looping repeated phrase. Real words stay: bilingual EN/ES speech, brackets or parentheses you actually said, and normal short repeats like "the the". Turn it off if a dictation is trimmed too aggressively.
+
+### Changed
+- **The Dictate tab is gone.** Start dictation with the floating button, the shortcut, the Mic key or your voice. The window now has three tabs: History, Settings and Models.
+- **"Compact" is now called "Standard"**, and its window is 640 × 680 instead of 520 × 700. Saved settings keep working: `compact` and `normal` are still the stored values.
+- **The recording card keeps its size in Standard layout.** It used to shrink to 75 % in Compact; now only Text size changes it.
+- The Interface language (Auto / English / Español) setting lives in Settings › Size, text & colors.
+
+### Fixed
+- Text and buttons that were below WCAG AA contrast in some color sets (muted text, warning text, disabled buttons) now pass in every color set.
+
 ## [0.2.12] - 2026-11-06
 
 ### Added
