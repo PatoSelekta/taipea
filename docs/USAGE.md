@@ -46,10 +46,16 @@ stays on top of other windows. Drag it anywhere and it remembers where you left 
 
 | Idle (Classic Blue) | Idle (Studio) | Recording |
 |---|---|---|
-| <img src="images/floating-button-idle-classic.png" width="150" alt="Idle floating button: a round blue button with a white microphone"> | <img src="images/floating-button-idle-studio.png" width="150" alt="Idle floating button in the Studio colors: a dark round button with a red ring and a white microphone"> | <img src="images/floating-button-recording.png" width="280" alt="Floating button while recording: a large green Stop and Paste button with a clipboard icon, a smaller blue Stop and Copy only button, and a smaller red Cancel button"> |
+| <img src="images/floating-button-idle-classic.png" width="150" alt="Idle floating button: a round blue button with a white Taipea T-microphone mark"> | <img src="images/floating-button-idle-studio.png" width="150" alt="Idle floating button in the Studio colors: a dark round button with a red ring and a white Taipea T-microphone mark"> | <img src="images/floating-button-recording.png" width="280" alt="Floating button while recording: a large green Stop and Paste button with a clipboard icon, a smaller blue Stop and Copy only button, and a smaller red Cancel button"> |
 
 - **Idle:** click it to start dictating. The circle is frosted glass, so the desktop shows
-  through; the microphone and the accent ring stay solid.
+  through; the Serif T mark and the accent ring stay solid.
+- **Resize:** press on the outer ring and drag out or in (64–220 px). A tag shows the size
+  while you drag; a press that does not move is still a normal click. Settings › Floating
+  button has Smaller / Larger, presets, and Default size.
+
+<img src="images/floating-button-sizes.png" width="450" alt="Floating button at 64, 96 and 160 px in Classic Blue and Studio">
+
 - **Recording:** it turns **green**. Click it to stop: Taipea transcribes, cleans up and
   pastes into the app you were using. Two smaller buttons appear next to it: **blue = Stop
   & Copy only** (the text goes to the clipboard and History, nothing is pasted) and **red
@@ -153,33 +159,43 @@ you turned it off).
 
 Every dictation is saved on your Mac (`~/Library/Application Support/Taipea/history.json`).
 
-<img src="images/history-en.png" width="570" alt="History tab with sample dictations. Each one shows the time and style, the cleaned text, the raw text, the buttons Copy, Paste, Copy raw and Delete, and a row to convert the raw text to Light, Paragraph, Bullets or Formal">
+<img src="images/history-en.png" width="570" alt="History tab with sample dictations. Each card shows the time and style, the cleaned text, and three large buttons: Paste, Copy and More">
 
 - **📋 Paste last dictation again** at the top (also Control + Option + V).
 - **Search** finds words in the cleaned or the raw text.
-- For each dictation: **Copy**, **Paste** (into the app you were using), **Copy raw**
-  (the words before cleanup) and **Delete**.
-- **Convert raw text to:** turns the original words into **Light**, **Paragraph**,
-  **Bullets** or **Formal** text with one click. The original words are always kept.
-- **Clear all** deletes the whole history. Press it twice: the first press changes it to
-  "Tap again to DELETE ALL".
+- Each card has three large buttons: **Paste** (into the app you were using), **Copy**, and
+  **More ▾**. More reveals the raw text, copy raw, convert to another style, and Delete.
+- **Delete** asks first. **Keep it** appears exactly where Delete was, so a double click or
+  a tremor keeps the dictation.
+- **Convert to:** turns the original words into **Light**, **Paragraph**, **Bullets** or
+  **Formal** text with one click. The original words are always kept.
+- Long texts fold with **Show all** / **Show less**.
+- **Clear all** deletes the whole history. It asks first, with **Keep it** in the same
+  place.
 
 ## 6. Settings
 
-Settings are saved right away, with no Save button (except for text boxes). Each card is
-described below in the order it appears.
+Settings are saved right away, with no Save button (except for text boxes). The tab opens
+on a grid of large tiles (8 groups). Each tile shows a one-line summary. The search box
+finds any setting by name or keyword. **‹ All settings** goes back to the tiles.
 
-### Language, size, colors, text size and contrast
+<img src="images/settings-tiles-en.png" width="570" alt="Settings home: eight large tiles (Dictation, Microphone and permissions, Size, text and colors, Floating button, Voice start / stop, Shortcuts, Custom words, Startup and updates) each with a one-line summary">
 
-<img src="images/settings-look-en.png" width="570" alt="Settings: Interface language (Auto, English, Español), Size (Normal, Compact), Colors with eight color sets shown as mic buttons, Text size (Normal, Large, Extra large) and High contrast (Auto, On, Off)">
+### Language, layout, colors, text size and contrast
+
+<img src="images/settings-look-en.png" width="570" alt="Settings: Interface language (Auto, English, Español), Layout (Accessible, Standard), Colors with eight color sets shown as T-microphone buttons, Text size (Normal, Large, Extra large) and High contrast (Auto, On, Off)">
 
 - **Interface language:** Auto (follows your Mac), English or Español.
-- **Size:** Normal or Compact (a smaller window).
+- **Layout:** Accessible (the default: full height, 60 px targets) or Standard (a regular
+  640 × 680 window that fits a 13-inch MacBook). Saved values stay `normal` / `compact`.
+
+<img src="images/layout-standard-history-en.png" width="320" alt="History tab in Standard layout: a smaller 640 by 680 window with the same three tabs and cards">
 - **Colors:** 8 sets for the whole app (window, recording card and floating button):
   Classic Blue, Studio, Midnight, Forest, Sunset, High Contrast, Paper and Custom (choose
   the background, mic and accent colors). Text that would be hard to read is fixed
   automatically.
-- **Text size:** Normal, Large or Extra large.
+- **Text size:** Normal, Large or Extra large. It scales both layouts, and the recording
+  card.
 - **High contrast:** Auto (follows macOS Increase Contrast), On or Off. Animations follow
   the macOS Reduce Motion setting. macOS Reduce Transparency forces a solid floating button
   with no blur (no extra Taipea setting).
@@ -199,10 +215,15 @@ described below in the order it appears.
 
 ### Recording controls and hiding the floating button
 
-<img src="images/settings-floating-button-en.png" width="570" alt="Settings, Recording controls: Floating button On or Off, Show the recording card too, and the Hide the floating button section with a Hide for now button, Hide when an app is full screen, Hide in these apps with quick buttons for TV, VLC, QuickTime Player and IINA, Add an open app, and buttons to reset the button and card positions">
+<img src="images/settings-floating-button-en.png" width="570" alt="Settings, Floating button: On or Off, button size with Smaller / Larger and presets, idle opacity, text labels on the Stop buttons, Show the recording card too, and hide options">
 
 - **Floating button:** On or Off. **Show the recording card too:** also show the big card
   while you dictate.
+- **Button size:** Smaller / Larger, presets (S 72, M 96, L 128, XL 160, XXL 200) or
+  Default size. Or drag the button's outer ring. Limits: 64–220 px.
+- **Opacity when idle:** 40–100 %. While you dictate or it is working, it stays fully
+  visible.
+- **Text labels on the Stop buttons:** Show text, or Icons only (VoiceOver names stay).
 - **Hide the floating button:** press **Option + Command** or **Hide for now**. It
   comes back when you press it again. You can change the shortcut in Settings › Shortcuts.
 - **Hide when an app is full screen** (on by default) and **Hide in these apps** (quick
@@ -218,12 +239,16 @@ described below in the order it appears.
   points or Formal.
 - **Dictation language:** Auto, English or Español. Auto also recognizes about 99 other
   languages ([Other languages](../README.md#other-languages)).
+- **Remove Whisper hallucinations (sound tags, repeated loops):** On by default. After
+  Whisper and before cleanup, Taipea strips made-up tags such as `[Music]` or `(applause)`,
+  and discards output that is only tags or a looping repeated phrase. Your real words,
+  including brackets and short repeats like "the the", are kept.
 - **After stopping:** Paste at cursor, or Copy only.
 - **Open at login** and **Show window at login**.
 
 ## 7. The Models tab
 
-<img src="images/models-en.png" width="570" alt="Models tab: Speech model (Whisper) list with large-v3-turbo marked In use and orange Download buttons for the others, and Cleanup model (Ollama) showing gemma4:e4b In use">
+<img src="images/models-en.png" width="570" alt="Models tab: Speech model (Whisper) list with large-v3-turbo marked In use, a progress bar on a download, and a failed download with Try download again">
 
 - **Speech model (Whisper)** turns your voice into text. The installer downloads
   large-v3-turbo (or the smaller turbo q5 if you chose it). Press **Download** to get
@@ -239,14 +264,14 @@ described below in the order it appears.
 Once a day Taipea asks GitHub whether there is a newer version. If there is one, the
 window shows a banner:
 
-<img src="images/update-banner-en.png" width="570" alt="Taipea window with a New version available banner: You have v0.2.4, nothing is downloaded or installed by itself, and three big buttons: See what's new, Remind me later and Skip this version">
+<img src="images/update-banner-en.png" width="570" alt="Taipea window with a New version available banner: You have v0.3.0, nothing is downloaded or installed by itself, and three big buttons: See what's new, Remind me later and Skip this version">
 
 - **See what's new** opens the release page on GitHub. **Remind me later** hides the
   banner for 7 days. **Skip this version** hides it until the next version.
 - Nothing is downloaded or installed by itself. To update, run the installer again: it
   keeps your settings, history and models.
 
-<img src="images/settings-updates-en.png" width="570" alt="Settings, Updates card: current version v0.2.4, last checked time, Check for updates automatically On or Off, a big Check now button, and the message You have the latest version">
+<img src="images/settings-updates-en.png" width="570" alt="Settings, Updates card: current version v0.3.0, last checked time, Check for updates automatically On or Off, a big Check now button, and the message You have the latest version">
 
 In **Settings › Updates** you can see your version and the last check, press **Check
 now**, or turn the automatic check off. This check is Taipea's only network request

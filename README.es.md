@@ -70,7 +70,7 @@ Taipea es para ti si:
   panel de grabación) y nada diminuto. Las ventanas se mueven arrastrando la barra de
   título, y esto funciona también con mouse de cabeza que no envían arrastres normales.
 - **Interfaz en español o inglés** (sigue el idioma de tu Mac, o elige uno en Ajustes).
-- **Tamaño Normal o Compacto**, panel que puedes ubicar donde quieras, abre al iniciar
+- **Diseño Accesible o Estándar**, panel que puedes ubicar donde quieras, abre al iniciar
   sesión.
 - **Parada automática opcional** tras 2, 3, 5 u 8 segundos de silencio (un Sí/No grande
   en Ajustes).
@@ -81,8 +81,9 @@ Taipea es para ti si:
 - **Botón flotante con micrófono (activado por defecto).** Un botón redondo de 96 px que queda encima
   de todo: haz clic para empezar. Mientras dictas se pone verde—haz clic para parar y pegar en la app que estabas
   usando. Al lado aparecen dos botones más pequeños (azul = parar y solo copiar, rojo = cancelar). Arrástralo
-  donde quieras; recuerda dónde lo dejaste. También puedes mostrar la tarjeta de grabación completa en Ajustes.
-  El círculo es vidrio esmerilado (se ve el escritorio) con el micrófono y el anillo sólidos;
+  donde quieras; recuerda dónde lo dejaste. Cambia su tamaño arrastrando el anillo exterior (64–220 px),
+  o desde Ajustes. También puedes mostrar la tarjeta de grabación completa en Ajustes.
+  El círculo es vidrio esmerilado (se ve el escritorio) con la marca T con serifa (un micrófono) y el anillo sólidos;
   Alto contraste y Reducir transparencia de macOS lo dejan sólido.
 - **Oculta el botón flotante cuando no lo necesitas.** Presiona Opción + Comando (o usa el
   menú) para ocultarlo hasta que lo vuelvas a presionar; se oculta solo mientras una app está
@@ -343,8 +344,8 @@ Opción + Comando + Esc…), Taipea no hace nada, así que tus otros atajos sigu
 - Con el botón flotante apagado (o con «Mostrar también la tarjeta de grabación»), una tarjeta
   flotante muestra tres botones grandes con los mismos colores: **Parar y pegar**,
   **Parar y solo copiar** y **Cancelar**.
-- Abre **Taipea.app** (en `~/Applications`, agrégala a tu Dock) para abrir la ventana.
-  Tiene un botón grande **🎙 Dictar**.
+- Abre **Taipea.app** (en `~/Applications`, agrégala a tu Dock) para abrir la ventana
+  (Historial, Ajustes, Modelos).
 - El ícono 🎙 en la barra de menús tiene las mismas acciones.
 
 ### Cambiar tus atajos
@@ -454,7 +455,11 @@ están en `config.example.lua`).
 | Al parar | Pegar en el cursor | Pegar / Solo copiar |
 | Restaurar el portapapeles al pegar | Sí | Sí / No |
 | Panel de grabación | Sí | Sí / No |
-| Tamaño de la ventana | Normal | Normal / Compacto |
+| Diseño | Accesible | Accesible / Estándar (`normal` / `compact` en config.lua) |
+| Tamaño del botón flotante | 96 px | 64–220 px (arrastra el anillo, o Ajustes) |
+| Opacidad del botón flotante en reposo | 100 % | 40–100 % |
+| Texto en los botones de parar | Mostrar texto | Mostrar texto / Solo íconos |
+| Quitar alucinaciones de Whisper | Sí | Sí / No (`whisperGuard` en config.lua) |
 | Tamaño del texto | Normal | Normal / Grande / Muy grande |
 | Alto contraste | Automático (sigue Aumentar contraste de macOS) | Automático / Sí / No |
 | Botón flotante con micrófono | Sí | Sí / No |

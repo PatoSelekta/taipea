@@ -48,10 +48,17 @@ lo dejaste.
 
 | En reposo (Azul clásico) | En reposo (Estudio) | Grabando |
 |---|---|---|
-| <img src="images/floating-button-idle-classic.png" width="150" alt="Botón flotante en reposo: un botón redondo azul con un micrófono blanco"> | <img src="images/floating-button-idle-studio.png" width="150" alt="Botón flotante en reposo con los colores Estudio: un botón redondo oscuro con un anillo rojo y un micrófono blanco"> | <img src="images/floating-button-recording.png" width="280" alt="Botón flotante mientras graba: un botón verde grande Parar y pegar con un ícono de portapapeles, un botón azul más pequeño Parar y solo copiar, y un botón rojo más pequeño Cancelar"> |
+| <img src="images/floating-button-idle-classic.png" width="150" alt="Botón flotante en reposo: un botón redondo azul con la marca T-micrófono blanca de Taipea"> | <img src="images/floating-button-idle-studio.png" width="150" alt="Botón flotante en reposo con los colores Estudio: un botón redondo oscuro con un anillo rojo y la marca T-micrófono blanca de Taipea"> | <img src="images/floating-button-recording.png" width="280" alt="Botón flotante mientras graba: un botón verde grande Parar y pegar con un ícono de portapapeles, un botón azul más pequeño Parar y solo copiar, y un botón rojo más pequeño Cancelar"> |
 
 - **En reposo:** haz clic para empezar a dictar. El círculo es vidrio esmerilado, así que
-  se ve el escritorio; el micrófono y el anillo de acento se quedan sólidos.
+  se ve el escritorio; la marca T con serifa y el anillo de acento se quedan sólidos.
+- **Tamaño:** presiona el anillo exterior y arrastra hacia fuera o hacia dentro (64–220 px).
+  Una etiqueta muestra el tamaño mientras arrastras; un clic que no se mueve sigue siendo
+  un clic. Ajustes › Botón flotante tiene Más pequeño / Más grande, tamaños fijos y Tamaño
+  predeterminado.
+
+<img src="images/floating-button-sizes.png" width="450" alt="Botón flotante a 64, 96 y 160 px en Azul clásico y Estudio">
+
 - **Grabando:** se pone **verde**. Haz clic para parar: Taipea transcribe, corrige y pega
   en la app que estabas usando. Aparecen dos botones más pequeños al lado: **azul = Parar
   y solo copiar** (el texto va al portapapeles y al Historial, no se pega nada) y **rojo =
@@ -159,34 +166,46 @@ activar Dictado si lo apagaste).
 
 Cada dictado se guarda en tu Mac (`~/Library/Application Support/Taipea/history.json`).
 
-<img src="images/history-es.png" width="570" alt="Pestaña Historial con dictados de ejemplo. Cada uno muestra la hora y el estilo, el texto corregido, el texto original, los botones Copiar, Pegar, Copiar original y Borrar, y una fila para convertir el texto original a Ligero, Párrafos, Viñetas o Formal">
+<img src="images/history-es.png" width="570" alt="Pestaña Historial con dictados de ejemplo. Cada tarjeta muestra la hora y el estilo, el texto corregido y tres botones grandes: Pegar, Copiar y Más">
 
 - **📋 Pegar otra vez el último dictado** arriba (también Control + Opción + V).
 - **Buscar** encuentra palabras en el texto corregido o en el original.
-- En cada dictado: **Copiar**, **Pegar** (en la app que estabas usando), **Copiar
-  original** (las palabras antes de la corrección) y **Borrar**.
-- **Convertir el texto original a:** convierte tus palabras originales en texto
-  **Ligero**, **Párrafos**, **Viñetas** o **Formal** con un clic. Las palabras originales
-  siempre se conservan.
-- **Borrar todo** borra todo el historial. Presiónalo dos veces: la primera vez cambia a
-  "Toca otra vez para BORRAR TODO".
+- Cada tarjeta tiene tres botones grandes: **Pegar** (en la app que estabas usando),
+  **Copiar** y **Más ▾**. Más muestra el texto original, copiar original, convertir a otro
+  estilo y Borrar.
+- **Borrar** pide confirmación. **Conservarlo** aparece justo donde estaba Borrar, así un
+  doble clic o un temblor conserva el dictado.
+- **Convertir a:** convierte tus palabras originales en texto **Ligero**, **Párrafos**,
+  **Viñetas** o **Formal** con un clic. Las palabras originales siempre se conservan.
+- Los textos largos se pliegan con **Ver todo** / **Ver menos**.
+- **Borrar todo** borra todo el historial. Pide confirmación, con **Conservarlo** en el
+  mismo sitio.
 
 ## 6. Ajustes
 
 Los ajustes se guardan al momento, sin botón de guardar (salvo en los cuadros de texto).
-Cada tarjeta se explica abajo en el orden en que aparece.
+La pestaña abre en una cuadrícula de mosaicos grandes (8 grupos). Cada mosaico muestra un
+resumen de una línea. El buscador encuentra cualquier ajuste por nombre o palabra clave.
+**‹ Todos los ajustes** vuelve a los mosaicos.
 
-### Idioma, tamaño, colores, tamaño del texto y contraste
+<img src="images/settings-tiles-es.png" width="570" alt="Inicio de Ajustes: ocho mosaicos grandes (Dictado, Micrófono y permisos, Tamaño, texto y colores, Botón flotante, Empezar / parar con la voz, Atajos, Palabras propias, Inicio y actualizaciones), cada uno con un resumen de una línea">
 
-<img src="images/settings-look-es.png" width="570" alt="Ajustes: Idioma de la interfaz (Automático, English, Español), Tamaño (Normal, Compacto), Colores con ocho juegos de colores mostrados como botones de micrófono, Tamaño del texto (Normal, Grande, Muy grande) y Alto contraste (Automático, Sí, No)">
+### Idioma, diseño, colores, tamaño del texto y contraste
+
+<img src="images/settings-look-es.png" width="570" alt="Ajustes: Idioma de la interfaz (Automático, English, Español), Diseño (Accesible, Estándar), Colores con ocho juegos mostrados como botones T-micrófono, Tamaño del texto (Normal, Grande, Muy grande) y Alto contraste (Automático, Sí, No)">
 
 - **Idioma de la interfaz:** Automático (sigue a tu Mac), English o Español.
-- **Tamaño:** Normal o Compacto (una ventana más pequeña).
+- **Diseño:** Accesible (predeterminado: altura completa, objetivos de 60 px) o Estándar
+  (una ventana normal de 640 × 680 que cabe en un MacBook de 13 pulgadas). Los valores
+  guardados siguen siendo `normal` / `compact`.
+
+<img src="images/layout-standard-history-es.png" width="320" alt="Pestaña Historial en diseño Estándar: una ventana más pequeña de 640 por 680 con las mismas tres pestañas y tarjetas">
 - **Colores:** 8 juegos para toda la app (ventana, tarjeta de grabación y botón flotante):
   Azul clásico, Estudio, Medianoche, Bosque, Atardecer, Alto contraste, Papel y
   Personalizado (eliges el fondo, el micrófono y el color de acento). El texto que sería
   difícil de leer se ajusta solo.
-- **Tamaño del texto:** Normal, Grande o Muy grande.
+- **Tamaño del texto:** Normal, Grande o Muy grande. Escala los dos diseños y la tarjeta
+  de grabación.
 - **Alto contraste:** Automático (sigue Aumentar contraste de macOS), Sí o No. Las
   animaciones siguen el ajuste Reducir movimiento de macOS. Reducir transparencia de
   macOS deja el botón flotante sólido, sin desenfoque (no hay un ajuste extra en Taipea).
@@ -207,10 +226,15 @@ Cada tarjeta se explica abajo en el orden en que aparece.
 
 ### Controles de grabación y ocultar el botón flotante
 
-<img src="images/settings-floating-button-es.png" width="570" alt="Ajustes, Controles de grabación: Botón flotante Sí o No, Mostrar también la tarjeta de grabación, y la sección Ocultar el botón flotante con un botón Ocultar por ahora, Ocultar cuando una app está en pantalla completa, Ocultar en estas apps con botones rápidos para TV, VLC, QuickTime Player e IINA, Añadir una app abierta, y botones para restablecer la posición del botón y de la tarjeta">
+<img src="images/settings-floating-button-es.png" width="570" alt="Ajustes, Botón flotante: Sí o No, tamaño del botón con Más pequeño / Más grande y tamaños fijos, opacidad en reposo, texto en los botones de parar, Mostrar también la tarjeta de grabación, y opciones para ocultarlo">
 
 - **Botón flotante:** Sí o No. **Mostrar también la tarjeta de grabación:** muestra
   también la tarjeta grande mientras dictas.
+- **Tamaño del botón:** Más pequeño / Más grande, tamaños fijos (S 72, M 96, L 128, XL 160,
+  XXL 200) o Tamaño predeterminado. O arrastra el anillo exterior. Límites: 64–220 px.
+- **Opacidad en reposo:** 40–100 %. Mientras dictas o trabaja, se ve al 100 %.
+- **Texto en los botones de parar:** Mostrar texto, o Solo íconos (los nombres de VoiceOver
+  no cambian).
 - **Ocultar el botón flotante:** presiona **Opción + Comando** u **Ocultar por ahora**.
   Vuelve cuando lo presionas otra vez. Puedes cambiar el atajo en Ajustes › Atajos.
 - **Ocultar cuando una app está en pantalla completa** (activado por defecto) y
@@ -228,12 +252,17 @@ Cada tarjeta se explica abajo en el orden en que aparece.
   Formal.
 - **Idioma del dictado:** Automático, English o Español. Automático también reconoce unos
   99 idiomas más ([Otros idiomas](../README.es.md#otros-idiomas)).
+- **Quitar alucinaciones de Whisper (etiquetas de sonido, bucles repetidos):** activado de
+  fábrica. Después de Whisper y antes de la corrección, Taipea quita etiquetas inventadas
+  como `[Music]` o `(applause)`, y descarta el texto que es solo etiquetas o una frase
+  repetida en bucle. Tus palabras reales, incluidos corchetes y repeticiones cortas como
+  «el el», se conservan.
 - **Al parar:** Pegar en el cursor, o Solo copiar.
 - **Abrir al iniciar sesión** y **Mostrar la ventana al iniciar sesión**.
 
 ## 7. La pestaña Modelos
 
-<img src="images/models-es.png" width="570" alt="Pestaña Modelos: lista Modelo de voz (Whisper) con large-v3-turbo marcado En uso y botones naranjas Descargar para los demás, y Modelo de corrección (Ollama) con gemma4:e4b En uso">
+<img src="images/models-es.png" width="570" alt="Pestaña Modelos: lista Modelo de voz (Whisper) con large-v3-turbo marcado En uso, una barra de progreso en una descarga, y una descarga fallida con Reintentar la descarga">
 
 - **Modelo de voz (Whisper)** convierte tu voz en texto. El instalador descarga
   large-v3-turbo (o el turbo q5, más pequeño, si lo elegiste). Presiona **Descargar** para
@@ -250,7 +279,7 @@ Cada tarjeta se explica abajo en el orden en que aparece.
 Una vez al día Taipea le pregunta a GitHub si hay una versión más nueva. Si la hay, la
 ventana muestra un aviso:
 
-<img src="images/update-banner-es.png" width="570" alt="Ventana de Taipea con el aviso Nueva versión disponible: Tienes la v0.2.4, no se descarga ni se instala nada solo, y tres botones grandes: Ver las novedades, Recordármelo después y Omitir esta versión">
+<img src="images/update-banner-es.png" width="570" alt="Ventana de Taipea con el aviso Nueva versión disponible: Tienes la v0.3.0, no se descarga ni se instala nada solo, y tres botones grandes: Ver las novedades, Recordármelo después y Omitir esta versión">
 
 - **Ver las novedades** abre la página de la versión en GitHub. **Recordármelo después**
   oculta el aviso durante 7 días. **Omitir esta versión** lo oculta hasta la siguiente
@@ -258,7 +287,7 @@ ventana muestra un aviso:
 - No se descarga ni se instala nada solo. Para actualizar, vuelve a ejecutar el
   instalador: conserva tus ajustes, tu historial y tus modelos.
 
-<img src="images/settings-updates-es.png" width="570" alt="Ajustes, tarjeta Actualizaciones: versión actual v0.2.4, hora de la última revisión, Buscar actualizaciones automáticamente Sí o No, un botón grande Buscar ahora y el mensaje Tienes la última versión">
+<img src="images/settings-updates-es.png" width="570" alt="Ajustes, tarjeta Actualizaciones: versión actual v0.3.0, hora de la última revisión, Buscar actualizaciones automáticamente Sí o No, un botón grande Buscar ahora y el mensaje Tienes la última versión">
 
 En **Ajustes › Actualizaciones** ves tu versión y la última búsqueda, puedes presionar
 **Buscar ahora** o apagar la búsqueda automática. Es la única conexión a internet de Taipea

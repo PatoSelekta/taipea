@@ -177,7 +177,8 @@ check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.c
   and D.silenceSeconds == 3 and #D.customWords == 0 and D.startPhrases[1] == "Taipea escribe" and D.stopPhrases[1] == "listo")
 check("default values", D.style == "light" and D.cleanup == true and D.ollamaModel == "gemma4:e4b" and D.language == "auto"
   and D.uiLanguage == "auto" and D.showOverlay == true and D.uiSize == "normal" and D.defaultAction == "paste"
-  and D.openAtLogin == true and D.historyMax == 500 and D.maxSeconds == 1800 and D.autoStop == false)
+  and D.openAtLogin == true and D.historyMax == 500 and D.maxSeconds == 1800 and D.autoStop == false
+  and D.whisperGuard == true and D.fabLabels == true and D.fabOpacity == 100)
 
 -- interface language: auto follows macOS (stubbed as es-CO), and can be forced
 check("auto -> Spanish Mac", M.uiLang() == "es")
@@ -534,13 +535,13 @@ check("older release: no banner", U.result == "ok" and M.updWanted() == false an
 check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
 M.updResult(200, gh(M.VERSION), false)
 check("same release: no banner", U.result == "ok" and M.updWanted() == false)
-M.updResult(200, gh("v0.2.13"), false)
-check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.2.13" and S.updLatest == "0.2.13" and M.updWanted() == true)
-check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.2.13" and S.updUrl == U.url)
-check("newer release: one notification", notes == 1 and S.updNotified == "0.2.13")
-M.updResult(200, gh("v0.2.13"), false)
+M.updResult(200, gh("v0.3.1"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.3.1" and S.updLatest == "0.3.1" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.3.1" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.3.1")
+M.updResult(200, gh("v0.3.1"), false)
 check("same new release again: no second notification", notes == 1)
-M.updResult(200, gh("v0.2.14", "https://evil.example/x"), false)
+M.updResult(200, gh("v0.3.2", "https://evil.example/x"), false)
 check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
 -- remind me later (7 days) / skip this version
 local now = os.time()
@@ -550,28 +551,28 @@ check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == tr
 check("remind later: alert", fake.lastAlert == M.T("upd_later"))
 S.updRemindUntil = nil
 M.updSkip()
-check("skip: this version hidden", S.updSkip == "0.2.14" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.2.14"))
-M.updResult(200, gh("v0.2.15"), false)
+check("skip: this version hidden", S.updSkip == "0.3.2" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.3.2"))
+M.updResult(200, gh("v0.3.3"), false)
 check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
 -- errors are only logged; the last good answer is kept
 for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
   { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
   fake.lastAlert = nil
   local okc = pcall(M.updResult, c[1], c[2], false)
-  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.2.15" and notes == 3)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.3.3" and notes == 3)
 end
 M.updResult(-1, nil, true)
 check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
 -- the request itself
 local got = {}
-hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.2.15")) end
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.3.3")) end
 check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
 check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
   and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
 M.cfg.checkForUpdates = false
 check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
 fake.lastAlert = nil
-check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.2.15"))
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.3.3"))
 U.checking = true
 check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
 U.checking = false
@@ -644,7 +645,7 @@ do
   local function argOf(t, flag) for i, a in ipairs(t.args or {}) do if a == flag then return t.args[i + 1] end end end
   check("afterRaw English: one retry with -l es", #fake.tasks == nt + 1 and argOf(tk, "-l") == "es" and got == nil)
   tk.cb(0, "\n[00:00:00.000 --> 00:00:02.500]   Hola, ¿cómo estás? Yo creo que está bien.\n\n")
-  check("afterRaw English: usable retry pasted", got == " Hola, ¿cómo estás? Yo creo que está bien.")
+  check("afterRaw English: usable retry pasted", got == "Hola, ¿cómo estás? Yo creo que está bien.")
   got = nil; nt = #fake.tasks; fake.lastAlert = nil
   M.cfg.language = "es"
   M.afterRaw(RU, "/tmp/x.wav")
@@ -694,7 +695,7 @@ do
   check("transcribe: Whisper runs with timestamps (no -nt)", not hasNt)
   check("transcribe: levels kept for the checks", M._lv and M._lv.rmsPk == -14.5)
   got = nil; tk.cb(0, "\n[00:00:00.000 --> 00:00:07.900]   Hola equipo, mañana a las nueve.\n[00:00:07.900 --> 00:00:08.400]   Thank you.\n\n")
-  check("transcribe: made-up Thank you after the last sound removed", got == " Hola equipo, mañana a las nueve.")
+  check("transcribe: made-up Thank you after the last sound removed", got == "Hola equipo, mañana a las nueve.")
   -- the same, but the last sound is later: the phrase's window is measured
   nt = #fake.tasks
   M.transcribeFile("/tmp/x.wav")
@@ -705,7 +706,7 @@ do
   tk = fake.tasks[#fake.tasks]
   check("transcribe: spoken-looking Thank you gets its window measured", got == nil and tk.cmd == base .. "_sox" and tk.args[1] == trimF and tk.args[3] == "trim" and tk.args[4] == "6.000" and tk.args[5] == "1.200")
   tk.cb(0, "", "RMS Pk dB     -16.00\n")
-  check("transcribe: Thank you with voice in its window is kept", got == " Can you check the notes? Thank you.")
+  check("transcribe: Thank you with voice in its window is kept", got == "Can you check the notes? Thank you.")
   -- trimming fails -> the whole recording is used
   nt = #fake.tasks
   M.transcribeFile("/tmp/x.wav")
@@ -716,7 +717,7 @@ do
   tk = fake.tasks[#fake.tasks]
   check("transcribe: failed trim falls back to the original", tk.cmd == base .. "_whisper" and argOf(tk, "-f") == "/tmp/x.wav")
   got = nil; tk.cb(0, " Hola equipo, mañana a las nueve.\n")
-  check("transcribe: plain Whisper output still works", got == " Hola equipo, mañana a las nueve.")
+  check("transcribe: plain Whisper output still works", got == "Hola equipo, mañana a las nueve.")
   -- unreadable trim analysis -> the whole recording is used
   M.transcribeFile("/tmp/x.wav")
   fake.tasks[#fake.tasks].cb(0, "", SPEECH)
@@ -731,7 +732,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.2.12", M.VERSION == "0.2.12")
+  check("version 0.3.0", M.VERSION == "0.3.0")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -1271,13 +1272,13 @@ do
   check("failed Ollama pull can be retried without reloading Hammerspoon", #fake.tasks == nTasks + 1)
 
   check("Models UI has Retry in English and Spanish",
-    ui:find("retry:'Retry'", 1, true) ~= nil and ui:find("retry:'Reintentar'", 1, true) ~= nil)
+    ui:find("retry:'Try download again'", 1, true) ~= nil and ui:find("retry:'Reintentar la descarga'", 1, true) ~= nil)
   check("failed download shows a Retry button (large control class) instead of the failure text",
     ui:find("t('retry')", 1, true) ~= nil and ui:find("/^Failed|^Falló/", 1, true) ~= nil
-    and ui:find("(S.dl[m.file]?t('retry'):t('download'))", 1, true) ~= nil
+    and ui:find("function isDlFail", 1, true) ~= nil
     and ui:find("class=y", 1, true) ~= nil)
   check("Retry uses the same large download button class (60px)",
-    ui:find("button class=y", 1, true) ~= nil and ui:find("button{height:60px", 1, true) ~= nil)
+    ui:find("button class=y", 1, true) ~= nil and ui:find("min-height:60px", 1, true) ~= nil)
 end
 
 -- ---------- v0.2.11: glass floating microphone ----------
@@ -1356,10 +1357,10 @@ do
     and src:find("look.rt and \"true\" or \"false\"", 1, true))
   check("mic icon and accent stay CSS variables (solid)",
     src:find("color:var(--mic)", 1, true) and src:find("border:4px solid var(--acc)", 1, true))
-  check("FAB circle is still 96 px; satellites stay ≥60 px",
-    src:find("math.floor(96 * (look.scale or 1) + 0.5)", 1, true)
-    and src:find("math.max(60, math.floor(64 * s + 0.5))", 1, true))
-  check("window buttons stay at least 60 px", ui:find("button{height:60px", 1, true) ~= nil)
+  check("FAB circle default 96 px; satellites stay ≥60 px",
+    src:find("FABG.MIN, FABG.MAX, FABG.DEF = 64, 220, 96", 1, true)
+    and src:find("math.max(60, math.min(120", 1, true))
+  check("window buttons stay at least 60 px", ui:find("min-height:60px", 1, true) ~= nil)
   check("no Settings toggle for glass or Reduce Transparency",
     not ui:find("reduceTransparency", 1, true) and not ui:find("backdrop-filter", 1, true)
     and not src:find('contrast = "glass"', 1, true))
@@ -1488,12 +1489,13 @@ do
   check("opts helper uses wrapping .opts, not .row",
     ui:find("function opts(key,list){return '<div class=opts>'", 1, true) ~= nil)
   check("option buttons wrap and grow (min-height 60px, height auto)",
-    ui:find(".opts{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}", 1, true)
+    ui:find(".opts{display:grid;", 1, true)
     and ui:find("min-height:60px;height:auto", 1, true)
     and ui:find("overflow-wrap:anywhere", 1, true)
     and ui:find(".opt small{display:block", 1, true))
-  check("permission and mic cards stay ≥60 px in Compact",
-    ui:find("body.compact #sizecard,body.compact #langcard,body.compact #miccard,body.compact #permcard", 1, true) ~= nil)
+  check("layout switch stays ≥44 px in Standard; Accessible stays 60 px",
+    ui:find("body.compact #sizecard .opt{min-height:44px", 1, true)
+    and ui:find("button{min-height:60px;height:auto", 1, true) ~= nil)
   check("permission strings in both Lua languages",
     M.STR.en.mic_set:find("Microphone", 1, true) and M.STR.es.mic_set:find("Micrófono", 1, true)
     and M.STR.en.mic_default:find("system default", 1, true) and M.STR.es.mic_missing:find("conectado", 1, true))
@@ -1505,6 +1507,209 @@ do
         and s:find("com.apple.preference.security?Privacy_Accessibility", 1, true)
         and s:find("Device Control and Data Access", 1, true)
     end)())
+end
+
+-- ---------- v0.3.0: accessible UI, floating-button size, Whisper output guard ----------
+do
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+  local G = M.FABG
+  local oldSize, oldOp, oldLbl, oldUi, oldScale = M.cfg.fabSize, M.cfg.fabOpacity, M.cfg.fabLabels, M.cfg.uiSize, M.look.scale
+  local oldGuard, oldWords = M.cfg.whisperGuard, M.cfg.customWords
+
+  M.handle({ cmd = "set", key = "fabSize", value = 300 })
+  check("fabSize 300 clamps to 220", M.fabDiam() == 220 and M.cfg.fabSize == 220)
+  M.handle({ cmd = "set", key = "fabSize", value = 10 })
+  check("fabSize 10 clamps to 64", M.fabDiam() == 64 and M.cfg.fabSize == 64)
+  M.handle({ cmd = "set", key = "fabSize", value = 0 })
+  check("fabSize 0 is default 96 at normal text", M.cfg.fabSize == nil and M.fabDiam() == 96)
+  check("fabSizeCustom false after default", (tonumber(M.cfg.fabSize) or 0) == 0)
+  M.handle({ cmd = "set", key = "fabSize", value = "128" })
+  check("fabSize string 128", M.fabDiam() == 128 and M.cfg.fabSize == 128)
+  check("fabSizeCustom true after 128", (tonumber(M.cfg.fabSize) or 0) > 0)
+  M.setFabSize(127.6)
+  check("fabSize 127.6 rounds to 128", M.fabDiam() == 128)
+  check("pushState exposes fabMin 64 and fabMax 220",
+    src:find("fabMin=FABG.MIN", 1, true) and src:find("fabMax=FABG.MAX", 1, true)
+    and G.MIN == 64 and G.MAX == 220)
+
+  M.handle({ cmd = "set", key = "fabOpacity", value = 20 })
+  check("fabOpacity 20 clamps to 40", M.cfg.fabOpacity == 40 and math.abs(M.fabOp() - 0.4) < 0.001)
+  M.handle({ cmd = "set", key = "fabOpacity", value = 150 })
+  check("fabOpacity 150 clamps to 100", M.cfg.fabOpacity == 100 and M.fabOp() == 1)
+  M.handle({ cmd = "set", key = "fabOpacity", value = nil })
+  check("fabOpacity nil is 100", M.cfg.fabOpacity == 100 and M.fabOp() == 1)
+
+  check("fabLabels default on", M.DEFAULTS.fabLabels == true and oldLbl ~= false)
+  M.handle({ cmd = "set", key = "fabLabels", value = false })
+  check("fabLabels false is stored", M.cfg.fabLabels == false)
+  local nCanvas = 0
+  local oldCanvas = hs.canvas
+  hs.canvas = {
+    new = function()
+      nCanvas = nCanvas + 1
+      local c = {}
+      return setmetatable(c, { __index = function() return function() return c end end })
+    end,
+    windowLevels = { floating = 3 },
+  }
+  G.showLabel("copy", { x = 0, y = 0, w = 80, h = 80 }, "left")
+  check("showLabel skips canvas when labels off", nCanvas == 0)
+  M.cfg.fabLabels = true
+  G.showLabel("copy", { x = 0, y = 0, w = 80, h = 80 }, "left")
+  check("showLabel draws a canvas when labels on", nCanvas >= 1)
+  hs.canvas = oldCanvas
+  M.handle({ cmd = "set", key = "fabLabels", value = true })
+
+  M.handle({ cmd = "set", key = "uiSize", value = "compact" })
+  check("uiSize compact stays compact", M.cfg.uiSize == "compact")
+  M.handle({ cmd = "set", key = "uiSize", value = "standard" })
+  check("uiSize standard maps to compact", M.cfg.uiSize == "compact")
+  M.handle({ cmd = "set", key = "uiSize", value = "normal" })
+  check("uiSize normal stays normal", M.cfg.uiSize == "normal")
+  M.handle({ cmd = "set", key = "uiSize", value = "accessible" })
+  check("uiSize accessible maps to normal", M.cfg.uiSize == "normal")
+  M.handle({ cmd = "set", key = "uiSize", value = "nope" })
+  check("uiSize garbage maps to normal", M.cfg.uiSize == "normal")
+
+  M.look.scale = 1
+  M.cfg.uiSize = "compact"
+  local w, h = M.appSize({ w = 1440, h = 900 })
+  check("appSize Standard 640x680", w == 640 and h == 680)
+  M.cfg.uiSize = "normal"
+  w, h = M.appSize({ w = 1440, h = 900 })
+  check("appSize Accessible 760x820", w == 760 and h == 820)
+  M.look.scale = 1.25
+  M.cfg.uiSize = "compact"
+  w, h = M.appSize({ w = 1440, h = 900 })
+  check("appSize Standard at 1.25 scale", w == 800 and h == 820)
+  M.cfg.uiSize = "normal"
+  w, h = M.appSize({ w = 1440, h = 900 })
+  check("appSize Accessible at 1.25 scale", w == 950 and h == 820)
+  M.look.scale = 1
+  w, h = M.appSize({ w = 600, h = 500 })
+  check("appSize small screen capped", w == 560 and h == 420)
+
+  M.setFabSize(0)
+  M.look.scale = 1
+  local rest, hover = G.satSizes()
+  check("satSizes at default 96 → rest 64 hover 84, satWin0 92", rest == 64 and hover == 84 and G.satWin0() == 92)
+  M.setFabSize(64)
+  rest, hover = G.satSizes()
+  check("satSizes at 64 stay ≥60 / ≥80", rest >= 60 and hover >= 80)
+  M.setFabSize(220)
+  rest, hover = G.satSizes()
+  check("satSizes at 220 hover ≤150", hover <= 150)
+
+  local oldGet = hs.settings.get
+  hs.settings.get = function(k)
+    if k == "taipea.overlayPos" then return nil end
+    return oldGet(k)
+  end
+  local oldScreen = hs.screen
+  hs.screen = { mainScreen = function() return { frame = function() return { x = 0, y = 0, w = 1440, h = 900 } end } end }
+  M.look.scale = 1
+  M.cfg.uiSize = "normal"
+  local wn = M.overlayFrame().w
+  M.cfg.uiSize = "compact"
+  local wc = M.overlayFrame().w
+  check("overlay frame no longer shrinks in compact", wn == wc and wn == 460)
+  check("overlayFrame uses look.scale only (no compact 0.75)",
+    not src:find('uiSize=="compact" and 0.75', 1, true)
+    and src:find("local k = ((M.look and M.look.scale) or 1)", 1, true) ~= nil)
+  hs.settings.get, hs.screen = oldGet, oldScreen
+
+  local mic = M.ICON.mic
+  local firstPath = mic:match("<path[^/]*/>") or mic:match("<path[^>]*>")
+  check("ICON.mic is the Serif T (class=solid, arc first)",
+    mic:find('class="solid"', 1, true) and mic:find("M5.6 10.4", 1, true)
+    and firstPath and firstPath:find("M5.6 10.4", 1, true))
+  check("fabHTML has resize + idle opacity",
+    src:find("fabResizeDown", 1, true) and src:find("function setOp(o)", 1, true))
+  check("overlayHTML has setLbl for icons-only Stop buttons",
+    src:find("function setLbl(on,a,b,c)", 1, true) ~= nil)
+  check("version 0.3.0 in Lua, installer and build-app",
+    M.VERSION == "0.3.0"
+    and (function()
+      local f = io.open((arg[0]:match("^(.*)/") or ".") .. "/../install.sh"); if not f then return false end
+      local s = f:read("a"); f:close()
+      return s:find('TAIPEA_VERSION="0.3.0"', 1, true) ~= nil
+    end)()
+    and src:find('local VERSION = "0.3.0"', 1, true) ~= nil)
+
+  -- Whisper output guard (after Whisper, before cleanup)
+  check("whisperGuard default on", M.DEFAULTS.whisperGuard == true and M.cfg.whisperGuard ~= false)
+  check("whisperGuard helpers live on M (no extra main-chunk locals)",
+    type(M.stripSoundTags) == "function" and type(M.stripSoundTagsFromSegs) == "function"
+    and type(M.isTagHallucination) == "function" and type(M.isRepeatHallucination) == "function"
+    and type(M.guardWhisperOutput) == "function"
+    and not src:find("\nlocal function stripSoundTags", 1, true)
+    and not src:find("\nlocal function guardWhisperOutput", 1, true))
+  check("whisperGuard Settings toggle EN/ES",
+    ui:find("whisperGuard:'Remove Whisper hallucinations (sound tags, repeated loops)'", 1, true)
+    and ui:find("whisperGuard:'Quitar alucinaciones de Whisper (etiquetas de sonido, bucles repetidos)'", 1, true)
+    and ui:find("opts('whisperGuard'", 1, true))
+  check("guard call sites: live, afterRaw, transcribe",
+    src:find("M.guardWhisperOutput(text, segs)", 1, true)
+    and src:find('sound-tag / repeat hallucination', 1, true)
+    and src:find("live:sound-tag", 1, true))
+
+  local function g(text, segs)
+    return M.guardWhisperOutput(text, segs)
+  end
+  local t, segs, kind = g("[Music] (applause) [BLANK_AUDIO] *Silence*")
+  check("guard: tag-only output is empty", kind == "empty" and t == "" and #(segs or {}) == 0)
+  t, segs, kind = g("pongebob pongebob pongebob")
+  check("guard: looping unknown phrase is a hallucination", kind == "hallucination" and t == "")
+  t, segs, kind = g("*A* *B* *C* Dale")
+  check("guard: leftover dwarf vs tags is a hallucination", kind == "hallucination" and t == "")
+  t, _, kind = g("Need the report [Music] tomorrow (applause) please.")
+  check("guard: strips sound tags and keeps the sentence",
+    kind == "ok" and t == "Need the report tomorrow please.")
+  t, _, kind = g("Hola, need the report tomorrow por favor. El ISBN es [978-0] (ver página 3).")
+  check("guard: bilingual speech with legitimate brackets is kept",
+    kind == "ok" and t:find("Hola, need the report tomorrow por favor", 1, true)
+    and t:find("[978-0]", 1, true) and t:find("(ver página 3)", 1, true))
+  t, _, kind = g("the the")
+  check("guard: short repeat the the is kept", kind == "ok" and t == "the the")
+  t, _, kind = g("el el")
+  check("guard: short repeat el el is kept", kind == "ok" and t == "el el")
+  t, _, kind = g("the the the")
+  check("guard: common English word repeated is kept", kind == "ok" and t == "the the the")
+  t, _, kind = g("el el el")
+  check("guard: common Spanish word repeated is kept", kind == "ok" and t == "el el el")
+  t, _, kind = g("Hello *Music*")
+  check("guard: a single tag next to real words is stripped, text kept", kind == "ok" and t == "Hello")
+  M.cfg.whisperGuard = false
+  t, _, kind = g("[Music] pongebob pongebob pongebob")
+  check("guard: off in Settings is a pass-through", kind == "ok" and t:find("[Music]", 1, true) and t:find("pongebob", 1, true))
+  M.cfg.whisperGuard = true
+  M.handle({ cmd = "set", key = "whisperGuard", value = false })
+  check("set whisperGuard false", M.cfg.whisperGuard == false)
+  M.handle({ cmd = "set", key = "whisperGuard", value = true })
+  check("set whisperGuard true", M.cfg.whisperGuard == true)
+
+  -- live slice: tag-only is dropped; bilingual speech is kept
+  local oldJoined, oldGen, oldLast = M.LIVE.joined, M.LIVE.gen, M.LIVE.lastOk
+  M.LIVE.gen, M.LIVE.fallback, M.LIVE.joined, M.LIVE.lastOk = 42, nil, "", false
+  M.liveOnSlice({ gen = 42, from = 0, to = 24, last = true, task = nil }, 0,
+    "[00:00:00.000 --> 00:00:02.000]   [Music]\n", 0)
+  check("live: tag-only slice is dropped", M.LIVE.joined == "")
+  M.LIVE.joined = ""
+  M.liveOnSlice({ gen = 42, from = 0, to = 24, last = true, task = nil }, 0,
+    "[00:00:00.000 --> 00:00:05.000]   Hola, need the report tomorrow por favor.\n", 0)
+  check("live: bilingual speech is kept", (M.LIVE.joined or ""):find("Hola, need the report tomorrow por favor", 1, true) ~= nil)
+  M.LIVE.joined, M.LIVE.gen, M.LIVE.lastOk = oldJoined, oldGen, oldLast
+
+  check("window has no Dictate tab", not ui:find("data-t=dict", 1, true) and ui:find("repeat(3,minmax(0,1fr))", 1, true)
+    and ui:find("data-t=hist", 1, true) and ui:find("data-t=set", 1, true) and ui:find("data-t=mod", 1, true))
+  check("Settings tiles include whisperGuard in Dictation",
+    ui:find("gdict:'Dictation'", 1, true) and ui:find("glook:'Size, text & colors'", 1, true))
+
+  M.cfg.fabSize, M.cfg.fabOpacity, M.cfg.fabLabels = oldSize, oldOp, oldLbl
+  M.cfg.uiSize, M.look.scale = oldUi, oldScale
+  M.cfg.whisperGuard, M.cfg.customWords = oldGuard, oldWords
+  M.setFabSize(oldSize or 0)
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)
