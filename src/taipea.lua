@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.3.0
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.3.1
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -39,6 +39,13 @@ local DEFAULTS = {
   modelName   = "ggml-large-v3-turbo.bin",   -- file in DATA/models, or an absolute path
   maxSeconds  = 1800,                        -- 30-minute cap per dictation
   liveTranscribe = true,                     -- transcribe overlapping slices while recording; false = current full-file path only
+  liveChunking = "adaptive",                 -- "adaptive" = pause-aware chunks (default); "fixed" = old 24 s / 4 s overlap windows
+  liveChunkTarget = 8,                       -- prefer a pause cut once the chunk is this long (seconds)
+  liveChunkMax = 15,                         -- hard max chunk length (seconds); cut at the quietest 50 ms with overlap
+  liveChunkMin = 4,                          -- do not cut (or redo leftover) shorter than this (seconds)
+  livePause = 0.6,                           -- pause length that triggers a cut before liveChunkTarget
+  liveChunkOverlap = 1.5,                    -- overlap (seconds) when a max-length cut has no pause
+  muteWhileDictating = false,                -- mute the Mac's default output while recording (off in public)
   restoreClipboard = true,
   autoStop    = false,
   silenceSeconds = 3,                        -- 2, 3, 5 or 8 in Settings
@@ -193,6 +200,7 @@ local NEWSTR = {
   mic_missing="That microphone is not connected. Using the system default.",
   upd_menu="⬆️ New version available: v%s", upd_new="New version available: v%s", upd_none="You have the latest version (v%s)", upd_err="Couldn't check for updates. Try again later.",
   upd_later="OK, I'll remind you in 7 days", upd_skipped="Skipped v%s", upd_note_t="Taipea v%s is available", upd_note_b="Open Taipea to see what's new.", upd_on="Update check: ON", upd_off="Update check: OFF",
+  mute_on="Mute other sounds while dictating: ON", mute_off="Mute other sounds while dictating: OFF",
  },
  es = {
   menu_voice="Empezar/parar con la voz (di «%s»)", menu_fab="Botón flotante", menu_paste_last="Pegar otra vez el último dictado",
@@ -225,6 +233,7 @@ local NEWSTR = {
   mic_missing="Ese micrófono no está conectado. Se usa el del sistema.",
   upd_menu="⬆️ Nueva versión disponible: v%s", upd_new="Nueva versión disponible: v%s", upd_none="Tienes la última versión (v%s)", upd_err="No se pudo buscar actualizaciones. Inténtalo más tarde.",
   upd_later="Listo, te lo recuerdo en 7 días", upd_skipped="Se omitió la v%s", upd_note_t="Taipea v%s está disponible", upd_note_b="Abre Taipea para ver las novedades.", upd_on="Buscar actualizaciones: SÍ", upd_off="Buscar actualizaciones: NO",
+  mute_on="Silenciar otros sonidos mientras dictas: SÍ", mute_off="Silenciar otros sonidos mientras dictas: NO",
  },
 }
 for l, t in pairs(NEWSTR) do for k, v in pairs(t) do STR[l][k] = v end end
@@ -503,12 +512,86 @@ local function log(s) local f=io.open(logf,"a"); if f then f:write(os.date("%F %
 -- play sounds in a separate afplay process: hs.sound:play() runs on the main thread and blocks
 -- for ~8s when the output device (e.g. external display speakers) is slow/asleep
 M._sndTasks = {}
-local function sound(n)
+local function sound(n, done)
   local f = "/System/Library/Sounds/"..n..".aiff"
-  if not hs.fs.attributes(f) then return end
-  local t; t = hs.task.new("/usr/bin/afplay", function() M._sndTasks[t] = nil end, {f})
+  if not hs.fs.attributes(f) then if done then done() end; return end
+  local t; t = hs.task.new("/usr/bin/afplay", function() M._sndTasks[t] = nil; if done then done() end end, {f})
   M._sndTasks[t] = true
-  t:start()
+  if not t:start() then M._sndTasks[t] = nil; if done then done() end end
+end
+
+-- Mute other apps while dictating (cfg.muteWhileDictating). Uses the default output
+-- device's muted flag. The prior state is written to a small file so a reload or crash
+-- mid-recording can restore it on the next load. Helpers live on M (200-local limit).
+M.MUTE_FILE = DATA.."/tmp/mute-state.json"
+function M.muteWriteState(st)
+  local f = io.open(M.MUTE_FILE, "w")
+  if f then f:write(hs.json.encode(st)); f:close() end
+end
+function M.muteReadState()
+  local f = io.open(M.MUTE_FILE, "r"); if not f then return nil end
+  local ok, j = pcall(hs.json.decode, f:read("a")); f:close()
+  if ok and type(j) == "table" and type(j.uid) == "string" and j.uid ~= "" then return j end
+  return nil
+end
+function M.muteClearState()
+  os.remove(M.MUTE_FILE)
+  M._mute = nil
+end
+-- force=true skips the setting and "recording" checks (for tests). Never adds a new local.
+function M.muteApplyOn(force)
+  if not force and not cfg.muteWhileDictating then return false end
+  if not force and state ~= "rec" then return false end
+  if M._mute and M._mute.uid then return true end
+  local ok, dev = pcall(hs.audiodevice.defaultOutputDevice)
+  if not ok or not dev then log("mute:on failed (no default output)"); return false end
+  local uok, uid = pcall(function() return dev:uid() end)
+  uid = (uok and type(uid) == "string" and uid) or ""
+  if uid == "" then log("mute:on failed (no uid)"); return false end
+  local mok, prior = pcall(function() return dev:outputMuted() end)
+  if not mok or prior == nil then log("mute:on failed (cannot read muted state uid="..uid..")"); return false end
+  prior = prior and true or false
+  M._mute = { uid = uid, prior = prior }
+  M.muteWriteState(M._mute)
+  if not prior then
+    local sok, sres = pcall(function() return dev:setOutputMuted(true) end)
+    if not sok or sres == false then
+      log("mute:on failed (setOutputMuted uid="..uid..")")
+      M.muteClearState()
+      return false
+    end
+  end
+  log("mute:on uid="..uid.." prior="..tostring(prior))
+  return true
+end
+-- Restores the original muted state on the same device (even if the default output
+-- changed). Only unmutes if it was unmuted before we muted. Optional play after restore.
+function M.muteRestore(play)
+  local st = M._mute or M.muteReadState()
+  if not st or not st.uid then
+    if play then sound(play) end
+    return false
+  end
+  local dev
+  if hs.audiodevice.findDeviceByUID then
+    local ok, d = pcall(hs.audiodevice.findDeviceByUID, st.uid)
+    if ok then dev = d end
+  end
+  if dev then
+    if not st.prior then pcall(function() dev:setOutputMuted(false) end) end
+    log("mute:restore uid="..tostring(st.uid).." prior="..tostring(st.prior and true or false))
+  else
+    log("mute:restore uid="..tostring(st.uid).." prior="..tostring(st.prior and true or false).." device missing")
+  end
+  M.muteClearState()
+  if play then sound(play) end
+  return true
+end
+function M.muteRestoreOnLoad()
+  local st = M.muteReadState()
+  if not st then return end
+  M._mute = st
+  M.muteRestore()
 end
 
 -- ---------- history ----------
@@ -977,6 +1060,7 @@ end
 function M.abortIfDone(gen)
   if M.jobStale(gen) then return true end
   if cancelled then
+    M.muteRestore()
     state = "idle"
     if tick then tick:stop() end
     hideOverlay()
@@ -1929,6 +2013,7 @@ local function finish(raw, cleaned, gen)
   if M.jobStale(gen) or cancelled then return end
   M.liveLogTimes()
   M.liveEndSession()
+  M.muteRestore()
   state="idle"; if tick then tick:stop() end; hideOverlay()
   clearSession()
   local recovering = M._recovering; M._recovering = false
@@ -2356,6 +2441,7 @@ end
 function M.nothingHeard(why)
   log("nothing heard ("..why.."): nothing pasted")
   M.liveEndSession()
+  M.muteRestore()
   state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false
   M.clearVoiceFlags()
   if M._dry then M._dryResult = "" end
@@ -2628,6 +2714,17 @@ function M.liveReset(on)
   L.lastSegs, L.lastFile, L.lastPlan, L.lastTail, L.lastOk = nil, nil, nil, nil, false
   L.finishing, L.promptOverride = false, nil
   L.stopT0, L.tRaw, L.tCleanup, L.tRec0 = nil, nil, nil, hs.timer.secondsSinceEpoch()
+  L.fr, L.hist, L.pk, L.spec, L.chunks, L.lastChunkFrom, L.lastChunkSeam, L.nextSeam, L.joinedPrev = {}, {}, -96, nil, 0, nil, nil, "pause", ""
+  if L.timer then L.timer:stop(); L.timer = nil end
+  if L.on and cfg.liveChunking ~= "fixed" then
+    local g, tm = L.gen, nil
+    tm = hs.timer.doEvery(0.25, function()
+      if M.LIVE.gen ~= g or state ~= "rec" then tm:stop(); if M.LIVE.timer == tm then M.LIVE.timer = nil end; return end
+      local ok, err = pcall(M.liveTickA)
+      if not ok then log("live:tick error "..tostring(err)); M.liveFallback("tick") end
+    end)
+    L.timer = tm
+  end
   M.liveSweep(L.dir)
   if not hs.fs.attributes(L.dir) then pcall(hs.fs.mkdir, L.dir) end
   return L.gen
@@ -2743,12 +2840,13 @@ function M.liveRunSlice(item)
   local dur = math.max(0.05, (item.to or 0) - (item.from or 0))
   local function go(file)
     if M.liveStale(gen) then return end
+    if item.killed then if M.LIVE.cur == item then M.LIVE.cur = nil end; M.livePump(gen); return end
     item.file = file
-    M.LIVE.promptOverride = (M.LIVE.lastOk and M.LIVE.lastTail) or nil
+    M.LIVE.promptOverride = M.livePrompt(item)
     local t0 = hs.timer.secondsSinceEpoch()
     M.wTask = hs.task.new(cfg.whisper, function(code, out)
       M.LIVE.promptOverride = nil
-      M.liveOnSlice(item, code, out, t0)
+      if item.mode == "a" then M.liveOnChunkA(item, code, out, t0) else M.liveOnSlice(item, code, out, t0) end
     end, whisperArgs(file))
     item.task = M.wTask
     M.LIVE.task = M.wTask
@@ -2761,6 +2859,7 @@ function M.liveRunSlice(item)
   M.trimTask = hs.task.new(sox, function(code)
     M.trimTask = nil
     if M.liveStale(gen) then return end
+    if item.killed then go(nil); return end
     if code == 0 and fileExists(dest) then go(dest) else M.liveFallback("trim") end
   end, { snap, dest, "trim", string.format("%.3f", item.from), string.format("%.3f", dur) })
   if not M.trimTask:start() then M.trimTask = nil; M.liveFallback("trim") end
@@ -2780,8 +2879,9 @@ function M.liveEnqueue(from, to, last, gen)
   M.LIVE.queue[#M.LIVE.queue+1] = { from = from, to = to, last = last, gen = gen }
 end
 function M.liveTick()
+  if cfg.liveChunking ~= "fixed" then return end  -- adaptive chunks run on their own 0.25 s timer (M.liveTickA)
   if not M.LIVE.on or M.LIVE.finishing or state ~= "rec" then return end
-  local len, slice, overlap = wavSeconds(wav), M.LIVE.SLICE, M.LIVE.OVERLAP
+  local len, slice, overlap = M.wavSeconds(wav), M.LIVE.SLICE, M.LIVE.OVERLAP
   if M.liveBacklog(len, M.livePendingFrom()) then M.liveFallback("backlog"); return end
   local nextFrom = M.LIVE.nextFrom or 0
   if len >= nextFrom + slice then
@@ -2791,8 +2891,9 @@ function M.liveTick()
   end
 end
 function M.liveOnStop()
+  if cfg.liveChunking ~= "fixed" then return M.liveOnStopA() end
   local gen = M.LIVE.gen
-  local len = wavSeconds(wav)
+  local len = M.wavSeconds(wav)
   if M.LIVE.fallback then transcribe(wav); return end
   if M.liveBacklog(len, M.livePendingFrom()) then M.liveFallback("backlog"); return end
   M.LIVE.finishing = true
@@ -2803,6 +2904,198 @@ function M.liveOnStop()
     -- last completed slice is the tail
     if not M.LIVE.lastFile then M.LIVE.lastSegs = nil end
   end
+  M.livePump(gen)
+end
+-- ---------- adaptive live chunks (cfg.liveChunking = "adaptive"; "fixed" = old 24 s slices) ----------
+-- While recording, the WAV is read in 50 ms frames (every 0.25 s). A chunk is cut in the middle of a
+-- pause once it is at least liveChunkMin s long (pause >= livePause s, or >= 0.3 s after liveChunkTarget s).
+-- No pause by liveChunkMax s: cut at the quietest 50 ms with liveChunkOverlap s of overlap (word-overlap join).
+-- During a pause the rest is transcribed speculatively; if nothing is said before stop, that result is the tail.
+-- One whisper-cli at a time (queue). Sound-tag guard, judgeRaw and tail guard run as before.
+function M.liveScanFile(path, L)
+  L.fr = L.fr or {}; L.hist = L.hist or {}; L.pk = L.pk or -96
+  local f = io.open(path or "", "rb"); if not f then return #L.fr end
+  local size, FB = f:seek("end"), 1600
+  local pos = 44 + #L.fr * FB
+  local cnt = math.floor((size - pos) / FB)
+  if cnt > 0 then
+    f:seek("set", pos)
+    local data = f:read(cnt * FB) or ""
+    for i = 0, math.floor(#data / FB) - 1 do
+      local sum, b = 0, i * FB
+      for j = 1, FB, 8 do local v = string.unpack("<i2", data, b + j); sum = sum + v * v end
+      local r = math.sqrt(sum / 200) / 32768
+      local db = r > 0 and math.max(-96, 20 * math.log(r, 10)) or -96
+      L.fr[#L.fr + 1] = db
+      local k = math.floor(db); L.hist[k] = (L.hist[k] or 0) + 1
+      if db > L.pk then L.pk = db end
+    end
+  end
+  f:close()
+  return #L.fr
+end
+-- silence threshold from the frames so far: same rule as the trim (quietest 5 % as the room floor)
+function M.liveThr(L)
+  local tot, acc, p5 = #L.fr, 0, -96
+  for db = -96, 0 do local c = L.hist[db]; if c then acc = acc + c; if acc >= tot * 0.05 then p5 = db; break end end end
+  return M.trimThreshold({ rmsTr = p5, rmsPk = L.pk })
+end
+-- sound (100 ms above the threshold) after time t?
+function M.liveVoiceAfter(L, t, n)
+  local thr, run = M.liveThr(L), 0
+  for i = math.floor((t or 0) / 0.05) + 2, n or #L.fr do
+    if L.fr[i] >= thr then run = run + 1; if run >= 2 then return true end else run = 0 end
+  end
+  return false
+end
+-- decide on frames 1..n for the chunk starting at `from`: "cut"/"force"/"skip"/"spec", time
+function M.liveDecide(L, n, from)
+  local F, fr, thr = 0.05, L.fr, M.liveThr(L)
+  local MIN, TGT, MAX = tonumber(cfg.liveChunkMin) or 4, tonumber(cfg.liveChunkTarget) or 8, tonumber(cfg.liveChunkMax) or 15
+  local PAUSE = tonumber(cfg.livePause) or 0.6
+  local len = n * F
+  local dur = len - from
+  local best, runS, runV, voiced, vr = nil, nil, false, false, 0
+  local function cand(s, rl)
+    if runV and s - from >= MIN and rl >= ((s - from >= TGT) and 0.3 or PAUSE) then best = s + math.min(rl / 2, 0.3) end
+  end
+  for i = math.floor(from / F + 0.5) + 1, n do
+    local d = fr[i]
+    if d >= thr then
+      vr = vr + 1; if vr >= 2 then voiced = true end
+      if runS then cand((runS - 1) * F, (i - runS) * F); runS = nil end
+    else
+      vr = 0
+      if not runS then runS, runV = i, voiced end
+    end
+  end
+  local oS, oL = nil, 0
+  if runS then oS, oL = (runS - 1) * F, (n - runS + 1) * F; cand(oS, oL) end
+  if best then return "cut", best end
+  if not voiced then if dur >= MIN then return "skip", math.max(from, len - 0.5) end; return nil end
+  if dur >= MAX then
+    local qi, qd = nil, 1e9
+    for i = math.floor((from + MAX - 4) / F) + 1, n - 4 do if fr[i] and fr[i] < qd then qi, qd = i, fr[i] end end
+    if qi then return "force", (qi - 0.5) * F end
+  end
+  if oS and runV and oL >= 0.5 and oS - from >= 1.0 then return "spec", oS + math.min(oL, 0.3) end
+  return nil
+end
+function M.liveJoinPlain(a, b)
+  a = (a or ""):gsub("%s+$", ""); b = (b or ""):gsub("^%s+", "")
+  if a == "" then return b end
+  if b == "" then return a end
+  return a..(b:match("^[%.,;:!%?]") and "" or " ")..b
+end
+-- Whisper prompt: the end of the text before this chunk (fixed slices keep their old prompt)
+function M.livePrompt(item)
+  local L = M.LIVE
+  if item.mode ~= "a" then return (L.lastOk and L.lastTail) or nil end
+  local t = (item.redo and L.joinedPrev or L.joined) or ""
+  if not t:match("%S") then return nil end
+  if #t > 160 then t = t:sub(-160):gsub("^%S*%s*", "") end
+  return t
+end
+function M.liveDropSpec()
+  local L = M.LIVE
+  local sp = L.spec; L.spec = nil
+  if not sp or sp.done or sp.final then return end
+  sp.killed = true
+  for i = #L.queue, 1, -1 do if L.queue[i] == sp then table.remove(L.queue, i) end end
+  if L.cur == sp and sp.task then local t = sp.task; pcall(function() t:terminate() end) end
+end
+function M.liveEnqueueA(from, to, opts)
+  local L = M.LIVE
+  local it = { from = from, to = to, last = opts.last, gen = L.gen, mode = "a", seam = opts.seam, redo = opts.redo, spec = opts.spec, base = opts.base }
+  L.queue[#L.queue + 1] = it
+  return it
+end
+function M.liveTickA()
+  local L = M.LIVE
+  if not L.on or L.finishing or state ~= "rec" then return end
+  local n = M.liveScanFile(wav, L)
+  local len = n * 0.05
+  if M.liveBacklog(len, M.livePendingFrom()) then M.liveFallback("backlog"); return end
+  local from = L.nextFrom or 0
+  if L.spec and M.liveVoiceAfter(L, L.spec.to, n) then M.liveDropSpec() end
+  local kind, t = M.liveDecide(L, n, from)
+  if kind == "cut" or kind == "force" then
+    M.liveDropSpec()
+    L.lastChunkFrom, L.lastChunkSeam, L.chunks = from, L.nextSeam, (L.chunks or 0) + 1
+    M.liveEnqueueA(from, t, { seam = L.nextSeam })
+    L.nextSeam = (kind == "force") and "overlap" or "pause"
+    L.nextFrom = (kind == "force") and math.max(from, t - (tonumber(cfg.liveChunkOverlap) or 1.5)) or t
+    log(string.format("live:cut %s %.2f-%.2fs", kind == "force" and "max" or "pause", from, t))
+    M.livePump(L.gen)
+  elseif kind == "skip" then
+    L.nextFrom = t
+  elseif kind == "spec" and not L.spec then
+    local base, redo = from, false
+    if from > 0 and (len - from) < (tonumber(cfg.liveChunkMin) or 4) and L.lastChunkFrom and t - L.lastChunkFrom <= 28 then base, redo = L.lastChunkFrom, true end
+    L.spec = M.liveEnqueueA(base, t, { spec = true, redo = redo, base = from, seam = redo and L.lastChunkSeam or L.nextSeam })
+    M.livePump(L.gen)
+  end
+end
+function M.liveApplyA(item)
+  local L = M.LIVE
+  local text, base = item.text or "", nil
+  if item.redo then base = L.joinedPrev or "" else base = L.joined or ""; L.joinedPrev = base end
+  if text:match("%S") then
+    if item.seam == "overlap" and base ~= "" then
+      local j, k, weak = M.liveJoin(base, text)
+      if weak then log("live:seam:weak k="..tostring(k)) end
+      L.joined = j
+    else L.joined = M.liveJoinPlain(base, text) end
+    L.lastSegs, L.lastFile = item.segs, item.file
+  end
+  log(string.format("live:chunk %.2f-%.2fs%s%s words=%d", item.from or 0, item.to or 0, item.redo and " redo" or "", item.spec and " spec" or "", #wordsOf(text)))
+end
+function M.liveOnChunkA(item, code, out, t0)
+  local L, gen = M.LIVE, item.gen
+  if M.wTask == item.task then M.wTask = nil end
+  if L.task == item.task then L.task = nil end
+  if L.cur == item then L.cur = nil end
+  L.tWork = (L.tWork or 0) + (hs.timer.secondsSinceEpoch() - (t0 or hs.timer.secondsSinceEpoch()))
+  if M.liveStale(gen) then return end
+  if item.killed then M.livePump(gen); return end
+  if code ~= 0 then
+    if item.spec and not item.final then if L.spec == item then L.spec = nil end; M.livePump(gen); return end
+    log("live:fallback whisper"); M.liveFallback("whisper"); return
+  end
+  local text, segs = M.parseWhisper(out)
+  local kind
+  text, segs, kind = M.guardWhisperOutput(text, segs)
+  if kind ~= "ok" then log("live:sound-tag "..kind) end
+  local j = M.judgeRaw(text, { rmsPk = -14, rmsTr = -40, len = (item.to - item.from) }, cfg.language or "auto")
+  if j == "empty" or j == "hallucination" then text, segs = "", {} end
+  item.text, item.segs, item.done = text, segs, true
+  if not item.spec or item.final then M.liveApplyA(item) end
+  M.livePump(gen)
+end
+function M.liveOnStopA()
+  local L = M.LIVE
+  local gen = L.gen
+  if L.timer then L.timer:stop(); L.timer = nil end
+  if L.fallback then transcribe(wav); return end
+  local n = M.liveScanFile(wav, L)
+  local len = M.wavSeconds(wav)
+  if M.liveBacklog(len, M.livePendingFrom()) then M.liveFallback("backlog"); return end
+  L.finishing = true
+  local from, MIN, how = L.nextFrom or 0, tonumber(cfg.liveChunkMin) or 4, nil
+  local sp = L.spec
+  if sp and not sp.killed and sp.base == from and not M.liveVoiceAfter(L, sp.to, n) then
+    how = "speculative"; sp.last = true
+    if sp.done then M.liveApplyA(sp) else sp.final = true end
+  else
+    M.liveDropSpec()
+    if (L.chunks or 0) > 0 and not M.liveVoiceAfter(L, from, n) then how = "none (no sound after the last cut)"
+    elseif (L.chunks or 0) > 0 and len - from < MIN and L.lastChunkFrom and len - L.lastChunkFrom <= 28 then
+      how = "redo"; M.liveEnqueueA(L.lastChunkFrom, len, { last = true, redo = true, seam = L.lastChunkSeam })
+    else
+      how = "tail"; M.liveEnqueueA(from, math.max(len, from + 0.1), { last = true, seam = L.nextSeam })
+    end
+  end
+  log(string.format("live:stop len=%.2fs chunks=%d from=%.2fs last=%s", len, L.chunks or 0, from, how))
   M.livePump(gen)
 end
 function M.benchPlan(path)
@@ -2883,6 +3176,7 @@ transcribe = function(file)
     log("watchdog: recording empty ("..sz.." bytes), back to idle")
     M.clearVoiceFlags()
     M.liveEndSession()
+    M.muteRestore()
     state = "idle"; if tick then tick:stop() end; hideOverlay(); clearSession(); M._recovering = false; refresh()
     M.micProblem(T("wd_empty")); return
   end
@@ -2906,6 +3200,7 @@ transcribe = function(file)
       M.clearVoiceFlags()
       M.keepAudioForRecovery(file)
       M.liveEndSession()
+      M.muteRestore()
       state="idle"; hideOverlay(); M._recovering = false; M.checkRecovery(); refresh()
       hs.alert.show(T("trans_failed"))
       return
@@ -2979,7 +3274,7 @@ function M.start()
   recTask = hs.task.new(recCmd, function()
     recTask = nil
     if state=="rec" then
-      state="busy"; sound("Pop")
+      state="busy"; M.muteRestore("Pop")
       M.LIVE.stopT0 = hs.timer.secondsSinceEpoch()
       after(0.2, function()
         if cancelled or M.jobStale(gen) then return end
@@ -2990,6 +3285,9 @@ function M.start()
   showOverlay()
   recTask:start(); state="rec"; recStart=hs.timer.secondsSinceEpoch()
   sound("Tink")
+  -- Tink is ~0.56 s; mute after it has had time to play, not after afplay exits
+  -- (afplay can sit much longer when the output device is waking up).
+  after(0.7, function() M.muteApplyOn() end)
   if cfg.cleanup then after(0.5, function() M.warmModel() end) end
   local sub = cfg.autoStop and T("ov_autostop", tostring(cfg.silenceSeconds)) or T(cfg.escStop ~= false and "ov_press_esc" or "ov_press", keyLabel(cfg.toggleKey))
   if M.voiceActive() and (cfg.stopPhrases or {})[1] then sub = T("ov_say_stop", cfg.stopPhrases[1]) end
@@ -3000,7 +3298,7 @@ end
 function M.stop(m)
   if state ~= "rec" then return end
   local gen = M.LIVE.gen
-  mode = m or "paste"; state="busy"; sound("Pop")
+  mode = m or "paste"; state="busy"; M.muteRestore("Pop")
   M.LIVE.stopT0 = hs.timer.secondsSinceEpoch()
   if recTask then recTask:interrupt() end
   after(0.3, function()
@@ -3015,7 +3313,7 @@ function M.cancel()
   if recTask then local t=recTask; recTask=nil; state="busy"; t:interrupt() end
   M.liveKillTasks()
   M.liveEndSession()
-  state="idle"; if tick then tick:stop() end; hideOverlay(); sound("Basso"); refresh()
+  state="idle"; if tick then tick:stop() end; hideOverlay(); M.muteRestore("Basso"); refresh()
   if targetApp then targetApp:activate() end
 end
 function M.toggle() if state=="idle" then M.start() elseif state=="rec" then M.stop(cfg.defaultAction=="copy" and "copy" or "paste") else hs.alert.show(T("still_processing")) end end
@@ -3096,7 +3394,7 @@ pushState = function()
      hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id, escStop=(cfg.escStop~=false), micKey=(cfg.micKey==true),
      inputDevice=(cfg.inputDevice or ""), inputDeviceName=(cfg.inputDeviceName or ""),
      fabSize=M.fabDiam(), fabSizeCustom=((tonumber(cfg.fabSize) or 0) > 0), fabMin=FABG.MIN, fabMax=FABG.MAX, fabOpacity=math.floor(M.fabOp() * 100 + 0.5), fabLabels=(cfg.fabLabels ~= false),
-     whisperGuard=(cfg.whisperGuard ~= false),
+     whisperGuard=(cfg.whisperGuard ~= false), muteWhileDictating=(cfg.muteWhileDictating==true),
      customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
      look=look, perm={ ax=M.permAx, mic=M.micWarn, axPane=axEn, axPaneEs=axEs },
      mics=mics, micDefault=M.micDefaultName(), micActive=M.micActive(),
@@ -3226,6 +3524,7 @@ function M.handle(a)
     elseif k=="fabOpacity" then setOpt(k, math.max(40, math.min(100, math.floor((tonumber(v) or 100) + 0.5)))); M.fabUpdate(); pushState()
     elseif k=="fabLabels" then setOpt(k, v and true or false); hideLabel(); M._satLbl = nil; M.ovLbl(); pushState()
     elseif k=="whisperGuard" then setOpt(k, v and true or false); pushState()
+    elseif k=="muteWhileDictating" then setOpt(k, v and true or false); hs.alert.show(cfg.muteWhileDictating and T("mute_on") or T("mute_off"))
     elseif k=="checkForUpdates" then setOpt(k, v and true or false); hs.alert.show(v and T("upd_on") or T("upd_off")); if v then M.checkUpdates(false) end; pushState()
     elseif k=="startPhrases" or k=="stopPhrases" then
       local list = type(v)=="table" and v or splitPhrases(v)
@@ -3314,6 +3613,7 @@ if cfg.showAtLogin and not hs.settings.get("taipea.reloading") then
   if os.time() - up < 600 then after(3, function() M.openApp() end) end
 end
 if cfg.cleanup then M.warmModel() end
+M.muteRestoreOnLoad()
 M.checkRecovery()
 M.liveSweep()
 if M.recoverable then after(2, function() hs.alert.show(T("recover_offer"), 6) end); log("recovery offered ("..fmtSecs(M.recoverable.secs)..")") end
@@ -3330,6 +3630,7 @@ function M.watchdogReset(reason, msg)
   M.LIVE.gen = (M.LIVE.gen or 0) + 1; M.LIVE.on = false; M.LIVE.finishing = false
   M.liveKillTasks()
   M.liveEndSession()
+  M.muteRestore()
   if recTask then local t = recTask; recTask = nil; t:terminate() end
   state = "idle"; if tick then tick:stop() end; hideOverlay(); M._recovering = false
   M._wdBusy, M._wdKick = nil, false
@@ -3356,7 +3657,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.3.0"
+local VERSION = "0.3.1"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end

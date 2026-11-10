@@ -214,7 +214,9 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  szHint:'Accessible is the default. Standard looks like a normal Mac app, with smaller text and buttons; this switch stays big in both.',
  dlFail:'⚠ Download failed: %s',dling:'Downloading… %s',inst:'Installed',avail:'Available to download',words0:'%s words',
  whisperGuard:'Remove Whisper hallucinations (sound tags, repeated loops)',
- whisperGuardHint:'On by default. After Whisper and before cleanup, Taipea strips made-up sound tags such as [Music] or (applause), and discards output that is only tags or a looping repeated phrase. Your real words, including brackets and short repeats like “the the”, are kept.'},
+ whisperGuardHint:'On by default. After Whisper and before cleanup, Taipea strips made-up sound tags such as [Music] or (applause), and discards output that is only tags or a looping repeated phrase. Your real words, including brackets and short repeats like “the the”, are kept.',
+ mute:'Mute other sounds while dictating',
+ muteHint:'Uses the Mac’s output mute, so the app’s start and stop sounds are muted too. The start sound plays first; the stop sound plays after sound comes back.'},
 es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventana',hist:'Historial',set:'Ajustes',mod:'Modelos',
  search:'Buscar dictados…',searchLbl:'Buscar en el historial',clear:'Borrar todo',clearSure:'Toca otra vez para BORRAR TODO',none:'Aún no hay dictados.',noneMatch:'Ningún dictado coincide.',
  cleaned:'corregido',raw:'original',rawLbl:'Original:',converting:'⏳ Convirtiendo a %s…',copy:'Copiar',paste:'Pegar',copyRaw:'Copiar texto sin corregir',del:'Borrar',convertTo:'Convertir el texto original a:',
@@ -275,7 +277,9 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  szHint:'Accesible es el modo predeterminado. Estándar se ve como una app normal de Mac, con texto y botones más pequeños; este selector sigue siendo grande en los dos.',
  dlFail:'⚠ Falló la descarga: %s',dling:'Descargando… %s',inst:'Instalados',avail:'Disponibles para descargar',words0:'%s palabras',
  whisperGuard:'Quitar alucinaciones de Whisper (etiquetas de sonido, bucles repetidos)',
- whisperGuardHint:'Activado de fábrica. Después de Whisper y antes de la corrección, Taipea quita etiquetas de sonido inventadas como [Music] o (applause), y descarta el texto que es solo etiquetas o una frase repetida en bucle. Tus palabras reales, incluidos corchetes y repeticiones cortas como «el el», se conservan.'}};
+ whisperGuardHint:'Activado de fábrica. Después de Whisper y antes de la corrección, Taipea quita etiquetas de sonido inventadas como [Music] o (applause), y descarta el texto que es solo etiquetas o una frase repetida en bucle. Tus palabras reales, incluidos corchetes y repeticiones cortas como «el el», se conservan.',
+ mute:'Silenciar otros sonidos mientras dictas',
+ muteHint:'Usa el silencio de salida del Mac, así que los sonidos de empezar y parar de la app también se silencian. El de empezar suena antes; el de parar suena cuando vuelve el sonido.'}};
 var S={},UI={tab:'hist',setg:null,sq:'',more:{},del:{},full:{},clr:0},LANG='en';
 function t(k,a){var s=(L[LANG]&&L[LANG][k])||L.en[k]||k;return a!==undefined?s.replace('%s',a):s}
 function send(o){webkit.messageHandlers.taipea.postMessage(o)}
@@ -456,7 +460,9 @@ function updCard(){var u=S.upd||{},r=u.checking?t('updChecking'):u.result=='new'
 function loginCard(){var c=S.cfg;return '<div class=card><h3>'+t('login')+'</h3>'+opts('openAtLogin',[[true,t('on')],[false,t('off')]])+
  (c.openAtLogin?'<p class=h style="margin-top:10px">'+t('loginOk')+(S.autoLaunch?t('reg'):t('notReg'))+'</p>':'<p class=err role=status>'+t('loginWarn')+'</p>')+
  '<h3 style="margin-top:18px">'+t('showLogin')+'</h3>'+opts('showAtLogin',[[true,t('on')],[false,t('off')]])+'</div>'}
-function dictCards(){return '<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>'+
+function muteCard(){return '<div class=card><h3>'+t('mute')+'</h3><p class=h>'+t('muteHint')+'</p>'+opts('muteWhileDictating',[[true,t('on')],[false,t('off')]])+
+ '<span hidden>mute silenciar silence youtube volume volumen sonido sounds other apps otras apps tab pestaña silencio</span></div>'}
+function dictCards(){return '<div class=card><h3>'+t('dlang')+'</h3>'+opts('language',[['auto',t('dAuto')],['en','English'],['es','Español']])+'</div>'+muteCard()+
  '<div class=card><h3>'+t('cleanup')+'</h3>'+opts('cleanup',[[true,t('on')],[false,t('offRaw')]])+'<h3 style="margin-top:18px">'+t('style')+'</h3>'+opts('style',[['light',t('sLight')],['paragraphs',t('sPar')],['bullets',t('sBul')],['formal',t('sFor')]])+'</div>'+
  '<div class=card><h3>'+t('after')+'</h3>'+opts('defaultAction',[['paste',t('pasteCur')],['copy',t('copyOnly')]])+'</div>'+
  '<div class=card><h3>'+t('whisperGuard')+'</h3><p class=h>'+t('whisperGuardHint')+'</p>'+opts('whisperGuard',[[true,t('on')],[false,t('off')]])+'</div>'+autoCard()}

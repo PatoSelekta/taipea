@@ -178,7 +178,10 @@ check("v0.2 defaults", D.voiceControl == false and D.floatButton == true and D.c
 check("default values", D.style == "light" and D.cleanup == true and D.ollamaModel == "gemma4:e4b" and D.language == "auto"
   and D.uiLanguage == "auto" and D.showOverlay == true and D.uiSize == "normal" and D.defaultAction == "paste"
   and D.openAtLogin == true and D.historyMax == 500 and D.maxSeconds == 1800 and D.autoStop == false
-  and D.whisperGuard == true and D.fabLabels == true and D.fabOpacity == 100)
+  and D.whisperGuard == true and D.fabLabels == true and D.fabOpacity == 100
+  and D.liveChunking == "adaptive" and D.liveChunkTarget == 8 and D.liveChunkMax == 15
+  and D.liveChunkMin == 4 and D.livePause == 0.6 and D.liveChunkOverlap == 1.5
+  and D.muteWhileDictating == false)
 
 -- interface language: auto follows macOS (stubbed as es-CO), and can be forced
 check("auto -> Spanish Mac", M.uiLang() == "es")
@@ -535,13 +538,13 @@ check("older release: no banner", U.result == "ok" and M.updWanted() == false an
 check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
 M.updResult(200, gh(M.VERSION), false)
 check("same release: no banner", U.result == "ok" and M.updWanted() == false)
-M.updResult(200, gh("v0.3.1"), false)
-check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.3.1" and S.updLatest == "0.3.1" and M.updWanted() == true)
-check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.3.1" and S.updUrl == U.url)
-check("newer release: one notification", notes == 1 and S.updNotified == "0.3.1")
-M.updResult(200, gh("v0.3.1"), false)
+M.updResult(200, gh("v0.3.2"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.3.2" and S.updLatest == "0.3.2" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.3.2" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.3.2")
+M.updResult(200, gh("v0.3.2"), false)
 check("same new release again: no second notification", notes == 1)
-M.updResult(200, gh("v0.3.2", "https://evil.example/x"), false)
+M.updResult(200, gh("v0.3.3", "https://evil.example/x"), false)
 check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
 -- remind me later (7 days) / skip this version
 local now = os.time()
@@ -551,28 +554,28 @@ check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == tr
 check("remind later: alert", fake.lastAlert == M.T("upd_later"))
 S.updRemindUntil = nil
 M.updSkip()
-check("skip: this version hidden", S.updSkip == "0.3.2" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.3.2"))
-M.updResult(200, gh("v0.3.3"), false)
+check("skip: this version hidden", S.updSkip == "0.3.3" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.3.3"))
+M.updResult(200, gh("v0.3.4"), false)
 check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
 -- errors are only logged; the last good answer is kept
 for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
   { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
   fake.lastAlert = nil
   local okc = pcall(M.updResult, c[1], c[2], false)
-  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.3.3" and notes == 3)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.3.4" and notes == 3)
 end
 M.updResult(-1, nil, true)
 check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
 -- the request itself
 local got = {}
-hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.3.3")) end
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.3.4")) end
 check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
 check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
   and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
 M.cfg.checkForUpdates = false
 check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
 fake.lastAlert = nil
-check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.3.3"))
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.3.4"))
 U.checking = true
 check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
 U.checking = false
@@ -732,7 +735,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.3.0", M.VERSION == "0.3.0")
+  check("version 0.3.1", M.VERSION == "0.3.1")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -1024,8 +1027,13 @@ do
 
   local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
   check("no liveTranscribe UI toggle", not ui:find("liveTranscribe", 1, true))
+  check("no liveChunking UI toggle", not ui:find("liveChunking", 1, true) and not ui:find("liveChunkMin", 1, true))
   local ex = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/config.example.lua"):read("*a")
   check("config.example documents liveTranscribe", ex:find("liveTranscribe", 1, true) ~= nil)
+  check("config.example documents liveChunking and muteWhileDictating",
+    ex:find('liveChunking = "adaptive"', 1, true) ~= nil
+    and ex:find('"fixed"', 1, true) ~= nil
+    and ex:find("muteWhileDictating = false", 1, true) ~= nil)
 
   local script = (arg[0]:match("^(.*)/") or ".") .. "/../scripts/bench-live.lua"
   local lua = arg[-1] or "lua"
@@ -1628,14 +1636,14 @@ do
     src:find("fabResizeDown", 1, true) and src:find("function setOp(o)", 1, true))
   check("overlayHTML has setLbl for icons-only Stop buttons",
     src:find("function setLbl(on,a,b,c)", 1, true) ~= nil)
-  check("version 0.3.0 in Lua, installer and build-app",
-    M.VERSION == "0.3.0"
+  check("version 0.3.1 in Lua, installer and build-app",
+    M.VERSION == "0.3.1"
     and (function()
       local f = io.open((arg[0]:match("^(.*)/") or ".") .. "/../install.sh"); if not f then return false end
       local s = f:read("a"); f:close()
-      return s:find('TAIPEA_VERSION="0.3.0"', 1, true) ~= nil
+      return s:find('TAIPEA_VERSION="0.3.1"', 1, true) ~= nil
     end)()
-    and src:find('local VERSION = "0.3.0"', 1, true) ~= nil)
+    and src:find('local VERSION = "0.3.1"', 1, true) ~= nil)
 
   -- Whisper output guard (after Whisper, before cleanup)
   check("whisperGuard default on", M.DEFAULTS.whisperGuard == true and M.cfg.whisperGuard ~= false)
@@ -1710,6 +1718,355 @@ do
   M.cfg.uiSize, M.look.scale = oldUi, oldScale
   M.cfg.whisperGuard, M.cfg.customWords = oldGuard, oldWords
   M.setFabSize(oldSize or 0)
+end
+
+-- ---------- v0.3.1: adaptive live chunks + mute while dictating ----------
+do
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+  local function mkL(spec)
+    local L = { fr = {}, hist = {}, pk = -96 }
+    for _, s in ipairs(spec) do
+      for _i = 1, s.n do
+        L.fr[#L.fr + 1] = s.db
+        local k = math.floor(s.db)
+        L.hist[k] = (L.hist[k] or 0) + 1
+        if s.db > L.pk then L.pk = s.db end
+      end
+    end
+    return L
+  end
+  local oldWavSecs = M.wavSeconds
+
+  check("adaptive helpers live on M (no extra main-chunk locals)",
+    type(M.liveDecide) == "function" and type(M.liveTickA) == "function"
+    and type(M.liveOnStopA) == "function" and type(M.liveOnChunkA) == "function"
+    and type(M.livePrompt) == "function" and type(M.liveDropSpec) == "function"
+    and type(M.muteApplyOn) == "function" and type(M.muteRestore) == "function"
+    and not src:find("\nlocal function liveDecide", 1, true)
+    and not src:find("\nlocal function muteApplyOn", 1, true)
+    and not src:find("\nlocal function liveTickA", 1, true))
+
+  local oldChunk = M.cfg.liveChunking
+  M.cfg.liveChunkMin, M.cfg.liveChunkTarget, M.cfg.liveChunkMax = 4, 8, 15
+  M.cfg.livePause, M.cfg.liveChunkOverlap = 0.6, 1.5
+
+  local kind, tcut
+  kind, tcut = M.liveDecide(mkL({ { db = -10, n = 100 }, { db = -50, n = 16 } }), 116, 0)
+  check("decide: pause cut after MIN with 0.6 s pause", kind == "cut" and tcut and math.abs(tcut - 5.3) < 0.05)
+
+  kind, tcut = M.liveDecide(mkL({ { db = -10, n = 160 }, { db = -50, n = 8 } }), 168, 0)
+  check("decide: 0.3 s pause after target is a cut", kind == "cut" and tcut and tcut >= 8 and tcut <= 8.4)
+
+  local Lforce = mkL({ { db = -10, n = 320 } })
+  Lforce.fr[250] = -25
+  Lforce.hist[-25] = (Lforce.hist[-25] or 0) + 1
+  kind, tcut = M.liveDecide(Lforce, 320, 0)
+  check("decide: hard max cuts at the quietest 50 ms", kind == "force" and tcut and math.abs(tcut - 12.475) < 0.02)
+
+  kind, tcut = M.liveDecide(mkL({ { db = -50, n = 99 }, { db = -10, n = 1 } }), 100, 0)
+  check("decide: silence past MIN is skip", kind == "skip" and tcut == 4.5)
+
+  kind, tcut = M.liveDecide(mkL({ { db = -10, n = 40 }, { db = -50, n = 10 } }), 50, 0)
+  check("decide: 0.5 s pause after 1 s is speculative", kind == "spec" and tcut and math.abs(tcut - 2.3) < 0.05)
+
+  kind = M.liveDecide(mkL({ { db = -10, n = 60 }, { db = -50, n = 16 } }), 76, 0)
+  check("decide: leftover under MIN is spec not cut", kind == "spec")
+
+  kind = M.liveDecide(mkL({ { db = -10, n = 40 } }), 40, 0)
+  check("decide: short speech with no pause waits", kind == nil)
+
+  check("joinPlain concatenates with a space", M.liveJoinPlain("Hola", "equipo") == "Hola equipo")
+  check("joinPlain keeps punctuation tight", M.liveJoinPlain("Hola", ". Listo") == "Hola. Listo")
+  check("joinPlain empty sides", M.liveJoinPlain("", "hola") == "hola" and M.liveJoinPlain("hola", "") == "hola")
+
+  M.LIVE.lastOk, M.LIVE.lastTail, M.LIVE.joined, M.LIVE.joinedPrev = true, "the report", "Need the report tomorrow por favor", "Need the report"
+  check("livePrompt: fixed slices keep lastTail", M.livePrompt({ mode = "x" }) == "the report")
+  check("livePrompt: adaptive uses joined text", M.livePrompt({ mode = "a" }) == "Need the report tomorrow por favor")
+  check("livePrompt: redo uses joinedPrev", M.livePrompt({ mode = "a", redo = true }) == "Need the report")
+  M.LIVE.joined = string.rep("word ", 50) .. "end"
+  local pr = M.livePrompt({ mode = "a" })
+  check("livePrompt: trims to about 160 chars", pr and #pr <= 160 and pr:find("end", 1, true) ~= nil)
+  M.LIVE.lastOk, M.LIVE.joined = false, ""
+  check("livePrompt: empty joined is nil", M.livePrompt({ mode = "a" }) == nil)
+
+  -- stop decisions: none / redo / tail / speculative
+  local oldScan, oldPump = M.liveScanFile, M.livePump
+  M.livePump = function() end
+  M.wavSeconds = function() return 10 end
+  M.cfg.liveChunking = "adaptive"
+  M.cfg.liveTranscribe = true
+  M._setState("rec")
+  local gen = M.liveBegin()
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.finishing = true, nil, false
+  M.LIVE.chunks, M.LIVE.nextFrom, M.LIVE.lastChunkFrom, M.LIVE.lastChunkSeam = 1, 8, 0, "pause"
+  M.LIVE.spec, M.LIVE.queue = nil, {}
+  M.liveScanFile = function(_, L)
+    L.fr, L.hist, L.pk = {}, {}, -96
+    for i = 1, 200 do
+      local db = (i <= 160) and -10 or -50
+      L.fr[i] = db
+      L.hist[math.floor(db)] = (L.hist[math.floor(db)] or 0) + 1
+      if db > L.pk then L.pk = db end
+    end
+    return 200
+  end
+  M.liveOnStopA()
+  check("stop: no sound after last cut is none",
+    M.LIVE.finishing == true and #M.LIVE.queue == 0
+    and src:find('how = "none (no sound after the last cut)"', 1, true) ~= nil)
+
+  -- leftover with voice after the cut, shorter than MIN → redo
+  M._setState("rec")
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.finishing = true, nil, false
+  M.LIVE.chunks, M.LIVE.nextFrom, M.LIVE.lastChunkFrom, M.LIVE.lastChunkSeam = 1, 8, 0, "pause"
+  M.LIVE.spec, M.LIVE.queue = nil, {}
+  M.liveScanFile = function(_, L)
+    L.fr, L.hist, L.pk = {}, {}, -96
+    for i = 1, 200 do
+      local db = -10
+      L.fr[i] = db
+      L.hist[-10] = (L.hist[-10] or 0) + 1
+      L.pk = -10
+    end
+    return 200
+  end
+  M.liveOnStopA()
+  check("stop: leftover under MIN with prior chunk is redo",
+    #M.LIVE.queue == 1 and M.LIVE.queue[1].redo == true and M.LIVE.queue[1].last == true
+    and M.LIVE.queue[1].from == 0 and M.LIVE.queue[1].to == 10)
+
+  -- leftover >= MIN → tail
+  M._setState("rec")
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.finishing = true, nil, false
+  M.LIVE.chunks, M.LIVE.nextFrom, M.LIVE.lastChunkFrom = 1, 4, 0
+  M.LIVE.spec, M.LIVE.queue, M.LIVE.nextSeam = nil, {}, "pause"
+  M.liveOnStopA()
+  check("stop: leftover >= MIN is a normal tail",
+    #M.LIVE.queue == 1 and M.LIVE.queue[1].last == true and not M.LIVE.queue[1].redo
+    and M.LIVE.queue[1].from == 4)
+
+  -- speculative used when no further speech
+  M._setState("rec")
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.finishing = true, nil, false
+  M.LIVE.chunks, M.LIVE.nextFrom, M.LIVE.queue, M.LIVE.joined = 1, 5, {}, ""
+  local sp = { killed = false, base = 5, to = 8.3, done = true, text = "equipo", segs = {}, seam = "pause", from = 5 }
+  M.LIVE.spec = sp
+  M.liveScanFile = function(_, L)
+    L.fr, L.hist, L.pk = {}, {}, -96
+    for i = 1, 200 do
+      local db = (i <= 166) and -10 or -50
+      L.fr[i] = db
+      L.hist[math.floor(db)] = (L.hist[math.floor(db)] or 0) + 1
+      if db > L.pk then L.pk = db end
+    end
+    return 200
+  end
+  M.liveOnStopA()
+  check("stop: uses speculative when nothing is said after the pause",
+    sp.last == true and (M.LIVE.joined or ""):find("equipo", 1, true) ~= nil and #M.LIVE.queue == 0)
+
+  -- speculative cancelled when speech resumes
+  M._setState("rec")
+  M.LIVE.on, M.LIVE.fallback, M.LIVE.finishing = true, nil, false
+  M.LIVE.nextFrom, M.LIVE.queue = 0, {}
+  local sp2 = { killed = false, base = 0, to = 3, done = false, spec = true }
+  M.LIVE.spec, M.LIVE.queue = sp2, { sp2 }
+  M.liveScanFile = function(_, L)
+    L.fr, L.hist, L.pk = {}, {}, -96
+    for i = 1, 100 do
+      local db = -10
+      L.fr[i] = db; L.hist[-10] = (L.hist[-10] or 0) + 1; L.pk = -10
+    end
+    return 100
+  end
+  local oldDecide = M.liveDecide
+  M.liveDecide = function() return nil end
+  M.liveTickA()
+  check("tick: speech after speculative cancel drops it",
+    M.LIVE.spec == nil and sp2.killed == true)
+  M.liveDecide = oldDecide
+
+  -- liveOnChunkA: spec result is held until final; empty/hallucination dropped
+  M.LIVE.gen, M.LIVE.fallback, M.LIVE.joined, M.LIVE.queue = gen, nil, "", {}
+  local held = { gen = gen, from = 0, to = 5, spec = true, seam = "pause", task = nil }
+  M.liveOnChunkA(held, 0, "[00:00:00.000 --> 00:00:02.000]   Hola equipo.\n", 0)
+  check("chunk: speculative result is held", M.LIVE.joined == "" and held.done == true and held.text:find("Hola", 1, true) ~= nil)
+  held.final = true
+  M.liveApplyA(held)
+  check("chunk: speculative applied when it becomes the tail", (M.LIVE.joined or ""):find("Hola equipo", 1, true) ~= nil)
+  local emptyI = { gen = gen, from = 0, to = 5, seam = "pause", task = nil }
+  M.LIVE.joined = "keep"
+  M.liveOnChunkA(emptyI, 0, "[00:00:00.000 --> 00:00:01.000]   [Music]\n", 0)
+  check("chunk: tag-only / empty is dropped", M.LIVE.joined == "keep")
+
+  -- fixed mode: liveTick still uses 24 s / 4 s overlap; liveOnStop does not call adaptive
+  M.liveScanFile, M.livePump = oldScan, oldPump
+  M.cfg.liveChunking = "fixed"
+  M._setState("rec")
+  M.liveBegin()
+  M.wavSeconds = function() return 30 end
+  M.LIVE.on, M.LIVE.finishing, M.LIVE.nextFrom, M.LIVE.queue = true, false, 0, {}
+  local pumped = false
+  M.livePump = function() pumped = true end
+  M.liveTick()
+  check("fixed: liveTick still enqueues a 24 s window",
+    #M.LIVE.queue == 1 and M.LIVE.queue[1].from == 0 and M.LIVE.queue[1].to == 24
+    and M.LIVE.nextFrom == 20 and pumped == true)
+  M.LIVE.queue, pumped = {}, false
+  M.cfg.liveChunking = "adaptive"
+  M.LIVE.on, M.LIVE.finishing, M.LIVE.nextFrom = true, false, 0
+  M.liveTick()
+  check("adaptive: liveTick (1 s) is a no-op", #M.LIVE.queue == 0 and pumped == false)
+  check("fixed liveOnStop still in source unchanged for 24 s leftover",
+    src:find("if cfg.liveChunking ~= \"fixed\" then return M.liveOnStopA() end", 1, true) ~= nil
+    and src:find("M.LIVE.SLICE, M.LIVE.OVERLAP", 1, true) ~= nil)
+  check("live constants still 24 / 4 / 40", M.LIVE.SLICE == 24 and M.LIVE.OVERLAP == 4 and M.LIVE.FALLBACK_SECS == 40)
+  M.livePump = oldPump
+  M.liveScanFile = oldScan
+  M.wavSeconds = oldWavSecs
+  M.cfg.liveChunking = oldChunk or "adaptive"
+  M._setState("idle")
+
+  -- mute while dictating
+  check("mute default off in public", M.DEFAULTS.muteWhileDictating == false and M.cfg.muteWhileDictating ~= true)
+  check("mute Settings toggle EN/ES and search keywords",
+    ui:find("mute:'Mute other sounds while dictating'", 1, true)
+    and ui:find("mute:'Silenciar otros sonidos mientras dictas'", 1, true)
+    and ui:find("opts('muteWhileDictating'", 1, true)
+    and ui:find("mute silenciar", 1, true)
+    and ui:find("youtube", 1, true)
+    and ui:find("volume", 1, true))
+  check("mute Lua alerts EN/ES",
+    M.STR.en.mute_on:find("Mute other sounds", 1, true)
+    and M.STR.es.mute_on:find("Silenciar otros sonidos", 1, true)
+    and M.STR.en.mute_off:find("OFF", 1, true)
+    and M.STR.es.mute_off:find("NO", 1, true))
+  check("mute targets use the same opts() as other toggles",
+    ui:find("function muteCard()", 1, true) and ui:find("dictCards()", 1, true)
+    and ui:find("muteCard()+", 1, true))
+  check("mute restore sites cover stop/cancel/empty/fail/watchdog/load",
+    src:find('M.muteRestore("Pop")', 1, true) ~= nil
+    and src:find('M.muteRestore("Basso")', 1, true) ~= nil
+    and src:find("after(0.7, function() M.muteApplyOn() end)", 1, true) ~= nil
+    and src:find("M.muteRestoreOnLoad()", 1, true) ~= nil
+    and select(2, src:gsub("M.muteRestore%(", "")) >= 8)
+
+  local outs = {
+    speakers = { uid = "BuiltInSpeaker", name = "Speakers", muted = false },
+    phones = { uid = "Headphones", name = "Headphones", muted = false },
+  }
+  local currentOut = "speakers"
+  local function outDev(m)
+    return {
+      uid = function() return m.uid end,
+      name = function() return m.name end,
+      outputMuted = function() return m.muted end,
+      setOutputMuted = function(_, v) m.muted = not not v; return true end,
+    }
+  end
+  local oldFind = hs.audiodevice.findDeviceByUID
+  hs.audiodevice.defaultOutputDevice = function() return outDev(outs[currentOut]) end
+  hs.audiodevice.findDeviceByUID = function(uid)
+    for _, m in pairs(outs) do if m.uid == uid then return outDev(m) end end
+    return oldFind(uid)
+  end
+  local realEnc, realDec = hs.json.encode, hs.json.decode
+  hs.json.encode = function(st)
+    if type(st) == "table" and st.uid then
+      return string.format('{"uid":%q,"prior":%s}', st.uid, st.prior and "true" or "false")
+    end
+    return "{}"
+  end
+  hs.json.decode = function(s)
+    local uid = type(s) == "string" and s:match('"uid"%s*:%s*"([^"]*)"')
+    if uid then
+      local prior = s:match('"prior"%s*:%s*(%w+)')
+      return { uid = uid, prior = (prior == "true") }
+    end
+    return realDec(s)
+  end
+  local muteFile = os.tmpname()
+  local oldMuteFile = M.MUTE_FILE
+  M.MUTE_FILE = muteFile
+  M.muteClearState()
+  outs.speakers.muted, outs.phones.muted = false, false
+
+  M.cfg.muteWhileDictating = false
+  M._setState("rec")
+  check("mute: setting off skips", M.muteApplyOn() == false and outs.speakers.muted == false)
+  check("mute: force still works with setting off", M.muteApplyOn(true) == true and outs.speakers.muted == true)
+  check("mute: prior was unmuted", M._mute and M._mute.prior == false and M._mute.uid == "BuiltInSpeaker")
+  check("mute: restore unmutes original device", M.muteRestore() == true and outs.speakers.muted == false and M._mute == nil)
+
+  -- already muted: record prior, do not unmute on restore
+  outs.speakers.muted = true
+  check("mute: already muted still records state", M.muteApplyOn(true) == true and M._mute.prior == true)
+  M.muteRestore()
+  check("mute: restore leaves a prior-muted device muted", outs.speakers.muted == true)
+  outs.speakers.muted = false
+
+  -- device change: mute speakers, switch default to headphones, restore speakers
+  check("mute: on speakers", M.muteApplyOn(true) == true and outs.speakers.muted == true)
+  currentOut = "phones"
+  outs.phones.muted = false
+  M.muteRestore()
+  check("mute: restore original device after output change",
+    outs.speakers.muted == false and outs.phones.muted == false)
+
+  -- reload recovery from the state file
+  outs.speakers.muted = false
+  currentOut = "speakers"
+  M.muteApplyOn(true)
+  check("mute: state file written", (function()
+    local f = io.open(muteFile, "r"); if not f then return false end
+    local s = f:read("a"); f:close(); return s:find("BuiltInSpeaker", 1, true) ~= nil
+  end)())
+  M._mute = nil
+  outs.speakers.muted = true
+  M.muteRestoreOnLoad()
+  check("mute: reload restores from the state file", outs.speakers.muted == false and M._mute == nil)
+
+  -- early stop: not recording → muteApplyOn without force is skipped
+  M.cfg.muteWhileDictating = true
+  outs.speakers.muted = false
+  M._setState("busy")
+  check("mute: skip if already stopped (within 0.7 s)", M.muteApplyOn() == false and outs.speakers.muted == false)
+  M._setState("idle")
+  check("mute: skip when idle", M.muteApplyOn() == false and outs.speakers.muted == false)
+  M._setState("rec")
+  check("mute: on while recording with setting on", M.muteApplyOn() == true and outs.speakers.muted == true)
+
+  check("handle recognizes muteWhileDictating",
+    src:find('k=="muteWhileDictating"', 1, true) ~= nil
+    and src:find('T("mute_on")', 1, true) ~= nil
+    and src:find('T("mute_off")', 1, true) ~= nil)
+  M.cfg.muteWhileDictating = true
+  check("muteWhileDictating can be turned on", M.cfg.muteWhileDictating == true)
+  M.cfg.muteWhileDictating = false
+  check("muteWhileDictating can be turned off", M.cfg.muteWhileDictating == false)
+
+  -- cancel restores (refresh may throw in the fake UI; mute runs before it)
+  M.cfg.muteWhileDictating = true
+  M._setState("rec")
+  outs.speakers.muted = false
+  M.muteApplyOn(true)
+  pcall(M.cancel)
+  check("mute: cancel restores", outs.speakers.muted == false and M._mute == nil)
+
+  M._setState("busy")
+  M.muteApplyOn(true)
+  pcall(M.watchdogReset, "unit mute")
+  check("mute: watchdog reset restores", outs.speakers.muted == false and M._mute == nil)
+
+  os.remove(muteFile)
+  M.MUTE_FILE = oldMuteFile
+  hs.json.encode, hs.json.decode = realEnc, realDec
+  hs.audiodevice.findDeviceByUID = oldFind
+  hs.audiodevice.defaultOutputDevice = nil
+  M.cfg.muteWhileDictating = false
+  M.cfg.liveChunking = oldChunk or "adaptive"
+  M._setState("idle")
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

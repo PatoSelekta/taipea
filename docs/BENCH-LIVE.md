@@ -1,7 +1,9 @@
 # Live vs full-file Whisper (offline, local WAV only)
 
-Small helper to compare Taipea’s Approach A (overlapping 24 s slices, 4 s overlap)
-with the current full-file `whisper-cli` on **the same local WAV**. It does not
+Small helper to compare Taipea’s **fixed** live windows (overlapping 24 s slices, 4 s
+overlap; `liveChunking = "fixed"`) with the current full-file `whisper-cli` on **the
+same local WAV**. The in-app default since v0.3.1 is adaptive pause-aware chunks
+(`liveChunking = "adaptive"`); this helper still measures the old 24 s path. It does not
 record, does not touch a running Taipea, and does not talk to the network.
 
 English-only fast engines (for example Parakeet) are a **later, separate**

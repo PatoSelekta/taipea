@@ -4,6 +4,12 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-11-10
+
+### Added
+- **Faster live transcription (adaptive pause-aware chunking).** On by default (`liveChunking = "adaptive"`). While you talk, Taipea cuts mid-pause once a chunk is at least 4 s, preferring a 0.6 s pause before 8 s and a 0.3 s pause after, with a 15 s hard max. Overlap of 1.5 s on max-length cuts is merged by the existing word-overlap logic. Speculative transcription of the pending tail during a pause makes stop-to-paste near instant when you don't speak again. whisper.cpp pads every call to 30 s, so per-call cost is about 1.6 s regardless of length; finishing during natural pauses is what makes Stop feel fast. Set `liveChunking = "fixed"` in `config.lua` or `settings.json` to restore the old 24 s window / 4 s overlap path unchanged. Advanced keys: `liveChunkTarget`, `liveChunkMax`, `liveChunkMin`, `livePause`, `liveChunkOverlap`. No Settings toggle.
+- **Mute other sounds while dictating.** Off by default. Settings › Dictation. Mutes the Mac's default output 0.7 s after the start sound, so YouTube and other apps go quiet while you speak. The original volume is restored on stop & paste, stop & copy, cancel, empty/failed transcription, a watchdog reset, and on reload if a crash left it muted. The stop sound plays after sound comes back. Skipped if you stop within 0.7 s.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added

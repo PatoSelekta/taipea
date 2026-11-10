@@ -257,6 +257,13 @@ resumen de una línea. El buscador encuentra cualquier ajuste por nombre o palab
   como `[Music]` o `(applause)`, y descarta el texto que es solo etiquetas o una frase
   repetida en bucle. Tus palabras reales, incluidos corchetes y repeticiones cortas como
   «el el», se conservan.
+- **Silenciar otros sonidos mientras dictas:** No por defecto. Silencia la salida del Mac
+  para que otras apps se callen mientras hablas. El sonido de empezar suena antes; el de
+  parar suena cuando vuelve el sonido. Busca en Ajustes mute, silenciar, youtube o volume.
+- **Transcripción en vivo** (sin interruptor en Ajustes) corta en las pausas naturales
+  para que Parar sea casi instantáneo. Claves avanzadas en `config.lua`: `liveChunking`
+  (`"adaptive"` por defecto, `"fixed"` para las ventanas antiguas de 24 s),
+  `liveChunkTarget`, `liveChunkMax`, `liveChunkMin`, `livePause`, `liveChunkOverlap`.
 - **Al parar:** Pegar en el cursor, o Solo copiar.
 - **Abrir al iniciar sesión** y **Mostrar la ventana al iniciar sesión**.
 
