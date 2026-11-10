@@ -61,7 +61,12 @@ Taipea is for you if:
 - **History with re-style buttons.** Every dictation is saved. Turn an old one into
   bullets or a formal email with one click. The original words are always kept.
 - **Long dictations.** Up to 30 minutes. Long text is cleaned in parts, and if a part
-  can't be cleaned safely, Taipea keeps your original words for that part.
+  can't be cleaned safely, Taipea keeps your original words for that part. Live
+  transcription cuts at natural pauses (4–15 s chunks) so Stop is near instant; set
+  `liveChunking = "fixed"` in `config.lua` for the old 24 s windows.
+- **Mute other sounds while dictating** (off by default). Settings › Dictation mutes the
+  Mac's output so YouTube and other apps go quiet while you speak. Start and stop sounds
+  are timed around it.
 - **Built for head mice and switches.** Large buttons (110 px tall on the recording
   overlay) and no tiny targets. Windows move by dragging their title bar, and this also
   works with head mice that don't send normal drag events.
@@ -436,6 +441,8 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Floating button idle opacity | 100 % | 40–100 % |
 | Text labels on Stop buttons | Show text | Show text / Icons only |
 | Remove Whisper hallucinations | On | On / Off (`whisperGuard` in config.lua) |
+| Mute other sounds while dictating | Off | On / Off (`muteWhileDictating` in config.lua) |
+| Live transcription | Adaptive pause-aware chunks | `liveChunking = "fixed"` restores 24 s / 4 s overlap; see `config.example.lua` |
 | Text size | Normal | Normal / Large / Extra large |
 | High contrast | Auto (follows macOS Increase Contrast) | Auto / On / Off |
 | Floating mic button | On | On / Off |

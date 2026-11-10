@@ -65,7 +65,12 @@ Taipea es para ti si:
   conservan.
 - **Dictados largos.** Hasta 30 minutos. El texto largo se corrige por partes, y si una
   parte no se puede corregir de forma segura, Taipea deja tus palabras originales en esa
-  parte.
+  parte. La transcripción en vivo corta en las pausas naturales (trozos de 4–15 s) para
+  que Parar sea casi instantáneo; pon `liveChunking = "fixed"` en `config.lua` para las
+  ventanas antiguas de 24 s.
+- **Silenciar otros sonidos mientras dictas** (apagado por defecto). Ajustes › Dictado
+  silencia la salida del Mac para que YouTube y otras apps se callen mientras hablas. Los
+  sonidos de empezar y parar se temporizan alrededor de eso.
 - **Pensado para mouse de cabeza y pulsadores.** Botones grandes (110 px de alto en el
   panel de grabación) y nada diminuto. Las ventanas se mueven arrastrando la barra de
   título, y esto funciona también con mouse de cabeza que no envían arrastres normales.
@@ -460,6 +465,8 @@ están en `config.example.lua`).
 | Opacidad del botón flotante en reposo | 100 % | 40–100 % |
 | Texto en los botones de parar | Mostrar texto | Mostrar texto / Solo íconos |
 | Quitar alucinaciones de Whisper | Sí | Sí / No (`whisperGuard` en config.lua) |
+| Silenciar otros sonidos mientras dictas | No | Sí / No (`muteWhileDictating` en config.lua) |
+| Transcripción en vivo | Trozos adaptativos según las pausas | `liveChunking = "fixed"` restaura 24 s / 4 s de solape; ver `config.example.lua` |
 | Tamaño del texto | Normal | Normal / Grande / Muy grande |
 | Alto contraste | Automático (sigue Aumentar contraste de macOS) | Automático / Sí / No |
 | Botón flotante con micrófono | Sí | Sí / No |

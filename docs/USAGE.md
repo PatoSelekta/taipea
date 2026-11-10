@@ -243,6 +243,13 @@ finds any setting by name or keyword. **‹ All settings** goes back to the tile
   Whisper and before cleanup, Taipea strips made-up tags such as `[Music]` or `(applause)`,
   and discards output that is only tags or a looping repeated phrase. Your real words,
   including brackets and short repeats like "the the", are kept.
+- **Mute other sounds while dictating:** Off by default. Mutes the Mac's output so other
+  apps go quiet while you speak. The start sound plays first; the stop sound plays after
+  sound comes back. Search Settings for mute, silenciar, youtube or volume.
+- **Live transcription** (no Settings toggle) cuts at natural pauses so Stop is near
+  instant. Advanced keys in `config.lua`: `liveChunking` (`"adaptive"` default, `"fixed"`
+  for the old 24 s windows), `liveChunkTarget`, `liveChunkMax`, `liveChunkMin`,
+  `livePause`, `liveChunkOverlap`.
 - **After stopping:** Paste at cursor, or Copy only.
 - **Open at login** and **Show window at login**.
 

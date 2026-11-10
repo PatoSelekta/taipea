@@ -31,10 +31,19 @@ return {
   -- modelName   = "ggml-large-v3-turbo.bin",  -- file in .../Taipea/models, or a full path
   -- language    = "auto",               -- dictation language: "auto" (detects ~99 languages, incl. the English/Spanish mix), "en" or "es"
   -- maxSeconds  = 1800,                 -- longest dictation: 30 minutes
-  -- liveTranscribe = true,              -- true = transcribe overlapping 24 s slices while you talk
-  --                                     -- (stop waits on the last slice + cleanup). false = current
-  --                                     -- full-file Whisper after stop. Failures and >40 s backlog
-  --                                     -- fall back to the full-file path. No Settings toggle.
+  -- liveTranscribe = true,              -- true = transcribe while you talk (stop waits on the last
+  --                                     -- chunk + cleanup). false = full-file Whisper after stop.
+  --                                     -- Failures and >40 s backlog fall back to the full-file path.
+  --                                     -- No Settings toggle.
+  -- liveChunking = "adaptive",          -- "adaptive" (default): cut at pauses, 4–15 s chunks.
+  --                                     -- "fixed" = old overlapping 24 s windows / 4 s overlap.
+  -- liveChunkTarget = 8,                -- prefer a pause cut once the chunk is this long (seconds)
+  -- liveChunkMax = 15,                  -- hard max chunk length (seconds)
+  -- liveChunkMin = 4,                   -- do not cut (or redo leftover) shorter than this
+  -- livePause = 0.6,                    -- pause (seconds) that triggers a cut before liveChunkTarget
+  -- liveChunkOverlap = 1.5,             -- overlap (seconds) when a max-length cut has no pause
+  -- muteWhileDictating = false,         -- true = mute other Mac sounds while you dictate
+  --                                     -- (Settings › Dictation). Start/stop sounds are timed around it.
   -- autoStop    = false,                -- true = stop by itself after a pause
   -- silenceSeconds = 3,                 -- length of that pause, in seconds (Settings offers 2, 3, 5, 8)
   -- silenceThreshold = "1.5%",          -- higher = more background noise counts as silence
