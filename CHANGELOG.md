@@ -4,6 +4,15 @@ All notable changes to Taipea are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-11-22
+
+### Added
+- **Spoken slash for developers.** On by default (Settings › Custom words). Saying "slash" or "forward slash" writes `/`, and spaces around `/` are removed, so "dev slash myapp" becomes "dev/myapp". Turn it off to keep the word "slash". Punctuation-only replacements (like `/`) are not sent to Whisper as `--prompt` hints, so Whisper cannot hallucinate them.
+
+### Fixed
+- **Last sentence no longer dropped before cleanup.** The chunk splitter threw away a final sentence that had no closing punctuation but contained a dot (for example `.ini` or `selektdj.com`). That sentence never reached the cleanup model, so the pasted text lost the ending. Every character of the raw text now goes into a chunk.
+- **Cleanup safety net (Light and Paragraphs).** If the model drops a raw sentence of 3+ content words, Taipea appends the missing ending, or falls back to the raw chunk when something in the middle was dropped. Each recovery is written to the log. The Light prompt now says to keep every sentence and every part, including the last sentence.
+
 ## [0.3.1] - 2026-11-10
 
 ### Added

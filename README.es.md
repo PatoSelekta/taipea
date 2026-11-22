@@ -426,6 +426,10 @@ Whisper) y **Reemplazar por** (lo que quieres). Añade una fila con el botón ve
 reemplazos se aplican después de transcribir y otra vez después de la corrección, solo a
 palabras completas, sin importar mayúsculas ni tildes ("Select Dev", "select-dev" y
 "sélect dev" quedan como "selektdev").
+**Slash al dictar** está activado de fábrica: decir "slash" o "forward slash" escribe `/`
+y se quitan los espacios alrededor de `/` ("dev slash myapp" → `dev/myapp`). Apágalo para
+conservar la palabra "slash". Los reemplazos que son solo puntuación no se envían a
+Whisper como pistas.
 
 ### Recuperación
 
@@ -476,6 +480,7 @@ están en `config.example.lua`).
 | Ocultar el botón flotante en estas apps | ninguna | cualquier app abierta |
 | Empezar / parar con la voz | No | Sí / No; frases de inicio "Taipea escribe", "Taipea write"; de parada "listo", "done", "Taipea listo" |
 | Palabras propias | ninguna | pares "se oye → reemplazar por" |
+| Slash al dictar | Sí | Sí / No (`slashReplace` en config.lua) |
 | Abrir al iniciar sesión | Sí | Sí / No |
 | Mostrar la ventana al iniciar sesión | No | Sí / No |
 | Parar solo con el silencio | No (pausa de 3 s y umbral de 1,5 % si se activa) | Sí / No; 2, 3, 5 u 8 s; 0,5–5 % |

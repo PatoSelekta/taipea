@@ -196,6 +196,7 @@ en:{drag:'drag here to move',hide:'Hide window',close:'Close window',hist:'Histo
  micDefault:'System default',micGone:'The saved microphone is not connected. Using the system default until it is plugged in again.',
  cardToo:'Show the recording card too',cardTooHint:'Off: while you dictate, only the floating button and its two small buttons show. On: the recording card shows as well.',cardFabOff:'With the floating button off, the recording card with its three buttons is used while you dictate.',resetCard:'Reset card position',
  words:'Custom words',wordsHint:'Fixes words Whisper gets wrong, after transcription and again after cleanup. Whole words only; capitals and accents don\'t matter. The cleanup model is told never to change the "Replace with" words. Changes save when you leave a box.',
+ slash:'Spoken slash',slashHint:'On by default. Saying “slash” or “forward slash” writes “/”, and spaces around “/” are removed, so “dev slash myapp” becomes “dev/myapp”. Turn it off if you want the word “slash” kept as text. Punctuation-only replacements are not sent to Whisper as hints.',
  heard:'Heard',replace:'Replace with',add:'Add',wordsNone:'No custom words yet.',
  pasteLast:'📋 Paste last dictation again',kPaste:'Paste last dictation again',
  updTitle:'⬆️ New version available: v%s',updInfo:'You have v%s. Nothing is downloaded or installed by itself: the button opens the release page on GitHub.',updSee:'See what\'s new',updLater:'Remind me later',updSkip:'Skip this version',
@@ -259,6 +260,7 @@ es:{drag:'arrastra aquí para mover',hide:'Ocultar ventana',close:'Cerrar ventan
  micDefault:'Por defecto del sistema',micGone:'El micrófono guardado no está conectado. Se usa el del sistema hasta que lo vuelvas a enchufar.',
  cardToo:'Mostrar también la tarjeta de grabación',cardTooHint:'No: mientras dictas solo se ven el botón flotante y sus dos botones pequeños. Sí: también se muestra la tarjeta de grabación.',cardFabOff:'Con el botón flotante apagado, mientras dictas se usa la tarjeta de grabación con sus tres botones.',resetCard:'Restablecer la posición de la tarjeta',
  words:'Palabras propias',wordsHint:'Corrige palabras que Whisper entiende mal, después de transcribir y otra vez después de la corrección. Solo palabras completas; no importan mayúsculas ni tildes. Al modelo de corrección se le pide no cambiar nunca las palabras de «Reemplazar por». Los cambios se guardan al salir de cada casilla.',
+ slash:'Slash al dictar',slashHint:'Activado de fábrica. Decir «slash» o «forward slash» escribe «/», y se quitan los espacios alrededor de «/», así que «dev slash myapp» queda «dev/myapp». Apágalo si quieres que la palabra «slash» se quede como texto. Los reemplazos que son solo puntuación no se envían a Whisper como pistas.',
  heard:'Se oye',replace:'Reemplazar por',add:'Añadir',wordsNone:'Aún no hay palabras propias.',
  pasteLast:'📋 Pegar otra vez el último dictado',kPaste:'Pegar otra vez el último dictado',
  updTitle:'⬆️ Nueva versión disponible: v%s',updInfo:'Tienes la v%s. No se descarga ni se instala nada solo: el botón abre la página de la versión en GitHub.',updSee:'Ver las novedades',updLater:'Recordármelo después',updSkip:'Omitir esta versión',
@@ -418,6 +420,8 @@ function wset(i){var h=document.getElementById('w_h_'+i),r=document.getElementBy
 function wadd(){var h=document.getElementById('w_new_h'),r=document.getElementById('w_new_r');if(!h.value.trim()||!r.value.trim()){send({cmd:'wordsBad'});return}
  send({cmd:'addWord',heard:h.value,replace:r.value});h.value='';r.value='';delete h.dataset.dirty;delete r.dataset.dirty}
 function wordsCard(){var w=S.cfg.customWords||[],h='<div class=card id=wordscard><h3>'+t('words')+'</h3><p class=h>'+t('wordsHint')+'</p>'+
+ '<h3 style="margin-top:18px">'+t('slash')+'</h3><p class=h>'+t('slashHint')+'</p>'+opts('slashReplace',[[true,t('on')],[false,t('off')]])+
+ '<span hidden>slash barra inclinada forward path developer ruta código code</span>'+
  '<div class="wr wh"><span>'+t('heard')+'</span><span>'+t('replace')+'</span><span></span></div>';
  if(!w.length)h+='<p>'+t('wordsNone')+'</p>';
  w.forEach(function(x,i){h+='<div class=wr><input type=text id="w_h_'+i+'" aria-label="'+esc(t('heard'))+'" value="'+esc(x.heard)+'" onchange="wset('+i+')">'+

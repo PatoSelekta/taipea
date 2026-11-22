@@ -181,7 +181,7 @@ check("default values", D.style == "light" and D.cleanup == true and D.ollamaMod
   and D.whisperGuard == true and D.fabLabels == true and D.fabOpacity == 100
   and D.liveChunking == "adaptive" and D.liveChunkTarget == 8 and D.liveChunkMax == 15
   and D.liveChunkMin == 4 and D.livePause == 0.6 and D.liveChunkOverlap == 1.5
-  and D.muteWhileDictating == false)
+  and D.muteWhileDictating == false and D.slashReplace == true)
 
 -- interface language: auto follows macOS (stubbed as es-CO), and can be forced
 check("auto -> Spanish Mac", M.uiLang() == "es")
@@ -538,13 +538,13 @@ check("older release: no banner", U.result == "ok" and M.updWanted() == false an
 check("manual check says up to date", fake.lastAlert == M.T("upd_none", M.VERSION))
 M.updResult(200, gh(M.VERSION), false)
 check("same release: no banner", U.result == "ok" and M.updWanted() == false)
-M.updResult(200, gh("v0.3.2"), false)
-check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.3.2" and S.updLatest == "0.3.2" and M.updWanted() == true)
-check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.3.2" and S.updUrl == U.url)
-check("newer release: one notification", notes == 1 and S.updNotified == "0.3.2")
-M.updResult(200, gh("v0.3.2"), false)
+M.updResult(200, gh("v0.3.3"), false)
+check("newer release: banner, latest saved without v", U.result == "new" and U.latest == "0.3.3" and S.updLatest == "0.3.3" and M.updWanted() == true)
+check("newer release: link saved", U.url == "https://github.com/PatoSelekta/taipea/releases/tag/v0.3.3" and S.updUrl == U.url)
+check("newer release: one notification", notes == 1 and S.updNotified == "0.3.3")
+M.updResult(200, gh("v0.3.3"), false)
 check("same new release again: no second notification", notes == 1)
-M.updResult(200, gh("v0.3.3", "https://evil.example/x"), false)
+M.updResult(200, gh("v0.3.4", "https://evil.example/x"), false)
 check("bad html_url replaced by the releases page", U.url == rel and notes == 2)
 -- remind me later (7 days) / skip this version
 local now = os.time()
@@ -554,28 +554,28 @@ check("remind later: back after 7 days", M.updWanted(now + 7 * 86400 + 60) == tr
 check("remind later: alert", fake.lastAlert == M.T("upd_later"))
 S.updRemindUntil = nil
 M.updSkip()
-check("skip: this version hidden", S.updSkip == "0.3.3" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.3.3"))
-M.updResult(200, gh("v0.3.4"), false)
+check("skip: this version hidden", S.updSkip == "0.3.4" and M.updWanted() == false and fake.lastAlert == M.T("upd_skipped", "0.3.4"))
+M.updResult(200, gh("v0.3.5"), false)
 check("skip: a newer version shows again", M.updWanted() == true and notes == 3)
 -- errors are only logged; the last good answer is kept
 for _, c in ipairs({ { -1, nil, "no network" }, { 403, '{"message":"API rate limit exceeded"}', "HTTP 403" }, { 200, "<html>oops</html>", "bad JSON" },
   { 200, '{"tag_name":"nightly"}', "unreadable tag" }, { 200, '{"name":"x"}', "no tag" } }) do
   fake.lastAlert = nil
   local okc = pcall(M.updResult, c[1], c[2], false)
-  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.3.4" and notes == 3)
+  check("error (" .. c[3] .. "): no crash, result err, nothing shown", okc and U.result == "err" and fake.lastAlert == nil and U.latest == "0.3.5" and notes == 3)
 end
 M.updResult(-1, nil, true)
 check("manual check error: alert", fake.lastAlert == M.T("upd_err"))
 -- the request itself
 local got = {}
-hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.3.4")) end
+hs.http.asyncGet = function(url, headers, cb) got[#got + 1] = { url = url, headers = headers }; cb(200, gh("v0.3.5")) end
 check("auto check runs when on", M.checkUpdates(false) == true and #got == 1)
 check("request goes to the GitHub API", got[1].url == "https://api.github.com/repos/PatoSelekta/taipea/releases/latest"
   and got[1].headers["User-Agent"] == "Taipea/" .. M.VERSION .. " (update check)")
 M.cfg.checkForUpdates = false
 check("auto check skipped when off", M.checkUpdates(false) == false and #got == 1)
 fake.lastAlert = nil
-check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.3.4"))
+check("Check now works when off", M.checkUpdates(true) == true and #got == 2 and fake.lastAlert == M.T("upd_new", "0.3.5"))
 U.checking = true
 check("no second request while checking", M.checkUpdates(true) == false and #got == 2)
 U.checking = false
@@ -735,7 +735,7 @@ do
   hs.fs.attributes, M.cfg.rec, M.cfg.whisper, M.cfg.language = oldAttr, oldRec, oldWhisper, oldLang
   M.afterWhisper, M._lv = realAW, nil
   M.cfg.uiLanguage = "auto"
-  check("version 0.3.1", M.VERSION == "0.3.1")
+  check("version 0.3.2", M.VERSION == "0.3.2")
 end
 -- ---------- v0.2.8: quiet-tail trim and trailing phrase guard ----------
 do
@@ -1636,14 +1636,14 @@ do
     src:find("fabResizeDown", 1, true) and src:find("function setOp(o)", 1, true))
   check("overlayHTML has setLbl for icons-only Stop buttons",
     src:find("function setLbl(on,a,b,c)", 1, true) ~= nil)
-  check("version 0.3.1 in Lua, installer and build-app",
-    M.VERSION == "0.3.1"
+  check("version 0.3.2 in Lua, installer and build-app",
+    M.VERSION == "0.3.2"
     and (function()
       local f = io.open((arg[0]:match("^(.*)/") or ".") .. "/../install.sh"); if not f then return false end
       local s = f:read("a"); f:close()
-      return s:find('TAIPEA_VERSION="0.3.1"', 1, true) ~= nil
+      return s:find('TAIPEA_VERSION="0.3.2"', 1, true) ~= nil
     end)()
-    and src:find('local VERSION = "0.3.1"', 1, true) ~= nil)
+    and src:find('local VERSION = "0.3.2"', 1, true) ~= nil)
 
   -- Whisper output guard (after Whisper, before cleanup)
   check("whisperGuard default on", M.DEFAULTS.whisperGuard == true and M.cfg.whisperGuard ~= false)
@@ -2067,6 +2067,160 @@ do
   M.cfg.muteWhileDictating = false
   M.cfg.liveChunking = oldChunk or "adaptive"
   M._setState("idle")
+end
+
+-- ---------- v0.3.2: sentence splitter, cleanup safety net, spoken slash ----------
+do
+  local src = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/taipea.lua"):read("*a")
+  local ui = io.open((arg[0]:match("^(.*)/") or ".") .. "/../src/ui/app.html"):read("*a")
+  local function packed(s) return (s or ""):gsub("%s+", "") end
+  local function kept(t)
+    return packed(table.concat(M.splitChunks(t, 250), " ")) == packed(t)
+      and packed(table.concat(M.splitSentences(t), " ")) == packed(t)
+  end
+  local oldSlash = M.cfg.slashReplace
+
+  check("v0.3.2 helpers live on M (no extra main-chunk locals)",
+    type(M.splitSentences) == "function" and type(M.missingParts) == "function"
+    and type(M.repairCleanup) == "function" and type(M.SLASH_RULES) == "table"
+    and not src:find("\nlocal function splitSentences", 1, true)
+    and not src:find("\nlocal function missingParts", 1, true)
+    and not src:find("\nlocal function repairCleanup", 1, true))
+
+  -- the old tail matcher ([^.]+) dropped these; every character must land in a chunk
+  local ini = "Clone the repo. Then insert the .ini and the .bundle files"
+  local com = "Please go there. open selektdj.com"
+  local none = "hola mundo esto es una prueba sin puntuacion alguna"
+  local es = "Clona el repositorio. Después inserta el archivo .ini y el .bundle"
+  local trail = "Hello world. last sentence without period   "
+  check("splitter keeps trailing .ini / .bundle sentence", kept(ini)
+    and table.concat(M.splitSentences(ini), " | "):find("Then insert the .ini and the .bundle files", 1, true))
+  check("splitter keeps trailing selektdj.com sentence", kept(com)
+    and table.concat(M.splitSentences(com), " | "):find("open selektdj.com", 1, true))
+  check("splitter keeps text with no punctuation at all", kept(none) and #M.splitChunks(none) == 1)
+  check("splitter keeps Spanish trailing unpunctuated sentence with dots", kept(es)
+    and table.concat(M.splitSentences(es), " | "):find("Después inserta el archivo .ini y el .bundle", 1, true))
+  check("splitter keeps trailing unpunctuated sentence with spaces", kept(trail)
+    and table.concat(M.splitSentences(trail), " | "):find("last sentence without period", 1, true))
+  check("splitter keeps a lone unpunctuated .com line", kept("open selektdj.com"))
+  check("splitter still splits punctuated sentences",
+    #M.splitSentences("First sentence. Second sentence.") == 2)
+  check("long punctuated text still loses no words", (function()
+    local sents = {}
+    for i = 1, 60 do sents[#sents+1] = "Esta es la frase número "..i.." y tiene varias palabras para contar bien." end
+    local long = table.concat(sents, " ")
+    return kept(long) and #M.splitChunks(long, 250) >= 2
+  end)())
+
+  -- Light prompt: keep every sentence
+  check("light prompt keeps every sentence",
+    M.buildPrompt("hola", "light"):find("Keep every sentence and every part, including the last sentence", 1, true) ~= nil
+    and M.buildPrompt("hola", "light"):find("never shorten, summarize or drop anything", 1, true) ~= nil)
+
+  -- missingParts / repairCleanup (ending is short enough that Light's 60% length check still passes)
+  local dropRaw = "Please clone the repository today and review the notes with the whole team now. Then insert the bundle files"
+  local dropOut = "Please clone the repository today and review the notes with the whole team now."
+  local miss, nS = M.missingParts(dropRaw, dropOut)
+  check("missingParts: dropped ending is detected", #miss == 1 and nS == 2 and miss[1].i == 2
+    and miss[1].text:find("Then insert the bundle files", 1, true))
+  local repaired, act, nmiss = M.repairCleanup(dropRaw, dropOut, "light")
+  check("repairCleanup: appends dropped ending", act == "append" and nmiss == 1
+    and repaired:find("Please clone the repository today and review the notes with the whole team now.", 1, true)
+    and repaired:find("Then insert the bundle files.", 1, true))
+  local midRaw = "Please clone the repository today and review the notes with the whole team now. Insert bundle files. Open the website later after the meeting ends."
+  local midOut = "Please clone the repository today and review the notes with the whole team now. Open the website later after the meeting ends."
+  miss, nS = M.missingParts(midRaw, midOut)
+  check("missingParts: dropped middle sentence is detected", #miss == 1 and nS == 3 and miss[1].i == 2)
+  repaired, act, nmiss = M.repairCleanup(midRaw, midOut, "light")
+  check("repairCleanup: middle drop falls back to raw", act == "raw" and repaired == nil and nmiss == 1)
+  local fillRaw = "hola eh necesito que me mandes the report antes del viernes because el cliente lo pidió"
+  local fillOut = "Hola, necesito que me mandes the report antes del viernes because el cliente lo pidió."
+  check("missingParts: filler removal is not a drop", select(1, M.missingParts(fillRaw, fillOut))[1] == nil)
+  check("repairCleanup: filler removal stays ok", select(2, M.repairCleanup(fillRaw, fillOut, "light")) == "ok")
+  local mixRaw = "vamos a la playa because hace calor en san andres esta tarde"
+  local mixOut = "Vamos a la playa because hace calor en San Andrés esta tarde."
+  check("missingParts: mixed EN/ES is not a drop", select(1, M.missingParts(mixRaw, mixOut))[1] == nil)
+  check("repairCleanup: bullets skip the safety net",
+    select(2, M.repairCleanup(dropRaw, dropOut, "bullets")) == "ok"
+    and select(2, M.repairCleanup(dropRaw, dropOut, "formal")) == "ok")
+  local esRaw = "Clona el repositorio ahora mismo. Después inserta el archivo bundle en la carpeta"
+  local esOut = "Clona el repositorio ahora mismo."
+  miss = M.missingParts(esRaw, esOut)
+  check("missingParts: Spanish dropped ending", #miss == 1 and miss[1].text:find("Después inserta el archivo bundle", 1, true))
+
+  -- cleanText uses the safety net
+  fake.ollamaList = "NAME\ngemma4:e4b x\n"
+  M.ollamaInstalled(true)
+  M._testing = true
+  if type(M._setCancelled) == "function" then M._setCancelled(false) end
+  local got, st
+  fake.post = function() return dropOut end
+  M.cleanText(dropRaw, function(o, s) got, st = o, s end)
+  check("cleanText: dropped ending is re-added", got and got:find("Then insert the bundle files.", 1, true)
+    and st.fallbacks == 0)
+  fake.post = function() return midOut end
+  M.cleanText(midRaw, function(o, s) got, st = o, s end)
+  check("cleanText: middle drop uses raw chunk", got == midRaw and st.fallbacks == 1)
+  fake.post = function() return fillOut end
+  M.cleanText(fillRaw, function(o, s) got, st = o, s end)
+  check("cleanText: filler removal is not a fallback", got == fillOut and st.fallbacks == 0)
+  fake.post = function() return dropOut end
+  local oldStyle = M.cfg.style
+  M.cfg.style = "bullets"
+  M.cleanText(dropRaw, function(o, s) got, st = o, s end)
+  check("cleanText: bullets style does not append raw ending",
+    not (got or ""):find("Then insert the bundle files.", 1, true))
+  M.cfg.style = oldStyle
+  fake.post = nil
+  M._testing = false
+
+  -- spoken slash
+  M.cfg.slashReplace = true
+  check("slash default on", M.DEFAULTS.slashReplace == true)
+  check("slash: dev slash myapp", (M.applyWords("dev slash myapp", {})) == "dev/myapp")
+  check("slash: forward slash", (M.applyWords("dev forward slash myapp", {})) == "dev/myapp")
+  check("slash: already glued path is unchanged", (M.applyWords("dev/myapp", {})) == "dev/myapp")
+  check("slash: glue spaces around existing slash", (M.applyWords("dev / myapp", {})) == "dev/myapp")
+  check("slash + custom word", (M.applyWords("dev slash selektdev", { { heard = "selektdev", replace = "selektdev" } })) == "dev/selektdev")
+  check("slash is case-insensitive", (M.applyWords("Dev Slash Myapp", {})) == "Dev/Myapp")
+  M.cfg.slashReplace = false
+  check("slash off: word kept", (M.applyWords("dev slash myapp", {})) == "dev slash myapp")
+  check("slash off: spaces around / kept", (M.applyWords("dev / myapp", {})) == "dev / myapp")
+  M.cfg.slashReplace = true
+  local hintR = { { heard = "slash", replace = "/" }, { heard = "tai pea", replace = "Taipea" } }
+  check("hintWords skips punctuation-only replacements", table.concat(M.hintWords(hintR), ",") == "Taipea")
+  M.cfg.customWords = hintR
+  check("whisper hint skips / so Whisper cannot hallucinate it",
+    M.whisperHint() == "Taipea." and not (M.whisperHint() or ""):find("/", 1, true)
+    and M.wordsRule():find("Taipea", 1, true) ~= nil and not M.wordsRule():find("/", 1, true))
+  M.cfg.customWords = {}
+  check("no personal custom words shipped",
+    #M.DEFAULTS.customWords == 0
+    and not src:find("CathTrack", 1, true) and not src:find("ChatGPT", 1, true)
+    and not ui:find("CathTrack", 1, true))
+
+  check("slash Settings toggle EN/ES",
+    ui:find("slash:'Spoken slash'", 1, true)
+    and ui:find("slash:'Slash al dictar'", 1, true)
+    and ui:find("opts('slashReplace'", 1, true)
+    and ui:find("slash barra inclinada", 1, true)
+    and ui:find("function wordsCard()", 1, true))
+  check("slash Lua alerts EN/ES",
+    M.STR.en.slash_on:find("Spoken slash", 1, true)
+    and M.STR.es.slash_on:find("Slash al dictar", 1, true)
+    and M.STR.en.slash_off:find("OFF", 1, true)
+    and M.STR.es.slash_off:find("NO", 1, true))
+  check("slash targets use the same opts() as other toggles (60px)",
+    ui:find("opts('slashReplace',[[true,t('on')],[false,t('off')]])", 1, true)
+    and ui:find("button{min-height:60px;height:auto", 1, true) ~= nil)
+  check("handle recognizes slashReplace",
+    src:find('k=="slashReplace"', 1, true) ~= nil
+    and src:find('T("slash_on")', 1, true) ~= nil
+    and src:find("slashReplace=(cfg.slashReplace ~= false)", 1, true) ~= nil)
+  check("hintWords skips punct in source",
+    src:find('r.rep:match("[A-Za-z0-9]")', 1, true) ~= nil)
+
+  M.cfg.slashReplace = oldSlash
 end
 print(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

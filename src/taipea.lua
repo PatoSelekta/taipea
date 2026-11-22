@@ -1,5 +1,5 @@
 -- Taipea ("it types for you"): hands-free, 100% local dictation for macOS.
--- Hammerspoon module. https://selektdev.com · MIT License · v0.3.1
+-- Hammerspoon module. https://selektdev.com · MIT License · v0.3.2
 -- Data (models, settings, history, logs) lives in ~/Library/Application Support/Taipea
 require("hs.ipc")
 local HOME = os.getenv("HOME")
@@ -74,6 +74,7 @@ local DEFAULTS = {
   checkForUpdates = true,                    -- once a day, ask GitHub for the latest release (nothing is downloaded)
   updateRepo = "PatoSelekta/taipea",         -- where releases are published
   customWords = {},                          -- { {heard="select dev", replace="selektdev"}, ... } (edit in Settings)
+  slashReplace = true,                       -- "slash" / "forward slash" → "/" and glue spaces around "/"
   voiceControl = false,                      -- voice start/stop (listens for the phrases below; all on this Mac)
   startPhrases = { "Taipea escribe", "Taipea write" },
   stopPhrases = { "listo", "done", "Taipea listo" },
@@ -201,6 +202,7 @@ local NEWSTR = {
   upd_menu="⬆️ New version available: v%s", upd_new="New version available: v%s", upd_none="You have the latest version (v%s)", upd_err="Couldn't check for updates. Try again later.",
   upd_later="OK, I'll remind you in 7 days", upd_skipped="Skipped v%s", upd_note_t="Taipea v%s is available", upd_note_b="Open Taipea to see what's new.", upd_on="Update check: ON", upd_off="Update check: OFF",
   mute_on="Mute other sounds while dictating: ON", mute_off="Mute other sounds while dictating: OFF",
+  slash_on="Spoken slash: ON", slash_off="Spoken slash: OFF",
  },
  es = {
   menu_voice="Empezar/parar con la voz (di «%s»)", menu_fab="Botón flotante", menu_paste_last="Pegar otra vez el último dictado",
@@ -234,6 +236,7 @@ local NEWSTR = {
   upd_menu="⬆️ Nueva versión disponible: v%s", upd_new="Nueva versión disponible: v%s", upd_none="Tienes la última versión (v%s)", upd_err="No se pudo buscar actualizaciones. Inténtalo más tarde.",
   upd_later="Listo, te lo recuerdo en 7 días", upd_skipped="Se omitió la v%s", upd_note_t="Taipea v%s está disponible", upd_note_b="Abre Taipea para ver las novedades.", upd_on="Buscar actualizaciones: SÍ", upd_off="Buscar actualizaciones: NO",
   mute_on="Silenciar otros sonidos mientras dictas: SÍ", mute_off="Silenciar otros sonidos mientras dictas: NO",
+  slash_on="Slash al dictar: SÍ", slash_off="Slash al dictar: NO",
  },
 }
 for l, t in pairs(NEWSTR) do for k, v in pairs(t) do STR[l][k] = v end end
@@ -318,10 +321,18 @@ local function prepRules(rules)
   table.sort(R, function(a,b) return #a.w > #b.w end)
   return R
 end
+-- built-in "slash" / "forward slash" → "/"; not user custom words, and never sent to Whisper as a prompt
+M.SLASH_RULES = { { heard = "forward slash", replace = "/" }, { heard = "slash", replace = "/" } }
 -- replace whole words/phrases, ignoring case and accents; words of a phrase may be split by spaces or hyphens
 -- returns new text and the number of replacements
 local function applyWords(text, rules)
   if type(text) ~= "string" or text == "" then return text, 0 end
+  if cfg.slashReplace ~= false then
+    local merged = {}
+    for _, r in ipairs(rules or {}) do merged[#merged+1] = r end
+    for _, r in ipairs(M.SLASH_RULES) do merged[#merged+1] = r end
+    rules = merged
+  end
   local R = prepRules(rules); if #R == 0 then return text, 0 end
   local tk = tokens(text)
   local out, i, count = {}, 1, 0
@@ -344,12 +355,18 @@ local function applyWords(text, rules)
     if last then out[#out+1] = rep; count = count + 1; i = last + 1
     else out[#out+1] = tk[i].t; i = i + 1 end
   end
-  return table.concat(out), count
+  local joined = table.concat(out)
+  -- glue spaces around / so "dev slash myapp" becomes "dev/myapp"
+  if cfg.slashReplace ~= false then joined = joined:gsub("%s*/%s*", "/") end
+  return joined, count
 end
 -- the "replace with" words, once each: used as hints for Whisper and the cleanup model
+-- skip punctuation-only replacements (like "/") so they are not fed to Whisper as a prompt
 local function hintWords(rules)
   local seen, list = {}, {}
-  for _,r in ipairs(prepRules(rules)) do if not seen[r.rep] then seen[r.rep] = true; list[#list+1] = r.rep end end
+  for _,r in ipairs(prepRules(rules)) do
+    if r.rep:match("[A-Za-z0-9]") and not seen[r.rep] then seen[r.rep] = true; list[#list+1] = r.rep end
+  end
   table.sort(list)
   return list
 end
@@ -2076,7 +2093,7 @@ local function buildPrompt(raw, style)
   end
   return "You are a dictation editor. "..STYLE.light.." "..
   "CRITICAL: never translate. Every word stays in the language it was spoken in; if the speaker switches between Spanish and English mid-sentence, keep that switch exactly, including small English words like because, but, so. Never change names or places (Cartagena stays Cartagena). "..
-  "Do not add new ideas, do not answer questions in the text. Remove only filler sounds (eh, um); keep every real word, even if repeated. Output ONLY the resulting text, no quotes or comments. "..wordsRule().."\n"..
+  "Do not add new ideas, do not answer questions in the text. Remove only filler sounds (eh, um); keep every real word, even if repeated. Keep every sentence and every part, including the last sentence; never shorten, summarize or drop anything. Output ONLY the resulting text, no quotes or comments. "..wordsRule().."\n"..
   "Example input: hola eh necesito que me mandes the report antes del viernes\n"..
   "Example output: Hola, necesito que me mandes the report antes del viernes.\n"..
   "Example input: vamos a la playa because hace calor en san andres\n"..
@@ -2101,6 +2118,53 @@ local function wordOverlap(input, output)
   return hit/#O, #O
 end
 M.wordOverlap = wordOverlap
+-- split at sentence boundaries. A trailing unpunctuated part (which may contain dots
+-- like ".ini" or "selektdj.com") is kept as its own sentence, so no characters are dropped.
+function M.splitSentences(text)
+  local sentences, pos = {}, 1
+  text = text or ""
+  for sent, e in (text.." "):gmatch("(.-[%.%?!…]+[\"')%]]*)%s+()") do
+    sentences[#sentences+1] = sent
+    pos = e
+  end
+  local tail = (text.." "):sub(pos):gsub("^%s+",""):gsub("%s+$","")
+  if tail ~= "" then sentences[#sentences+1] = tail end
+  return sentences
+end
+-- sentences of the raw text that cleanup dropped: a sentence with 3+ content words counts as
+-- missing when fewer than half of its content words appear anywhere in the output.
+-- returns list of {i=, text=} and the total number of raw sentences
+function M.missingParts(input, output)
+  local O = {}; for _,w in ipairs(contentWords(output or "")) do O[w]=true end
+  local sents = M.splitSentences(input or "")
+  if #sents == 0 and (input or ""):match("%S") then sents = { input } end
+  local miss = {}
+  for i, sent in ipairs(sents) do
+    local W = contentWords(sent)
+    if #W >= 3 then
+      local hit = 0; for _,w in ipairs(W) do if O[w] then hit = hit+1 end end
+      if hit/#W < 0.5 then miss[#miss+1] = { i=i, text=(sent:gsub("^%s+",""):gsub("%s+$","")) } end
+    end
+  end
+  return miss, #sents
+end
+-- Light / Paragraphs: if cleanup dropped only the ending, put the raw ending back;
+-- if it dropped a middle part, return nil so the caller keeps the raw chunk.
+-- returns outputOrNil, action ("ok"|"append"|"raw"), nMissing
+function M.repairCleanup(input, output, sty)
+  if not output or (sty ~= "light" and sty ~= "paragraphs") then return output, "ok", 0 end
+  local miss, n = M.missingParts(input, output)
+  if #miss == 0 then return output, "ok", 0 end
+  local tail = true
+  for k, m in ipairs(miss) do if m.i ~= n - #miss + k then tail = false end end
+  if tail then
+    local add = {}; for _, m in ipairs(miss) do add[#add+1] = m.text end
+    local t = table.concat(add, " "); if not t:match("[%.%?!]$") then t = t.."." end
+    t = t:gsub("^%l", string.upper)
+    return (output:gsub("%s+$","")).." "..t, "append", #miss
+  end
+  return nil, "raw", #miss
+end
 -- returns nil if output is acceptable, else a reason string
 -- light: must keep >=60% of the characters (it only removes fillers)
 -- paragraphs: >=50%; bullets/formal: >=25% (they condense/rephrase) and <=3x length;
@@ -2148,11 +2212,7 @@ M.checkOutput, M.normBullets, M.stripSalutation = checkOutput, normBullets, stri
 -- split long text at sentence boundaries into ~250-word chunks
 local function splitChunks(text, maxWords)
   maxWords = maxWords or 250
-  local sentences = {}
-  for sent in (text.." "):gmatch("(.-[%.%?!…]+[\"')%]]*)%s+") do table.insert(sentences, sent) end
-  -- trailing text without final punctuation
-  local tail = text:match("[%.%?!…][\"')%]]*%s+([^%.%?!…]+)$") or (#sentences==0 and text or nil)
-  if tail and not tail:match("^%s*$") then table.insert(sentences, tail) end
+  local sentences = M.splitSentences(text)
   local chunks, cur, n = {}, {}, 0
   local function flush() if #cur>0 then table.insert(chunks, table.concat(cur, " ")); cur, n = {}, 0 end end
   for _,sent in ipairs(sentences) do
@@ -2205,6 +2265,16 @@ local function cleanText(raw, done, progress, style)
         if sty=="formal" then out = stripSalutation(c, out) end
         local bad = checkOutput(c, out, sty)
         if bad then log("cleanup chunk "..i.." rejected ("..bad.."), using raw"); stats.fallbacks = stats.fallbacks+1; out=nil end
+        -- never drop parts: if cleanup lost the ending, put the raw ending back; if it lost a middle part, use raw
+        if out then
+          local repaired, act, nmiss = M.repairCleanup(c, out, sty)
+          if act == "append" then
+            log("cleanup chunk "..i.." dropped "..nmiss.." ending sentence(s), re-added raw ending")
+            out = repaired
+          elseif act == "raw" then
+            log("cleanup chunk "..i.." dropped "..nmiss.." sentence(s) in the middle, using raw"); stats.fallbacks = stats.fallbacks+1; out=nil
+          end
+        end
       end
       if not out or out=="" then if code~=200 then stats.failed=stats.failed+1 end; out = c end
       outs[i] = out
@@ -3394,7 +3464,7 @@ pushState = function()
      hideFullscreen=(cfg.hideFullscreen~=false), hideApps=cfg.hideApps, floatingTheme=fabTheme().id, escStop=(cfg.escStop~=false), micKey=(cfg.micKey==true),
      inputDevice=(cfg.inputDevice or ""), inputDeviceName=(cfg.inputDeviceName or ""),
      fabSize=M.fabDiam(), fabSizeCustom=((tonumber(cfg.fabSize) or 0) > 0), fabMin=FABG.MIN, fabMax=FABG.MAX, fabOpacity=math.floor(M.fabOp() * 100 + 0.5), fabLabels=(cfg.fabLabels ~= false),
-     whisperGuard=(cfg.whisperGuard ~= false), muteWhileDictating=(cfg.muteWhileDictating==true),
+     whisperGuard=(cfg.whisperGuard ~= false), slashReplace=(cfg.slashReplace ~= false), muteWhileDictating=(cfg.muteWhileDictating==true),
      customBg=(isHex(cfg.customBg) and cfg.customBg or DEFAULTS.customBg), customMic=(isHex(cfg.customMic) and cfg.customMic or DEFAULTS.customMic), customAccent=(isHex(cfg.customAccent) and cfg.customAccent or DEFAULTS.customAccent) },
      look=look, perm={ ax=M.permAx, mic=M.micWarn, axPane=axEn, axPaneEs=axEs },
      mics=mics, micDefault=M.micDefaultName(), micActive=M.micActive(),
@@ -3524,6 +3594,7 @@ function M.handle(a)
     elseif k=="fabOpacity" then setOpt(k, math.max(40, math.min(100, math.floor((tonumber(v) or 100) + 0.5)))); M.fabUpdate(); pushState()
     elseif k=="fabLabels" then setOpt(k, v and true or false); hideLabel(); M._satLbl = nil; M.ovLbl(); pushState()
     elseif k=="whisperGuard" then setOpt(k, v and true or false); pushState()
+    elseif k=="slashReplace" then setOpt(k, v and true or false); hs.alert.show(cfg.slashReplace and T("slash_on") or T("slash_off"))
     elseif k=="muteWhileDictating" then setOpt(k, v and true or false); hs.alert.show(cfg.muteWhileDictating and T("mute_on") or T("mute_off"))
     elseif k=="checkForUpdates" then setOpt(k, v and true or false); hs.alert.show(v and T("upd_on") or T("upd_off")); if v then M.checkUpdates(false) end; pushState()
     elseif k=="startPhrases" or k=="stopPhrases" then
@@ -3657,7 +3728,7 @@ end)
 -- if it is newer than VERSION, shows a banner in the window, a menu item and one notification per
 -- version. Nothing is downloaded or run: the button only opens the GitHub release page. Errors are
 -- only logged. Turn it off in Settings › Updates or with checkForUpdates = false in config.lua.
-local VERSION = "0.3.1"
+local VERSION = "0.3.2"
 M.VERSION = VERSION
 local function parseVer(s)
   if type(s) ~= "string" then return nil end
