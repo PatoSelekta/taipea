@@ -83,6 +83,9 @@ return {
   -- Custom words: fixed after transcription and after cleanup (whole words, any case/accents).
   -- Easier to edit in Settings › Custom words.
   -- customWords = { { heard = "select dev", replace = "selektdev" } },
+  -- slashReplace = true,                -- "slash" / "forward slash" → "/"; glue spaces around "/"
+  --                                     -- (Settings › Custom words). Punctuation-only replacements
+  --                                     -- are not sent to Whisper as --prompt hints.
 
   -- Voice start / stop (everything runs on this Mac; see the README)
   -- voiceControl = false,               -- true = listen for the phrases below

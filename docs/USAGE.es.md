@@ -248,6 +248,8 @@ resumen de una línea. El buscador encuentra cualquier ajuste por nombre o palab
 ### Otros ajustes
 
 - **Palabras propias:** por ejemplo, escribir "selektdev" cuando Whisper oye "select dev".
+  **Slash al dictar** (activado de fábrica): decir "slash" o "forward slash" escribe `/` y
+  se quitan los espacios alrededor de `/` ("dev slash myapp" → `dev/myapp`).
 - **Corrección (gramática):** Sí, o No (original). **Estilo:** Ligero, Párrafos, Viñetas o
   Formal.
 - **Idioma del dictado:** Automático, English o Español. Automático también reconoce unos

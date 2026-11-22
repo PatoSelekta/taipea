@@ -404,6 +404,9 @@ Settings › Custom words has one big row per word: **Heard** (what Whisper writ
 **Delete**; edits save when you leave a box. Replacements run after transcription and
 again after cleanup, match whole words only, and ignore capitals and accents
 ("Select Dev", "select-dev" and "sélect dev" all become "selektdev").
+**Spoken slash** is on by default: saying "slash" or "forward slash" writes `/` and
+spaces around `/` are removed ("dev slash myapp" → `dev/myapp`). Turn it off to keep
+the word "slash". Punctuation-only replacements are not sent to Whisper as hints.
 
 ### Recovery
 
@@ -452,6 +455,7 @@ tab, or in `config.lua` (every option, with its default, is listed in `config.ex
 | Hide floating button in these apps | none | any open app |
 | Voice start / stop | Off | On / Off; start phrases "Taipea escribe", "Taipea write"; stop phrases "listo", "done", "Taipea listo" |
 | Custom words | none | any "heard → replace with" pairs |
+| Spoken slash | On | On / Off (`slashReplace` in config.lua) |
 | Open at login | On | On / Off |
 | Show window at login | Off | On / Off |
 | Auto-stop on silence | Off (3 s pause, 1.5 % threshold when on) | On / Off; 2, 3, 5 or 8 s; 0.5–5 % |

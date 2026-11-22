@@ -235,6 +235,8 @@ finds any setting by name or keyword. **‹ All settings** goes back to the tile
 ### Other settings
 
 - **Custom words:** for example, write "selektdev" when Whisper hears "select dev".
+  **Spoken slash** (on by default): saying "slash" or "forward slash" writes `/` and
+  spaces around `/` are removed ("dev slash myapp" → `dev/myapp`).
 - **Cleanup (grammar fix):** On, or Off (raw). **Style:** Light fix, Paragraphs, Bullet
   points or Formal.
 - **Dictation language:** Auto, English or Español. Auto also recognizes about 99 other
